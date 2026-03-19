@@ -1,157 +1,173 @@
 /**
- * Dice Link Companion Module for Foundry VTT v13
- * 
- * When activated: Overrides all dice to use manual input
- * When deactivated: Restores original digital roll settings
+ * Dice Link Companion - Foundry VTT v13
+ *
+ * Adds a D20 toggle button to the left-hand scene controls.
+ * Click once to switch all dice to manual input.
+ * Click again to restore digital (automatic) rolls.
  */
 
 const MODULE_ID = "dice-link-companion";
+const DICE_TYPES = ["d4", "d6", "d8", "d10", "d12", "d20", "d100"];
 
-// Store original dice fulfillment settings
-let originalFulfillmentSettings = null;
-let originalDefaultMethod = null;
+// ------------------------------------------------------------------ helpers --
 
 /**
- * Save the current dice fulfillment configuration
+ * Read the current per-die fulfillment method from Foundry's core setting.
+ * Returns the raw object stored under "core" > "diceConfiguration".
  */
-function saveOriginalSettings() {
-  if (originalFulfillmentSettings === null) {
-    // Deep clone the current dice fulfillment settings
-    originalFulfillmentSettings = foundry.utils.deepClone(CONFIG.Dice.fulfillment.dice);
-    originalDefaultMethod = CONFIG.Dice.fulfillment.defaultMethod;
-    
-    console.log(`${MODULE_ID} | Saved original dice fulfillment settings`);
+function getCoreConfig() {
+  try {
+    return foundry.utils.deepClone(game.settings.get("core", "diceConfiguration") ?? {});
+  } catch {
+    return {};
   }
 }
 
 /**
- * Override all dice to manual input
+ * Overwrite Foundry's core dice configuration AND the live CONFIG object.
  */
-function enableManualDice() {
-  saveOriginalSettings();
-  
-  // Set the default method to manual
-  CONFIG.Dice.fulfillment.defaultMethod = "manual";
-  
-  // Override each configured die type to manual
-  const diceTypes = ["d4", "d6", "d8", "d10", "d12", "d20", "d100"];
-  
-  for (const die of diceTypes) {
-    if (!CONFIG.Dice.fulfillment.dice[die]) {
-      CONFIG.Dice.fulfillment.dice[die] = {};
+async function setCoreConfig(cfg) {
+  // Update the persistent setting
+  await game.settings.set("core", "diceConfiguration", cfg);
+
+  // Reflect the change immediately in the live CONFIG without a reload
+  for (const die of DICE_TYPES) {
+    const method = cfg[die] ?? "";
+    if (CONFIG.Dice.fulfillment.dice[die] !== undefined) {
+      CONFIG.Dice.fulfillment.dice[die] = method;
+    } else {
+      CONFIG.Dice.fulfillment.dice[die] = method;
     }
-    CONFIG.Dice.fulfillment.dice[die].method = "manual";
   }
-  
-  // Also save to user settings for persistence across sessions
-  const currentSettings = game.settings.get("core", "diceConfiguration") || {};
-  const newSettings = foundry.utils.deepClone(currentSettings);
-  
-  for (const die of diceTypes) {
-    if (!newSettings[die]) {
-      newSettings[die] = {};
-    }
-    newSettings[die].method = "manual";
+
+  // v13 stores the default method separately
+  if ("defaultMethod" in cfg) {
+    CONFIG.Dice.fulfillment.defaultMethod = cfg.defaultMethod;
   }
-  
-  // Set default method in settings
-  newSettings.defaultMethod = "manual";
-  
-  game.settings.set("core", "diceConfiguration", newSettings);
-  
-  console.log(`${MODULE_ID} | Manual dice input ENABLED for all dice types`);
-  ui.notifications.info("Dice Link Companion: Manual input enabled for all dice");
 }
 
-/**
- * Restore original dice fulfillment settings (digital roll)
- */
-function disableManualDice() {
-  if (originalFulfillmentSettings === null) {
-    // If no saved settings, set to digital (empty/default)
-    CONFIG.Dice.fulfillment.defaultMethod = "";
-    
-    const diceTypes = ["d4", "d6", "d8", "d10", "d12", "d20", "d100"];
-    for (const die of diceTypes) {
-      if (CONFIG.Dice.fulfillment.dice[die]) {
-        CONFIG.Dice.fulfillment.dice[die].method = "";
-      }
-    }
-    
-    // Clear the core settings
-    game.settings.set("core", "diceConfiguration", {});
+// ------------------------------------------------------------------- toggle --
+
+async function enableManualDice() {
+  // Snapshot the current config so we can restore it later
+  const snapshot = getCoreConfig();
+  await game.settings.set(MODULE_ID, "snapshot", JSON.stringify(snapshot));
+
+  // Build a new config that sets every die to manual
+  const cfg = {};
+  for (const die of DICE_TYPES) {
+    cfg[die] = "manual";
+  }
+  cfg.defaultMethod = "manual";
+
+  await setCoreConfig(cfg);
+  await game.settings.set(MODULE_ID, "enabled", true);
+
+  ui.notifications.info(
+    game.i18n.localize("DICE_LINK_COMPANION.Notify.Enabled")
+  );
+}
+
+async function disableManualDice() {
+  // Restore the snapshot taken when we enabled manual mode
+  let restored = {};
+  try {
+    const raw = game.settings.get(MODULE_ID, "snapshot");
+    if (raw) restored = JSON.parse(raw);
+  } catch { /* snapshot was empty or corrupt – fall back to defaults */ }
+
+  // If there was no meaningful snapshot, default to empty (digital roll)
+  await setCoreConfig(restored);
+  await game.settings.set(MODULE_ID, "enabled", false);
+
+  ui.notifications.info(
+    game.i18n.localize("DICE_LINK_COMPANION.Notify.Disabled")
+  );
+}
+
+async function toggleManualDice() {
+  const isEnabled = game.settings.get(MODULE_ID, "enabled");
+  if (isEnabled) {
+    await disableManualDice();
   } else {
-    // Restore saved settings
-    CONFIG.Dice.fulfillment.dice = foundry.utils.deepClone(originalFulfillmentSettings);
-    CONFIG.Dice.fulfillment.defaultMethod = originalDefaultMethod || "";
-    
-    // Restore core settings
-    const restoredSettings = foundry.utils.deepClone(originalFulfillmentSettings);
-    restoredSettings.defaultMethod = originalDefaultMethod || "";
-    game.settings.set("core", "diceConfiguration", restoredSettings);
+    await enableManualDice();
   }
-  
-  console.log(`${MODULE_ID} | Manual dice input DISABLED - restored digital roll`);
-  ui.notifications.info("Dice Link Companion: Restored to digital roll");
+
+  // Re-render the controls so the active state of the button updates
+  ui.controls.render();
 }
 
+// ----------------------------------------------------------- scene controls --
+
 /**
- * Module initialization
+ * Inject a "Dice Link Companion" toggle into the Token layer controls
+ * (first group in the left-hand bar, always visible on the canvas).
  */
-Hooks.once("init", () => {
-  console.log(`${MODULE_ID} | Initializing Dice Link Companion module`);
-  
-  // Register module setting for enable/disable toggle
-  game.settings.register(MODULE_ID, "enabled", {
-    name: "DICE_LINK_COMPANION.Settings.Enabled.Name",
-    hint: "DICE_LINK_COMPANION.Settings.Enabled.Hint",
-    scope: "client",
-    config: true,
-    type: Boolean,
-    default: true,
-    onChange: (value) => {
-      if (value) {
-        enableManualDice();
-      } else {
-        disableManualDice();
+Hooks.on("getSceneControlButtons", (controls) => {
+  // Only GMs should be able to toggle the dice mode
+  if (!game.user.isGM) return;
+
+  const isEnabled = game.settings.get(MODULE_ID, "enabled");
+
+  // Add our button as a top-level control group so it sits in the sidebar
+  controls.push({
+    name: MODULE_ID,
+    title: game.i18n.localize("DICE_LINK_COMPANION.Button.Title"),
+    icon: "fa-solid fa-dice-d20",
+    layer: "controls",           // v13: required field
+    activeTool: "toggle",
+    tools: [
+      {
+        name: "toggle",
+        title: isEnabled
+          ? game.i18n.localize("DICE_LINK_COMPANION.Button.TitleActive")
+          : game.i18n.localize("DICE_LINK_COMPANION.Button.Title"),
+        icon: "fa-solid fa-dice-d20",
+        toggle: true,
+        active: isEnabled,
+        onClick: () => toggleManualDice()
       }
-    }
+    ]
   });
 });
 
-/**
- * Apply settings once the game is ready
- */
+// -------------------------------------------------------------------- init ---
+
+Hooks.once("init", () => {
+  // Persist enabled state across sessions
+  game.settings.register(MODULE_ID, "enabled", {
+    scope: "world",
+    config: false,
+    type: Boolean,
+    default: false
+  });
+
+  // Store a snapshot of the pre-manual config so we can restore it
+  game.settings.register(MODULE_ID, "snapshot", {
+    scope: "world",
+    config: false,
+    type: String,
+    default: ""
+  });
+});
+
 Hooks.once("ready", () => {
-  console.log(`${MODULE_ID} | Module ready`);
-  
-  // Check if the module should be enabled
+  // Restore state from the previous session on load
   const isEnabled = game.settings.get(MODULE_ID, "enabled");
-  
   if (isEnabled) {
-    enableManualDice();
-  } else {
-    console.log(`${MODULE_ID} | Module is disabled - using default dice settings`);
+    // Re-apply without overwriting the snapshot
+    const cfg = {};
+    for (const die of DICE_TYPES) cfg[die] = "manual";
+    cfg.defaultMethod = "manual";
+    setCoreConfig(cfg);
   }
 });
 
-/**
- * Handle module deactivation via Module Management
- * This hook fires when the user disables the module
- */
-Hooks.once("closeModuleManagement", () => {
-  // Check if our module is being disabled
-  const activeModules = game.modules.filter(m => m.active);
-  const isStillActive = activeModules.some(m => m.id === MODULE_ID);
-  
-  if (!isStillActive) {
-    disableManualDice();
-  }
-});
+// ---------------------------------------------------------------- public API -
 
-// Export functions for external use if needed
 globalThis.DiceLinkCompanion = {
   enable: enableManualDice,
   disable: disableManualDice,
+  toggle: toggleManualDice,
   isEnabled: () => game.settings.get(MODULE_ID, "enabled")
 };

@@ -1,10 +1,12 @@
 {
   "DICE_LINK_COMPANION": {
-    "Settings": {
-      "Enabled": {
-        "Name": "Enable Dice Link Companion",
-        "Hint": "When enabled, all dice rolls will require manual input. When disabled, dice will use digital (automatic) rolls."
-      }
+    "Button": {
+      "Title": "Dice Link Companion: Manual OFF",
+      "TitleActive": "Dice Link Companion: Manual ON"
+    },
+    "Notify": {
+      "Enabled": "Dice Link Companion: Manual dice input ENABLED",
+      "Disabled": "Dice Link Companion: Restored to digital roll"
     }
   }
 }
