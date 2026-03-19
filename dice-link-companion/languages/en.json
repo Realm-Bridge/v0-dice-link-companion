@@ -1,12 +1,33 @@
 {
   "DICE_LINK_COMPANION": {
     "Button": {
-      "Title": "Dice Link Companion: Manual OFF",
-      "TitleActive": "Dice Link Companion: Manual ON"
+      "Title": "Dice Link Companion",
+      "TitleRequest": "Request Manual Dice",
+      "TitleActive": "Manual Dice Active - Click to Switch to Digital",
+      "TitleForced": "Dice Mode Forced by GM"
     },
     "Notify": {
-      "Enabled": "Dice Link Companion: Manual dice input ENABLED",
-      "Disabled": "Dice Link Companion: Restored to digital roll"
+      "RequestSent": "Manual dice request sent to GM for approval",
+      "SwitchedToDigital": "Switched to digital roll mode",
+      "SwitchedToManual": "Manual dice mode activated",
+      "GMForceAll": "GM has set all players to manual dice mode",
+      "RequestWarning": "Manual dice is forced globally by the GM",
+      "DigitalWarning": "Digital dice is forced globally by the GM"
+    },
+    "Panel": {
+      "Title": "Dice Link Companion",
+      "GlobalOverride": "Global Override",
+      "Individual": "Individual Control",
+      "ForceAllManual": "Force All Manual",
+      "ForceAllDigital": "Force All Digital",
+      "YourMode": "Your Mode",
+      "ToggleButton": "Toggle Your Dice Mode",
+      "PendingRequests": "Pending Requests",
+      "PlayerModes": "Player Modes",
+      "Approve": "Approve",
+      "Deny": "Deny",
+      "Revoke": "Revoke",
+      "NoPlayers": "No players connected"
     }
   }
 }

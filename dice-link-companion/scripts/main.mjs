@@ -1,20 +1,19 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- *
- * Adds a D20 toggle button to the left-hand scene controls.
- * Click once to switch all dice to manual input.
- * Click again to restore digital (automatic) rolls.
+ * 
+ * A player-GM dice mode management system with approval workflow.
+ * - GMs can toggle their own mode, set global override, and manage player requests
+ * - Players can request manual mode (GM approval needed) or switch back to digital
+ * - Accessed via D20 button in token controls on the canvas
  */
 
 const MODULE_ID = "dice-link-companion";
 const DICE_TYPES = ["d4", "d6", "d8", "d10", "d12", "d20", "d100"];
 
-// ------------------------------------------------------------------ helpers --
+// ============================================================================
+// HELPERS
+// ============================================================================
 
-/**
- * Read the current per-die fulfillment method from Foundry's core setting.
- * Returns the raw object stored under "core" > "diceConfiguration".
- */
 function getCoreConfig() {
   try {
     return foundry.utils.deepClone(game.settings.get("core", "diceConfiguration") ?? {});
@@ -23,151 +22,390 @@ function getCoreConfig() {
   }
 }
 
-/**
- * Overwrite Foundry's core dice configuration AND the live CONFIG object.
- */
 async function setCoreConfig(cfg) {
-  // Update the persistent setting
   await game.settings.set("core", "diceConfiguration", cfg);
-
-  // Reflect the change immediately in the live CONFIG without a reload
   for (const die of DICE_TYPES) {
     const method = cfg[die] ?? "";
-    if (CONFIG.Dice.fulfillment.dice[die] !== undefined) {
-      CONFIG.Dice.fulfillment.dice[die] = method;
-    } else {
-      CONFIG.Dice.fulfillment.dice[die] = method;
-    }
+    CONFIG.Dice.fulfillment.dice[die] = method;
   }
-
-  // v13 stores the default method separately
   if ("defaultMethod" in cfg) {
     CONFIG.Dice.fulfillment.defaultMethod = cfg.defaultMethod;
   }
 }
 
-// ------------------------------------------------------------------- toggle --
-
-async function enableManualDice() {
-  // Snapshot the current config so we can restore it later
-  const snapshot = getCoreConfig();
-  await game.settings.set(MODULE_ID, "snapshot", JSON.stringify(snapshot));
-
-  // Build a new config that sets every die to manual
+// Apply manual dice config
+async function applyManualDice() {
   const cfg = {};
-  for (const die of DICE_TYPES) {
-    cfg[die] = "manual";
-  }
+  for (const die of DICE_TYPES) cfg[die] = "manual";
   cfg.defaultMethod = "manual";
-
   await setCoreConfig(cfg);
-  await game.settings.set(MODULE_ID, "enabled", true);
-
-  ui.notifications.info(
-    game.i18n.localize("DICE_LINK_COMPANION.Notify.Enabled")
-  );
 }
 
-async function disableManualDice() {
-  // Restore the snapshot taken when we enabled manual mode
-  let restored = {};
-  try {
-    const raw = game.settings.get(MODULE_ID, "snapshot");
-    if (raw) restored = JSON.parse(raw);
-  } catch { /* snapshot was empty or corrupt – fall back to defaults */ }
-
-  // If there was no meaningful snapshot, default to empty (digital roll)
-  await setCoreConfig(restored);
-  await game.settings.set(MODULE_ID, "enabled", false);
-
-  ui.notifications.info(
-    game.i18n.localize("DICE_LINK_COMPANION.Notify.Disabled")
-  );
+// Apply digital dice config
+async function applyDigitalDice() {
+  await setCoreConfig({});
 }
 
-async function toggleManualDice() {
-  const isEnabled = game.settings.get(MODULE_ID, "enabled");
-  if (isEnabled) {
-    await disableManualDice();
-  } else {
-    await enableManualDice();
+// ============================================================================
+// PLAYER REQUEST & MODE MANAGEMENT
+// ============================================================================
+
+async function requestManualMode() {
+  const globalOverride = game.settings.get(MODULE_ID, "globalOverride");
+  
+  if (globalOverride === "forceAllManual") {
+    ui.notifications.warn("Manual dice is globally forced by the GM.");
+    return;
+  }
+  if (globalOverride === "forceAllDigital") {
+    ui.notifications.warn("Digital dice is globally forced by the GM.");
+    return;
   }
 
-  // Re-render the controls so the active state of the button updates
+  // Send request to GM via socket
+  game.socket.emit(`module.${MODULE_ID}`, {
+    action: "playerRequestManual",
+    playerId: game.user.id,
+    playerName: game.user.name
+  });
+
+  ui.notifications.info("Manual dice request sent to GM for approval.");
+}
+
+async function switchToDigitalMode() {
+  const globalOverride = game.settings.get(MODULE_ID, "globalOverride");
+  
+  if (globalOverride === "forceAllManual") {
+    ui.notifications.warn("Manual dice is globally forced by the GM.");
+    return;
+  }
+
+  // Players can always switch back to digital without GM approval
+  await game.settings.set(MODULE_ID, `playerMode_${game.user.id}`, "digital");
+  await applyDigitalDice();
+  ui.notifications.info("Switched to digital roll mode.");
   ui.controls.render();
 }
 
-// ----------------------------------------------------------- scene controls --
+// ============================================================================
+// SOCKET HANDLERS (GM-only for most actions)
+// ============================================================================
 
-/**
- * Inject a "Dice Link Companion" toggle into the Token layer controls
- * (first group in the left-hand bar, always visible on the canvas).
- * 
- * In v13, controls is a Record object, not an array.
- * Access token controls via controls.tokens.tools
- */
-Hooks.on("getSceneControlButtons", (controls) => {
-  // Only GMs should be able to toggle the dice mode
-  if (!game.user.isGM) return;
+Hooks.once("socketlib.ready", () => {
+  game.socket.on(`module.${MODULE_ID}`, async (data) => {
+    if (!game.user.isGM) return;
 
-  const isEnabled = game.settings.get(MODULE_ID, "enabled");
+    if (data.action === "playerRequestManual") {
+      // Store pending request
+      const pending = game.settings.get(MODULE_ID, "pendingRequests");
+      if (!pending.some(req => req.playerId === data.playerId)) {
+        pending.push({ playerId: data.playerId, playerName: data.playerName });
+        await game.settings.set(MODULE_ID, "pendingRequests", pending);
+      }
 
-  // v13: controls is a Record - access tokens group directly
-  if (!controls.tokens?.tools) return;
-
-  // Add our D20 button to the Token controls group
-  // The key must match the name property
-  controls.tokens.tools.diceLinkToggle = {
-    name: "diceLinkToggle",
-    title: isEnabled
-      ? game.i18n.localize("DICE_LINK_COMPANION.Button.TitleActive")
-      : game.i18n.localize("DICE_LINK_COMPANION.Button.Title"),
-    icon: "fa-solid fa-dice-d20",
-    order: Object.keys(controls.tokens.tools).length,
-    toggle: true,
-    active: isEnabled,
-    visible: game.user.isGM,
-    onChange: () => toggleManualDice()
-  };
-});
-
-// -------------------------------------------------------------------- init ---
-
-Hooks.once("init", () => {
-  // Persist enabled state across sessions
-  game.settings.register(MODULE_ID, "enabled", {
-    scope: "world",
-    config: false,
-    type: Boolean,
-    default: false
-  });
-
-  // Store a snapshot of the pre-manual config so we can restore it
-  game.settings.register(MODULE_ID, "snapshot", {
-    scope: "world",
-    config: false,
-    type: String,
-    default: ""
+      ui.notifications.warn(
+        `${data.playerName} requested manual dice mode. Check the Dice Link panel.`,
+        { permanent: false }
+      );
+    }
   });
 });
 
+// Fallback if socketlib isn't available
 Hooks.once("ready", () => {
-  // Restore state from the previous session on load
-  const isEnabled = game.settings.get(MODULE_ID, "enabled");
-  if (isEnabled) {
-    // Re-apply without overwriting the snapshot
-    const cfg = {};
-    for (const die of DICE_TYPES) cfg[die] = "manual";
-    cfg.defaultMethod = "manual";
-    setCoreConfig(cfg);
+  if (!game.socket.emit) {
+    game.socket.emit = () => {};
   }
 });
 
-// ---------------------------------------------------------------- public API -
+// ============================================================================
+// GM MANAGEMENT PANEL (ApplicationV2)
+// ============================================================================
+
+class DiceLinkCompanionPanel extends foundry.applications.api.ApplicationV2 {
+  constructor(options = {}) {
+    super(options);
+    this.pendingRequests = [];
+    this.playerModes = {};
+  }
+
+  static DEFAULT_OPTIONS = {
+    id: "dice-link-companion-panel",
+    classes: ["dice-link-companion"],
+    tag: "div",
+    window: { title: "Dice Link Companion", icon: "fa-solid fa-dice-d20" },
+    position: { width: 400, height: 500 }
+  };
+
+  async _prepareContext() {
+    const globalOverride = game.settings.get(MODULE_ID, "globalOverride");
+    const pendingRequests = game.settings.get(MODULE_ID, "pendingRequests");
+    const gmMode = game.settings.get(MODULE_ID, `playerMode_${game.user.id}`);
+
+    const players = [];
+    for (const user of game.users) {
+      if (user.isGM || user.isSelf) continue;
+      const mode = game.settings.get(MODULE_ID, `playerMode_${user.id}`) || "digital";
+      players.push({
+        id: user.id,
+        name: user.name,
+        mode,
+        hasPending: pendingRequests.some(req => req.playerId === user.id),
+        canRevoke: mode === "manual"
+      });
+    }
+
+    return {
+      globalOverride,
+      gmMode,
+      players,
+      pendingRequests,
+      isGM: game.user.isGM
+    };
+  }
+
+  async _renderHTML(context, options) {
+    const html = `
+      <div class="dlc-panel">
+        <div class="dlc-section">
+          <h3>Global Override</h3>
+          <select id="dlc-global-override" class="dlc-select">
+            <option value="individual" ${context.globalOverride === "individual" ? "selected" : ""}>Individual Control</option>
+            <option value="forceAllManual" ${context.globalOverride === "forceAllManual" ? "selected" : ""}>Force All Manual</option>
+            <option value="forceAllDigital" ${context.globalOverride === "forceAllDigital" ? "selected" : ""}>Force All Digital</option>
+          </select>
+        </div>
+
+        <div class="dlc-section">
+          <h3>Your Mode: <span class="dlc-mode-badge ${context.gmMode === "manual" ? "manual" : "digital"}">${context.gmMode === "manual" ? "Manual" : "Digital"}</span></h3>
+          <button id="dlc-toggle-own" class="dlc-button">Toggle Your Dice Mode</button>
+        </div>
+
+        ${context.pendingRequests.length > 0 ? `
+          <div class="dlc-section dlc-pending">
+            <h3>Pending Requests (${context.pendingRequests.length})</h3>
+            ${context.pendingRequests.map(req => `
+              <div class="dlc-player-row">
+                <span>${req.playerName}</span>
+                <div class="dlc-buttons">
+                  <button class="dlc-btn-small dlc-approve" data-player-id="${req.playerId}">Approve</button>
+                  <button class="dlc-btn-small dlc-deny" data-player-id="${req.playerId}">Deny</button>
+                </div>
+              </div>
+            `).join("")}
+          </div>
+        ` : ""}
+
+        <div class="dlc-section">
+          <h3>Player Modes</h3>
+          ${context.players.length > 0 ? context.players.map(player => `
+            <div class="dlc-player-row">
+              <span>${player.name} - <span class="dlc-mode-badge ${player.mode === "manual" ? "manual" : "digital"}">${player.mode === "manual" ? "Manual" : "Digital"}</span></span>
+              <div class="dlc-buttons">
+                ${player.canRevoke ? `<button class="dlc-btn-small dlc-revoke" data-player-id="${player.id}">Revoke</button>` : ""}
+              </div>
+            </div>
+          `).join("") : "<p>No players connected.</p>"}
+        </div>
+      </div>
+    `;
+    return html;
+  }
+
+  _attachListeners(html) {
+    // Global override dropdown
+    html.querySelector("#dlc-global-override")?.addEventListener("change", async (e) => {
+      await game.settings.set(MODULE_ID, "globalOverride", e.target.value);
+      
+      if (e.target.value === "forceAllManual") {
+        await applyManualDice();
+      } else if (e.target.value === "forceAllDigital") {
+        await applyDigitalDice();
+      }
+      
+      this.render();
+    });
+
+    // Toggle own mode
+    html.querySelector("#dlc-toggle-own")?.addEventListener("click", async () => {
+      const currentMode = game.settings.get(MODULE_ID, `playerMode_${game.user.id}`) || "digital";
+      const newMode = currentMode === "manual" ? "digital" : "manual";
+      
+      await game.settings.set(MODULE_ID, `playerMode_${game.user.id}`, newMode);
+      
+      if (newMode === "manual") {
+        await applyManualDice();
+      } else {
+        await applyDigitalDice();
+      }
+      
+      this.render();
+      ui.controls.render();
+    });
+
+    // Approve pending requests
+    html.querySelectorAll(".dlc-approve").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        const playerId = e.target.dataset.playerId;
+        await game.settings.set(MODULE_ID, `playerMode_${playerId}`, "manual");
+        
+        let pending = game.settings.get(MODULE_ID, "pendingRequests");
+        pending = pending.filter(req => req.playerId !== playerId);
+        await game.settings.set(MODULE_ID, "pendingRequests", pending);
+        
+        ui.notifications.info(`Approved manual dice for ${game.users.get(playerId)?.name}.`);
+        this.render();
+      });
+    });
+
+    // Deny pending requests
+    html.querySelectorAll(".dlc-deny").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        const playerId = e.target.dataset.playerId;
+        
+        let pending = game.settings.get(MODULE_ID, "pendingRequests");
+        pending = pending.filter(req => req.playerId !== playerId);
+        await game.settings.set(MODULE_ID, "pendingRequests", pending);
+        
+        ui.notifications.info(`Denied manual dice for ${game.users.get(playerId)?.name}.`);
+        this.render();
+      });
+    });
+
+    // Revoke manual mode
+    html.querySelectorAll(".dlc-revoke").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        const playerId = e.target.dataset.playerId;
+        await game.settings.set(MODULE_ID, `playerMode_${playerId}`, "digital");
+        
+        ui.notifications.info(`Revoked manual dice for ${game.users.get(playerId)?.name}.`);
+        this.render();
+      });
+    });
+  }
+}
+
+// ============================================================================
+// SCENE CONTROLS BUTTON
+// ============================================================================
+
+Hooks.on("getSceneControlButtons", (controls) => {
+  if (!controls.tokens?.tools) return;
+
+  const isGM = game.user.isGM;
+  const playerMode = game.settings.get(MODULE_ID, `playerMode_${game.user.id}`) || "digital";
+  const globalOverride = game.settings.get(MODULE_ID, "globalOverride");
+
+  let title = "Dice Link Companion";
+  let active = false;
+
+  if (isGM) {
+    title = "Dice Link Companion: Open Panel";
+    active = false; // GM button is not a toggle
+  } else {
+    if (globalOverride === "forceAllManual") {
+      title = "Manual dice (Forced by GM)";
+      active = true;
+    } else if (globalOverride === "forceAllDigital") {
+      title = "Digital dice (Forced by GM)";
+      active = false;
+    } else {
+      title = playerMode === "manual" ? "Manual dice (Active)" : "Request Manual Dice";
+      active = playerMode === "manual";
+    }
+  }
+
+  controls.tokens.tools.diceLinkToggle = {
+    name: "diceLinkToggle",
+    title,
+    icon: "fa-solid fa-dice-d20",
+    order: Object.keys(controls.tokens.tools).length,
+    toggle: true,
+    active,
+    visible: true,
+    onChange: () => {
+      if (isGM) {
+        ui.windows.dlcPanel?.close();
+        new DiceLinkCompanionPanel().render(true);
+      } else {
+        if (playerMode === "manual") {
+          switchToDigitalMode();
+        } else {
+          requestManualMode();
+        }
+      }
+    }
+  };
+});
+
+// ============================================================================
+// INITIALIZATION
+// ============================================================================
+
+Hooks.once("init", () => {
+  game.settings.register(MODULE_ID, "globalOverride", {
+    scope: "world",
+    config: false,
+    type: String,
+    default: "individual"
+  });
+
+  game.settings.register(MODULE_ID, "pendingRequests", {
+    scope: "world",
+    config: false,
+    type: Object,
+    default: []
+  });
+
+  // Register per-player mode settings dynamically
+  for (const user of game.users || []) {
+    if (!game.settings.storage.get("world", `${MODULE_ID}.playerMode_${user.id}`)) {
+      game.settings.register(MODULE_ID, `playerMode_${user.id}`, {
+        scope: "world",
+        config: false,
+        type: String,
+        default: "digital"
+      });
+    }
+  }
+});
+
+Hooks.once("ready", () => {
+  // Register settings for any users that weren't present at init
+  for (const user of game.users) {
+    const settingKey = `playerMode_${user.id}`;
+    try {
+      game.settings.get(MODULE_ID, settingKey);
+    } catch {
+      game.settings.register(MODULE_ID, settingKey, {
+        scope: "world",
+        config: false,
+        type: String,
+        default: "digital"
+      });
+    }
+  }
+
+  // Apply global override if set
+  const globalOverride = game.settings.get(MODULE_ID, "globalOverride");
+  if (globalOverride === "forceAllManual") {
+    applyManualDice();
+  } else if (globalOverride === "forceAllDigital") {
+    applyDigitalDice();
+  } else {
+    const playerMode = game.settings.get(MODULE_ID, `playerMode_${game.user.id}`) || "digital";
+    if (playerMode === "manual") {
+      applyManualDice();
+    }
+  }
+});
+
+// ============================================================================
+// PUBLIC API
+// ============================================================================
 
 globalThis.DiceLinkCompanion = {
-  enable: enableManualDice,
-  disable: disableManualDice,
-  toggle: toggleManualDice,
-  isEnabled: () => game.settings.get(MODULE_ID, "enabled")
+  requestManualMode,
+  switchToDigital: switchToDigitalMode,
+  panel: () => new DiceLinkCompanionPanel().render(true)
 };
