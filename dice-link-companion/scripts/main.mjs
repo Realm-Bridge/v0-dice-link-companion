@@ -18,21 +18,15 @@ let hasRequestedThisSession = false;
  * This is the same setting that Foundry's Configure Dice UI modifies.
  */
 async function applyManualDice() {
-  console.log("[v0] applyManualDice called");
-  console.log("[v0] Current CONFIG.Dice.fulfillment:", JSON.stringify(CONFIG.Dice.fulfillment));
-  
   // Get current dice configuration from core settings (if accessible)
   let currentConfig = {};
   try {
     currentConfig = game.settings.get("core", "diceConfiguration") || {};
   } catch (e) {
-    console.log("[v0] Could not read core diceConfiguration, using empty object");
+    // Could not read core diceConfiguration, using empty object
   }
   
-  console.log("[v0] Current core diceConfiguration:", JSON.stringify(currentConfig));
-  
   // Build new configuration with all dice set to manual
-  // Foundry v13 uses die denomination strings like "d4", "d6", etc.
   const newConfig = {
     ...currentConfig,
     d4: "manual",
@@ -43,8 +37,6 @@ async function applyManualDice() {
     d20: "manual",
     d100: "manual"
   };
-  
-  console.log("[v0] New diceConfiguration to apply:", JSON.stringify(newConfig));
   
   // Update the live CONFIG object immediately
   if (CONFIG.Dice.fulfillment) {
@@ -64,22 +56,16 @@ async function applyManualDice() {
   if (game.user.isGM) {
     try {
       await game.settings.set("core", "diceConfiguration", newConfig);
-      console.log("[v0] Core diceConfiguration saved by GM");
     } catch (e) {
-      console.log("[v0] Failed to save core diceConfiguration:", e);
+      // Failed to save core diceConfiguration
     }
   }
-  
-  console.log("[v0] Manual dice applied. CONFIG.Dice.fulfillment now:", JSON.stringify(CONFIG.Dice.fulfillment));
 }
 
 /**
  * Apply digital dice mode by clearing the dice configuration.
  */
 async function applyDigitalDice() {
-  console.log("[v0] applyDigitalDice called");
-  console.log("[v0] Current CONFIG.Dice.fulfillment:", JSON.stringify(CONFIG.Dice.fulfillment));
-  
   // Build empty configuration (digital/default)
   const newConfig = {
     d4: "",
@@ -90,8 +76,6 @@ async function applyDigitalDice() {
     d20: "",
     d100: ""
   };
-  
-  console.log("[v0] New diceConfiguration to apply:", JSON.stringify(newConfig));
   
   // Update the live CONFIG object immediately
   if (CONFIG.Dice.fulfillment) {
@@ -111,13 +95,10 @@ async function applyDigitalDice() {
   if (game.user.isGM) {
     try {
       await game.settings.set("core", "diceConfiguration", newConfig);
-      console.log("[v0] Core diceConfiguration cleared by GM");
     } catch (e) {
-      console.log("[v0] Failed to clear core diceConfiguration:", e);
+      // Failed to clear core diceConfiguration
     }
   }
-  
-  console.log("[v0] Digital dice applied. CONFIG.Dice.fulfillment now:", JSON.stringify(CONFIG.Dice.fulfillment));
 }
 
 // ============================================================================
@@ -179,14 +160,10 @@ async function createApprovalChatMessage(playerId, playerName, approved) {
 // ============================================================================
 
 function setupChatButtonHandlers() {
-  console.log("[v0] Setting up chat button handlers");
-  
   // Use document-level delegation for chat buttons
   $(document).on("click", ".dlc-chat-approve", async function(e) {
     e.preventDefault();
     e.stopPropagation();
-    
-    console.log("[v0] Chat approve button clicked");
     
     if (!game.user.isGM) {
       ui.notifications.error("Only GMs can approve requests.");
@@ -210,7 +187,6 @@ function setupChatButtonHandlers() {
     await game.settings.set(MODULE_ID, "pendingRequests", pending);
     
     // Send socket to player
-    console.log("[v0] Sending applyMode socket to player:", playerId);
     game.socket.emit(`module.${MODULE_ID}`, {
       action: "applyMode",
       playerId: playerId,
@@ -224,8 +200,6 @@ function setupChatButtonHandlers() {
   $(document).on("click", ".dlc-chat-deny", async function(e) {
     e.preventDefault();
     e.stopPropagation();
-    
-    console.log("[v0] Chat deny button clicked");
     
     if (!game.user.isGM) {
       ui.notifications.error("Only GMs can deny requests.");
@@ -255,14 +229,9 @@ function setupChatButtonHandlers() {
 // ============================================================================
 
 function setupSocketListeners() {
-  console.log("[v0] Setting up socket listeners");
-  
   game.socket.on(`module.${MODULE_ID}`, async (data) => {
-    console.log("[v0] Socket received:", data);
-    
     // GM receives player request for manual
     if (game.user.isGM && data.action === "playerRequestManual") {
-      console.log("[v0] GM received manual request from:", data.playerName);
       
       let pending = game.settings.get(MODULE_ID, "pendingRequests") || [];
       
@@ -277,13 +246,11 @@ function setupSocketListeners() {
 
     // GM receives player switch to digital
     if (game.user.isGM && data.action === "playerSwitchToDigital") {
-      console.log("[v0] GM received digital switch from player:", data.playerId);
       await game.settings.set(MODULE_ID, `playerMode_${data.playerId}`, "digital");
     }
 
     // Player receives mode application
     if (data.action === "applyMode" && data.playerId === game.user.id) {
-      console.log("[v0] Player received applyMode:", data.mode);
       
       if (data.mode === "manual") {
         applyManualDice();
@@ -297,7 +264,6 @@ function setupSocketListeners() {
 
     // Global override
     if (data.action === "globalOverride") {
-      console.log("[v0] Received global override:", data.mode);
       
       if (data.mode === "forceAllManual") {
         applyManualDice();
@@ -310,7 +276,6 @@ function setupSocketListeners() {
 
     // Revoke
     if (data.action === "revokeMode" && data.playerId === game.user.id) {
-      console.log("[v0] Player received revoke");
       applyDigitalDice();
       hasRequestedThisSession = false;
       ui.notifications.warn("GM has revoked your manual dice mode.");
@@ -323,8 +288,6 @@ function setupSocketListeners() {
 // ============================================================================
 
 function playerRequestManual() {
-  console.log("[v0] Player requesting manual mode");
-  
   const globalOverride = game.settings.get(MODULE_ID, "globalOverride");
   
   if (globalOverride === "forceAllManual") {
@@ -353,8 +316,6 @@ function playerRequestManual() {
 }
 
 function playerSwitchToDigital() {
-  console.log("[v0] Player switching to digital");
-  
   const globalOverride = game.settings.get(MODULE_ID, "globalOverride");
   
   if (globalOverride === "forceAllManual") {
@@ -378,12 +339,35 @@ function playerSwitchToDigital() {
 // GM MANAGEMENT PANEL
 // ============================================================================
 
-function openManagementPanel() {
-  console.log("[v0] Opening management panel");
-  
+// Store reference to current dialog for live refresh
+let currentPanelDialog = null;
+
+/**
+ * Check if players have permission to use manual dice rolls.
+ * In Foundry VTT, this is controlled via User Management > Configure Permissions.
+ */
+function checkManualDicePermission() {
+  // The permission for manual dice is typically in game.permissions
+  // or can be checked via game.user.can() for specific permissions
+  try {
+    // Check the "SETTINGS_MODIFY" permission or dice-related permission
+    // In v13, we check if players can use manual dice via the diceConfiguration
+    const permissions = game.settings.get("core", "permissions") || {};
+    // The specific permission key for dice may vary - check common patterns
+    return permissions.MANUAL_DICE_ROLL?.includes(1) || 
+           permissions.MANUAL_DICE_ROLL?.includes(2) ||
+           permissions.DICE_ROLL_VISIBILITY?.includes(1) ||
+           true; // Default to assuming it's allowed if we can't determine
+  } catch (e) {
+    return true; // Assume allowed if we can't check
+  }
+}
+
+function generatePanelContent() {
   const globalOverride = game.settings.get(MODULE_ID, "globalOverride");
   const pendingRequests = game.settings.get(MODULE_ID, "pendingRequests") || [];
   const gmMode = game.settings.get(MODULE_ID, `playerMode_${game.user.id}`) || "digital";
+  const manualDiceAllowed = checkManualDicePermission();
 
   const players = [];
   for (const user of game.users) {
@@ -398,8 +382,21 @@ function openManagementPanel() {
     });
   }
 
-  const content = `
+  return `
     <div class="dlc-panel">
+      <div class="dlc-section dlc-permission-section ${manualDiceAllowed ? 'dlc-permission-ok' : 'dlc-permission-warning'}">
+        <h3>Player Manual Dice Permission</h3>
+        <p class="dlc-permission-note">
+          <i class="fas ${manualDiceAllowed ? 'fa-check-circle' : 'fa-exclamation-triangle'}"></i>
+          ${manualDiceAllowed 
+            ? 'Players can use manual dice rolls.' 
+            : 'Manual dice rolls are NOT allowed for players. Enable in User Management > Configure Permissions.'}
+        </p>
+        <button type="button" id="dlc-open-permissions" class="dlc-button dlc-permission-btn">
+          <i class="fas fa-users-cog"></i> Open User Management
+        </button>
+      </div>
+
       <div class="dlc-section">
         <h3>Global Override</h3>
         <div class="dlc-row">
@@ -443,10 +440,148 @@ function openManagementPanel() {
           </div>
         `).join("") : "<p>No players connected.</p>"}
       </div>
+
+      <div class="dlc-section dlc-refresh-section">
+        <button type="button" id="dlc-refresh-panel" class="dlc-button dlc-refresh-btn">
+          <i class="fas fa-sync-alt"></i> Refresh Panel
+        </button>
+      </div>
     </div>
   `;
+}
 
-  new Dialog({
+function attachPanelListeners(html) {
+  // Open User Management
+  html.find("#dlc-open-permissions").click(() => {
+    // Open the User Management application
+    new UserManagement().render(true);
+  });
+
+  // Refresh panel
+  html.find("#dlc-refresh-panel").click(() => {
+    refreshPanel();
+  });
+
+  // Apply Global Override
+  html.find("#dlc-apply-global").click(async () => {
+    const newValue = html.find("#dlc-global-override").val();
+    
+    await game.settings.set(MODULE_ID, "globalOverride", newValue);
+    
+    if (newValue === "forceAllManual") {
+      applyManualDice();
+      game.socket.emit(`module.${MODULE_ID}`, { action: "globalOverride", mode: "forceAllManual" });
+      ui.notifications.info("Forced all to manual dice.");
+    } else if (newValue === "forceAllDigital") {
+      applyDigitalDice();
+      game.socket.emit(`module.${MODULE_ID}`, { action: "globalOverride", mode: "forceAllDigital" });
+      ui.notifications.info("Forced all to digital dice.");
+    } else {
+      ui.notifications.info("Set to individual control.");
+    }
+    
+    refreshPanel();
+  });
+
+  // Toggle GM's own mode
+  html.find("#dlc-toggle-own").click(async () => {
+    const currentMode = game.settings.get(MODULE_ID, `playerMode_${game.user.id}`) || "digital";
+    const newMode = currentMode === "manual" ? "digital" : "manual";
+    
+    await game.settings.set(MODULE_ID, `playerMode_${game.user.id}`, newMode);
+    
+    if (newMode === "manual") {
+      applyManualDice();
+      ui.notifications.info("Your dice: Manual");
+    } else {
+      applyDigitalDice();
+      ui.notifications.info("Your dice: Digital");
+    }
+    
+    refreshPanel();
+  });
+
+  // Panel approve buttons
+  html.find(".dlc-panel-approve").click(async function() {
+    const playerId = $(this).data("player-id");
+    const player = game.users.get(playerId);
+    
+    if (!player) return;
+    
+    await game.settings.set(MODULE_ID, `playerMode_${playerId}`, "manual");
+    
+    let pending = game.settings.get(MODULE_ID, "pendingRequests") || [];
+    pending = pending.filter(req => req.playerId !== playerId);
+    await game.settings.set(MODULE_ID, "pendingRequests", pending);
+    
+    game.socket.emit(`module.${MODULE_ID}`, {
+      action: "applyMode",
+      playerId: playerId,
+      mode: "manual"
+    });
+    
+    await createApprovalChatMessage(playerId, player.name, true);
+    ui.notifications.info(`Approved manual dice for ${player.name}.`);
+    
+    refreshPanel();
+  });
+
+  // Panel deny buttons
+  html.find(".dlc-panel-deny").click(async function() {
+    const playerId = $(this).data("player-id");
+    const player = game.users.get(playerId);
+    
+    if (!player) return;
+    
+    let pending = game.settings.get(MODULE_ID, "pendingRequests") || [];
+    pending = pending.filter(req => req.playerId !== playerId);
+    await game.settings.set(MODULE_ID, "pendingRequests", pending);
+    
+    await createApprovalChatMessage(playerId, player.name, false);
+    ui.notifications.info(`Denied manual dice for ${player.name}.`);
+    
+    refreshPanel();
+  });
+
+  // Panel revoke buttons
+  html.find(".dlc-panel-revoke").click(async function() {
+    const playerId = $(this).data("player-id");
+    const player = game.users.get(playerId);
+    
+    if (!player) return;
+    
+    await game.settings.set(MODULE_ID, `playerMode_${playerId}`, "digital");
+    
+    game.socket.emit(`module.${MODULE_ID}`, {
+      action: "revokeMode",
+      playerId: playerId
+    });
+    
+    ui.notifications.info(`Revoked manual dice for ${player.name}.`);
+    
+    refreshPanel();
+  });
+}
+
+function refreshPanel() {
+  if (currentPanelDialog && currentPanelDialog.rendered) {
+    // Update the content in place
+    const newContent = generatePanelContent();
+    const contentElement = currentPanelDialog.element.find(".dialog-content");
+    contentElement.html(newContent);
+    attachPanelListeners(currentPanelDialog.element);
+  }
+}
+
+function openManagementPanel() {
+  // Close existing panel if open
+  if (currentPanelDialog && currentPanelDialog.rendered) {
+    currentPanelDialog.close();
+  }
+
+  const content = generatePanelContent();
+
+  currentPanelDialog = new Dialog({
     title: "Dice Link Companion",
     content,
     buttons: {
@@ -457,104 +592,14 @@ function openManagementPanel() {
     },
     default: "close",
     render: (html) => {
-      console.log("[v0] Dialog rendered");
-      
-      // Apply Global Override
-      html.find("#dlc-apply-global").click(async () => {
-        const newValue = html.find("#dlc-global-override").val();
-        console.log("[v0] Applying global override:", newValue);
-        
-        await game.settings.set(MODULE_ID, "globalOverride", newValue);
-        
-        if (newValue === "forceAllManual") {
-          applyManualDice();
-          game.socket.emit(`module.${MODULE_ID}`, { action: "globalOverride", mode: "forceAllManual" });
-          ui.notifications.info("Forced all to manual dice.");
-        } else if (newValue === "forceAllDigital") {
-          applyDigitalDice();
-          game.socket.emit(`module.${MODULE_ID}`, { action: "globalOverride", mode: "forceAllDigital" });
-          ui.notifications.info("Forced all to digital dice.");
-        } else {
-          ui.notifications.info("Set to individual control.");
-        }
-      });
-
-      // Toggle GM's own mode
-      html.find("#dlc-toggle-own").click(async () => {
-        const currentMode = game.settings.get(MODULE_ID, `playerMode_${game.user.id}`) || "digital";
-        const newMode = currentMode === "manual" ? "digital" : "manual";
-        console.log("[v0] Toggling GM mode to:", newMode);
-        
-        await game.settings.set(MODULE_ID, `playerMode_${game.user.id}`, newMode);
-        
-        if (newMode === "manual") {
-          applyManualDice();
-          ui.notifications.info("Your dice: Manual");
-        } else {
-          applyDigitalDice();
-          ui.notifications.info("Your dice: Digital");
-        }
-      });
-
-      // Panel approve buttons
-      html.find(".dlc-panel-approve").click(async function() {
-        const playerId = $(this).data("player-id");
-        const player = game.users.get(playerId);
-        console.log("[v0] Panel approving player:", playerId);
-        
-        if (!player) return;
-        
-        await game.settings.set(MODULE_ID, `playerMode_${playerId}`, "manual");
-        
-        let pending = game.settings.get(MODULE_ID, "pendingRequests") || [];
-        pending = pending.filter(req => req.playerId !== playerId);
-        await game.settings.set(MODULE_ID, "pendingRequests", pending);
-        
-        game.socket.emit(`module.${MODULE_ID}`, {
-          action: "applyMode",
-          playerId: playerId,
-          mode: "manual"
-        });
-        
-        await createApprovalChatMessage(playerId, player.name, true);
-        ui.notifications.info(`Approved manual dice for ${player.name}.`);
-      });
-
-      // Panel deny buttons
-      html.find(".dlc-panel-deny").click(async function() {
-        const playerId = $(this).data("player-id");
-        const player = game.users.get(playerId);
-        console.log("[v0] Panel denying player:", playerId);
-        
-        if (!player) return;
-        
-        let pending = game.settings.get(MODULE_ID, "pendingRequests") || [];
-        pending = pending.filter(req => req.playerId !== playerId);
-        await game.settings.set(MODULE_ID, "pendingRequests", pending);
-        
-        await createApprovalChatMessage(playerId, player.name, false);
-        ui.notifications.info(`Denied manual dice for ${player.name}.`);
-      });
-
-      // Panel revoke buttons
-      html.find(".dlc-panel-revoke").click(async function() {
-        const playerId = $(this).data("player-id");
-        const player = game.users.get(playerId);
-        console.log("[v0] Panel revoking player:", playerId);
-        
-        if (!player) return;
-        
-        await game.settings.set(MODULE_ID, `playerMode_${playerId}`, "digital");
-        
-        game.socket.emit(`module.${MODULE_ID}`, {
-          action: "revokeMode",
-          playerId: playerId
-        });
-        
-        ui.notifications.info(`Revoked manual dice for ${player.name}.`);
-      });
+      attachPanelListeners(html);
+    },
+    close: () => {
+      currentPanelDialog = null;
     }
-  }).render(true);
+  });
+  
+  currentPanelDialog.render(true);
 }
 
 // ============================================================================
@@ -562,13 +607,8 @@ function openManagementPanel() {
 // ============================================================================
 
 Hooks.on("getSceneControlButtons", (controls) => {
-  console.log("[v0] getSceneControlButtons hook fired");
-  
   // v13: controls is a Record object
-  if (!controls.tokens?.tools) {
-    console.log("[v0] No tokens.tools found");
-    return;
-  }
+  if (!controls.tokens?.tools) return;
 
   const isGM = game.user.isGM;
   
@@ -581,15 +621,11 @@ Hooks.on("getSceneControlButtons", (controls) => {
     visible: true,
     order: 100,
     onChange: () => {
-      console.log("[v0] D20 button onChange fired, isGM:", isGM);
-      
       if (isGM) {
         openManagementPanel();
       } else {
         // Check player's current mode
         const playerMode = game.settings.get(MODULE_ID, `playerMode_${game.user.id}`) || "digital";
-        console.log("[v0] Player current mode:", playerMode);
-        
         if (playerMode === "manual") {
           playerSwitchToDigital();
         } else {
@@ -605,8 +641,6 @@ Hooks.on("getSceneControlButtons", (controls) => {
 // ============================================================================
 
 Hooks.once("init", () => {
-  console.log("[v0] Dice Link Companion: init");
-  
   // Register world-scoped settings
   game.settings.register(MODULE_ID, "globalOverride", {
     scope: "world",
@@ -624,8 +658,6 @@ Hooks.once("init", () => {
 });
 
 Hooks.once("ready", () => {
-  console.log("[v0] Dice Link Companion: ready");
-  
   // Register player mode settings for all users
   for (const user of game.users) {
     const key = `playerMode_${user.id}`;
@@ -645,7 +677,6 @@ Hooks.once("ready", () => {
 
   // Apply current mode on load
   const globalOverride = game.settings.get(MODULE_ID, "globalOverride");
-  console.log("[v0] Global override on ready:", globalOverride);
   
   if (globalOverride === "forceAllManual") {
     applyManualDice();
@@ -653,7 +684,6 @@ Hooks.once("ready", () => {
     applyDigitalDice();
   } else {
     const myMode = game.settings.get(MODULE_ID, `playerMode_${game.user.id}`) || "digital";
-    console.log("[v0] My mode on ready:", myMode);
     if (myMode === "manual") {
       applyManualDice();
     }
