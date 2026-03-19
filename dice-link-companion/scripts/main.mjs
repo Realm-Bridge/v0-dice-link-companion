@@ -122,9 +122,12 @@ async function createApprovalChatMessage(playerId, playerName, approved) {
 // ============================================================================
 
 Hooks.on("renderChatMessage", (message, html, data) => {
+  // html is a jQuery object in v13, convert to native element
+  const htmlElement = html[0] || html;
+  
   // Find all approve buttons in this message
-  const approveButtons = html.querySelectorAll(".dlc-chat-approve");
-  const denyButtons = html.querySelectorAll(".dlc-chat-deny");
+  const approveButtons = htmlElement.querySelectorAll(".dlc-chat-approve");
+  const denyButtons = htmlElement.querySelectorAll(".dlc-chat-deny");
 
   approveButtons.forEach(btn => {
     btn.addEventListener("click", async (e) => {
@@ -356,6 +359,12 @@ class DiceLinkCompanionPanel extends foundry.applications.api.ApplicationV2 {
     `;
     
     return wrapper;
+  }
+
+  _onRender(context, options) {
+    // This fires after _renderHTML completes
+    // Access the rendered element via this.element
+    this._attachListeners(this.element);
   }
 
   _attachListeners(html) {
