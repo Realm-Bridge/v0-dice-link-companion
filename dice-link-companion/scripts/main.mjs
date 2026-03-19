@@ -343,38 +343,66 @@ function playerSwitchToDigital() {
 let currentPanelDialog = null;
 
 /**
- * Read the current MANUAL_DICE_ROLL permission state for players (role 1).
- * Role levels: 1=Player, 2=Trusted Player, 3=Assistant GM, 4=GM
+ * Role levels in Foundry VTT:
+ * 1 = Player
+ * 2 = Trusted Player  
+ * 3 = Assistant GM
+ * 4 = GM (always has permission, disableGM: true)
+ * 
+ * The permission key is MANUAL_ROLLS (not MANUAL_DICE_ROLL)
  */
-function getManualDicePermissionEnabled() {
+const ROLE_NAMES = {
+  1: "Player",
+  2: "Trusted Player",
+  3: "Assistant GM",
+  4: "GM"
+};
+
+/**
+ * Get which roles have MANUAL_ROLLS permission enabled.
+ * Returns an object { 1: true/false, 2: true/false, 3: true/false, 4: true/false }
+ */
+function getManualRollsPermissions() {
   try {
     const permissions = game.settings.get("core", "permissions") || {};
-    const roles = permissions.MANUAL_DICE_ROLL || [];
-    // Check if Player role (1) is included — if so, all lower roles are covered
-    return roles.includes(1);
+    const roles = permissions.MANUAL_ROLLS || [];
+    return {
+      1: roles.includes(1),
+      2: roles.includes(2),
+      3: roles.includes(3),
+      4: true // GM always has permission (disableGM: true means can't be turned off)
+    };
   } catch (e) {
-    return false;
+    return { 1: false, 2: false, 3: false, 4: true };
   }
 }
 
 /**
- * Set MANUAL_DICE_ROLL permission for all roles (1-4) on or off.
+ * Set MANUAL_ROLLS permission for a specific role.
  */
-async function setManualDicePermission(enabled) {
+async function setManualRollsPermission(role, enabled) {
   try {
     const permissions = game.settings.get("core", "permissions") || {};
-    if (enabled) {
-      // Grant to all roles: Player(1), Trusted(2), Assistant GM(3), GM(4)
-      permissions.MANUAL_DICE_ROLL = [1, 2, 3, 4];
-    } else {
-      // Restore default: only Assistant GM(3) and GM(4)
-      permissions.MANUAL_DICE_ROLL = [3, 4];
+    let roles = permissions.MANUAL_ROLLS || [];
+    
+    // Make a copy to avoid mutation issues
+    roles = [...roles];
+    
+    if (enabled && !roles.includes(role)) {
+      roles.push(role);
+    } else if (!enabled && roles.includes(role)) {
+      roles = roles.filter(r => r !== role);
     }
+    
+    // Sort for consistency
+    roles.sort((a, b) => a - b);
+    
+    permissions.MANUAL_ROLLS = roles;
     await game.settings.set("core", "permissions", permissions);
-    // Foundry requires a reload for permission changes to propagate to clients
-    // but the setting is saved immediately
+    return true;
   } catch (e) {
-    ui.notifications.error("Failed to update manual dice permissions.");
+    ui.notifications.error(`Failed to update manual rolls permission for role ${role}.`);
+    return false;
   }
 }
 
@@ -382,7 +410,7 @@ function generatePanelContent() {
   const globalOverride = game.settings.get(MODULE_ID, "globalOverride");
   const pendingRequests = game.settings.get(MODULE_ID, "pendingRequests") || [];
   const gmMode = game.settings.get(MODULE_ID, `playerMode_${game.user.id}`) || "digital";
-  const manualDiceAllowed = getManualDicePermissionEnabled();
+  const rolePermissions = getManualRollsPermissions();
 
   const players = [];
   for (const user of game.users) {
@@ -397,19 +425,49 @@ function generatePanelContent() {
     });
   }
 
+  // Check if any non-GM role has permission
+  const anyRoleEnabled = rolePermissions[1] || rolePermissions[2] || rolePermissions[3];
+
   return `
     <div class="dlc-panel">
-      <div class="dlc-section dlc-permission-section ${manualDiceAllowed ? 'dlc-permission-ok' : 'dlc-permission-warning'}">
-        <h3>Allow Manual Rolls for All Players</h3>
+      <div class="dlc-section dlc-permission-section ${anyRoleEnabled ? 'dlc-permission-ok' : 'dlc-permission-warning'}">
+        <h3>Manual Roll Permissions</h3>
         <p class="dlc-permission-note">
-          Required for the module to work for players. Grants the "Make Manual Rolls" permission to all user roles.
+          Enable "Make Manual Rolls" permission for each user role. Required for players to use this module.
         </p>
-        <div class="dlc-toggle-row">
-          <label class="dlc-switch" for="dlc-permission-toggle">
-            <input type="checkbox" id="dlc-permission-toggle" ${manualDiceAllowed ? 'checked' : ''}>
-            <span class="dlc-slider"></span>
-          </label>
-          <span class="dlc-toggle-label">${manualDiceAllowed ? 'Enabled — all roles can make manual rolls' : 'Disabled — only Assistant GM and GM can make manual rolls'}</span>
+        
+        <div class="dlc-role-toggles">
+          <div class="dlc-toggle-row">
+            <label class="dlc-switch">
+              <input type="checkbox" class="dlc-role-toggle" data-role="1" ${rolePermissions[1] ? 'checked' : ''}>
+              <span class="dlc-slider"></span>
+            </label>
+            <span class="dlc-toggle-label">Player</span>
+          </div>
+          
+          <div class="dlc-toggle-row">
+            <label class="dlc-switch">
+              <input type="checkbox" class="dlc-role-toggle" data-role="2" ${rolePermissions[2] ? 'checked' : ''}>
+              <span class="dlc-slider"></span>
+            </label>
+            <span class="dlc-toggle-label">Trusted Player</span>
+          </div>
+          
+          <div class="dlc-toggle-row">
+            <label class="dlc-switch">
+              <input type="checkbox" class="dlc-role-toggle" data-role="3" ${rolePermissions[3] ? 'checked' : ''}>
+              <span class="dlc-slider"></span>
+            </label>
+            <span class="dlc-toggle-label">Assistant GM</span>
+          </div>
+          
+          <div class="dlc-toggle-row dlc-disabled">
+            <label class="dlc-switch">
+              <input type="checkbox" checked disabled>
+              <span class="dlc-slider"></span>
+            </label>
+            <span class="dlc-toggle-label">GM <em>(always enabled)</em></span>
+          </div>
         </div>
       </div>
 
@@ -467,15 +525,19 @@ function generatePanelContent() {
 }
 
 function attachPanelListeners(html) {
-  // Permission toggle switch
-  html.find("#dlc-permission-toggle").change(async function() {
+  // Individual role permission toggles
+  html.find(".dlc-role-toggle").change(async function() {
+    const role = parseInt($(this).data("role"));
     const enabled = $(this).is(":checked");
-    await setManualDicePermission(enabled);
-    ui.notifications.info(
-      enabled
-        ? "Manual dice permission granted to all roles."
-        : "Manual dice permission restored to defaults (Assistant GM and GM only)."
-    );
+    const success = await setManualRollsPermission(role, enabled);
+    if (success) {
+      const roleName = ROLE_NAMES[role] || `Role ${role}`;
+      ui.notifications.info(
+        enabled
+          ? `Manual rolls enabled for ${roleName}.`
+          : `Manual rolls disabled for ${roleName}.`
+      );
+    }
     refreshPanel();
   });
 
