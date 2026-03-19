@@ -109,25 +109,20 @@ Hooks.on("getSceneControlButtons", (controls) => {
 
   const isEnabled = game.settings.get(MODULE_ID, "enabled");
 
-  // Add our button as a top-level control group so it sits in the sidebar
-  controls.push({
-    name: MODULE_ID,
-    title: game.i18n.localize("DICE_LINK_COMPANION.Button.Title"),
+  // Find the Token control group (usually the first one)
+  const tokenControls = controls.find(c => c.name === "token");
+  if (!tokenControls) return; // Fallback if token controls don't exist
+
+  // Add our D20 button to the Token controls group
+  tokenControls.tools.push({
+    name: "toggle-manual-dice",
+    title: isEnabled
+      ? game.i18n.localize("DICE_LINK_COMPANION.Button.TitleActive")
+      : game.i18n.localize("DICE_LINK_COMPANION.Button.Title"),
     icon: "fa-solid fa-dice-d20",
-    layer: "controls",           // v13: required field
-    activeTool: "toggle",
-    tools: [
-      {
-        name: "toggle",
-        title: isEnabled
-          ? game.i18n.localize("DICE_LINK_COMPANION.Button.TitleActive")
-          : game.i18n.localize("DICE_LINK_COMPANION.Button.Title"),
-        icon: "fa-solid fa-dice-d20",
-        toggle: true,
-        active: isEnabled,
-        onClick: () => toggleManualDice()
-      }
-    ]
+    toggle: true,
+    active: isEnabled,
+    onClick: () => toggleManualDice()
   });
 });
 
