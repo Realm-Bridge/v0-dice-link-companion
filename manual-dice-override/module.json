@@ -1,0 +1,30 @@
+{
+  "id": "manual-dice-override",
+  "title": "Manual Dice Override",
+  "description": "When activated, overrides dice configuration to manual input. When deactivated, returns to digital roll.",
+  "version": "1.0.0",
+  "compatibility": {
+    "minimum": "13",
+    "verified": "13",
+    "maximum": "13.999"
+  },
+  "authors": [
+    {
+      "name": "Your Name",
+      "url": ""
+    }
+  ],
+  "esmodules": ["scripts/main.mjs"],
+  "languages": [
+    {
+      "lang": "en",
+      "name": "English",
+      "path": "languages/en.json"
+    }
+  ],
+  "socket": false,
+  "manifest": "",
+  "download": "",
+  "license": "MIT",
+  "readme": ""
+}

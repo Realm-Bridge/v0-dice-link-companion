@@ -1,0 +1,10 @@
+{
+  "MANUAL_DICE_OVERRIDE": {
+    "Settings": {
+      "Enabled": {
+        "Name": "Enable Manual Dice Override",
+        "Hint": "When enabled, all dice rolls will require manual input. When disabled, dice will use digital (automatic) rolls."
+      }
+    }
+  }
+}
