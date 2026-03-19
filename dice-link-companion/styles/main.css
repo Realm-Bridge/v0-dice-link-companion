@@ -24,14 +24,26 @@
   color: #1a1a1a;
 }
 
+.dlc-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 .dlc-select {
-  width: 100%;
+  flex: 1;
   padding: 6px;
   border: 1px solid var(--border-color, #ddd);
   border-radius: 3px;
   background: var(--input-bg, #fff);
   color: #333;
   font-size: 12px;
+}
+
+.dlc-apply-btn {
+  width: auto;
+  margin-top: 0;
+  padding: 6px 12px;
 }
 
 .dlc-button {
@@ -117,28 +129,33 @@
   background: var(--primary-highlight, #5f4fd0);
 }
 
-.dlc-approve {
+.dlc-approve, .dlc-panel-approve {
   background: var(--success-color, #27AE60) !important;
 }
 
-.dlc-approve:hover {
+.dlc-approve:hover, .dlc-panel-approve:hover {
   background: var(--success-highlight, #229954) !important;
 }
 
-.dlc-deny {
+.dlc-deny, .dlc-panel-deny {
   background: var(--danger-color, #E74C3C) !important;
 }
 
-.dlc-deny:hover {
+.dlc-deny:hover, .dlc-panel-deny:hover {
   background: var(--danger-highlight, #C0392B) !important;
 }
 
-.dlc-revoke {
+.dlc-revoke, .dlc-panel-revoke {
   background: var(--warning-color, #F39C12) !important;
 }
 
-.dlc-revoke:hover {
+.dlc-revoke:hover, .dlc-panel-revoke:hover {
   background: var(--warning-highlight, #D68910) !important;
+}
+
+/* Dialog wrapper */
+.dlc-dialog .dialog-content {
+  padding: 0;
 }
 
 /* Chat Message Styles */
