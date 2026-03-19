@@ -509,15 +509,16 @@ Hooks.on("getSceneControlButtons", (controls) => {
 
   const isGM = game.user.isGM;
   
-  // Use button: true instead of toggle: false for v13
+  // Use button: true with onChange for v13 (NOT onClick)
   controls.tokens.tools.diceLinkCompanion = {
     name: "diceLinkCompanion",
     title: isGM ? "Dice Link Companion" : "Request/Toggle Dice Mode",
     icon: "fa-solid fa-dice-d20",
     button: true,
     visible: true,
-    onClick: () => {
-      console.log("[v0] D20 button clicked, isGM:", isGM);
+    order: 100,
+    onChange: () => {
+      console.log("[v0] D20 button onChange fired, isGM:", isGM);
       
       if (isGM) {
         openManagementPanel();
