@@ -4,7 +4,8 @@
  * A player-GM dice mode management system with approval workflow.
  * - GMs can toggle their own mode, set global override, and manage player requests
  * - Players can request manual mode (GM approval needed) or switch back to digital
- * - Requests appear in chat with interactive approve/deny buttons
+ * - Requests appear in chat with interactive approve/deny buttons (GM only sees buttons)
+ * - Players see confirmation messages without buttons
  * - Accessed via D20 button in token controls on the canvas
  */
 
@@ -67,15 +68,33 @@ async function createRequestChatMessage(playerId, playerName) {
     </div>
   `;
 
+  // Only GMs see the request with buttons
   await ChatMessage.create({
     user: game.user.id,
     content,
     type: CONST.CHAT_MESSAGE_TYPES.OTHER,
-    whisper: game.users.filter(u => u.isGM).map(u => u.id) // Only GMs see this
+    whisper: game.users.filter(u => u.isGM).map(u => u.id)
   });
+
+  // Player sees a confirmation without buttons
+  const playerContent = `
+    <div class="dice-link-result" style="border-left: 4px solid #6C5CE7; padding: 10px; margin: 5px 0;">
+      <p>Your request for manual dice has been sent to the GM.</p>
+    </div>
+  `;
+
+  const player = game.users.get(playerId);
+  if (player) {
+    await ChatMessage.create({
+      user: game.user.id,
+      content: playerContent,
+      type: CONST.CHAT_MESSAGE_TYPES.OTHER,
+      whisper: [playerId]
+    });
+  }
 }
 
-async function createApprovalChatMessage(playerName, approved) {
+async function createApprovalChatMessage(playerId, playerName, approved) {
   const status = approved ? "approved" : "denied";
   const icon = approved ? "fa-check" : "fa-times";
   const color = approved ? "green" : "red";
@@ -86,8 +105,7 @@ async function createApprovalChatMessage(playerName, approved) {
     </div>
   `;
 
-  // Get the player
-  const player = game.users.find(u => u.name === playerName);
+  const player = game.users.get(playerId);
   if (!player) return;
 
   // Send to GM and the player who requested
@@ -95,71 +113,79 @@ async function createApprovalChatMessage(playerName, approved) {
     user: game.user.id,
     content,
     type: CONST.CHAT_MESSAGE_TYPES.OTHER,
-    whisper: [game.user.id, player.id]
+    whisper: [game.user.id, playerId]
   });
 }
 
-// Hook to handle chat button clicks
-Hooks.on("chatMessage", (message) => {
-  return true; // Let normal processing continue
-});
+// ============================================================================
+// CHAT BUTTON HANDLERS (renderChatMessage hook - fires for each message)
+// ============================================================================
 
-// Use a delegated click handler on the chat log to catch button clicks
-Hooks.on("renderChatLog", (app, html) => {
-  html.on("click", ".dlc-chat-approve", async (e) => {
-    e.preventDefault();
-    const playerId = e.currentTarget.dataset.playerId;
-    const player = game.users.get(playerId);
-    
-    if (!game.user.isGM) {
-      ui.notifications.error("Only GMs can approve requests.");
-      return;
-    }
+Hooks.on("renderChatMessage", (message, html, data) => {
+  // Find all approve buttons in this message
+  const approveButtons = html.querySelectorAll(".dlc-chat-approve");
+  const denyButtons = html.querySelectorAll(".dlc-chat-deny");
 
-    if (!player) {
-      ui.notifications.error("Player not found.");
-      return;
-    }
+  approveButtons.forEach(btn => {
+    btn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      
+      if (!game.user.isGM) {
+        ui.notifications.error("Only GMs can approve requests.");
+        return;
+      }
 
-    // Approve the request
-    await game.settings.set(MODULE_ID, `playerMode_${playerId}`, "manual");
-    
-    // Remove from pending
-    let pending = game.settings.get(MODULE_ID, "pendingRequests");
-    pending = pending.filter(req => req.playerId !== playerId);
-    await game.settings.set(MODULE_ID, "pendingRequests", pending);
-    
-    // Create confirmation message
-    await createApprovalChatMessage(player.name, true);
-    
-    ui.notifications.info(`Approved manual dice for ${player.name}.`);
-    ui.controls.render(); // Update button state
+      const playerId = btn.dataset.playerId;
+      const player = game.users.get(playerId);
+
+      if (!player) {
+        ui.notifications.error("Player not found.");
+        return;
+      }
+
+      // Approve the request
+      await game.settings.set(MODULE_ID, `playerMode_${playerId}`, "manual");
+      
+      // Remove from pending
+      let pending = game.settings.get(MODULE_ID, "pendingRequests");
+      pending = pending.filter(req => req.playerId !== playerId);
+      await game.settings.set(MODULE_ID, "pendingRequests", pending);
+      
+      // Create confirmation messages
+      await createApprovalChatMessage(playerId, player.name, true);
+      
+      ui.notifications.info(`Approved manual dice for ${player.name}.`);
+      ui.controls.render();
+    });
   });
 
-  html.on("click", ".dlc-chat-deny", async (e) => {
-    e.preventDefault();
-    const playerId = e.currentTarget.dataset.playerId;
-    const player = game.users.get(playerId);
-    
-    if (!game.user.isGM) {
-      ui.notifications.error("Only GMs can deny requests.");
-      return;
-    }
+  denyButtons.forEach(btn => {
+    btn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      
+      if (!game.user.isGM) {
+        ui.notifications.error("Only GMs can deny requests.");
+        return;
+      }
 
-    if (!player) {
-      ui.notifications.error("Player not found.");
-      return;
-    }
+      const playerId = btn.dataset.playerId;
+      const player = game.users.get(playerId);
 
-    // Remove from pending (don't approve)
-    let pending = game.settings.get(MODULE_ID, "pendingRequests");
-    pending = pending.filter(req => req.playerId !== playerId);
-    await game.settings.set(MODULE_ID, "pendingRequests", pending);
-    
-    // Create confirmation message
-    await createApprovalChatMessage(player.name, false);
-    
-    ui.notifications.info(`Denied manual dice for ${player.name}.`);
+      if (!player) {
+        ui.notifications.error("Player not found.");
+        return;
+      }
+
+      // Remove from pending (don't approve)
+      let pending = game.settings.get(MODULE_ID, "pendingRequests");
+      pending = pending.filter(req => req.playerId !== playerId);
+      await game.settings.set(MODULE_ID, "pendingRequests", pending);
+      
+      // Create confirmation messages
+      await createApprovalChatMessage(playerId, player.name, false);
+      
+      ui.notifications.info(`Denied manual dice for ${player.name}.`);
+    });
   });
 });
 
@@ -220,7 +246,7 @@ Hooks.once("socketlib.ready", () => {
         await game.settings.set(MODULE_ID, "pendingRequests", pending);
       }
 
-      // Create chat message with approve/deny buttons
+      // Create chat message with approve/deny buttons (GM sees, player sees request sent)
       await createRequestChatMessage(data.playerId, data.playerName);
 
       ui.notifications.warn(
@@ -245,8 +271,6 @@ Hooks.once("ready", () => {
 class DiceLinkCompanionPanel extends foundry.applications.api.ApplicationV2 {
   constructor(options = {}) {
     super(options);
-    this.pendingRequests = [];
-    this.playerModes = {};
   }
 
   static DEFAULT_OPTIONS = {
@@ -285,88 +309,96 @@ class DiceLinkCompanionPanel extends foundry.applications.api.ApplicationV2 {
   }
 
   async _renderHTML(context, options) {
-    const html = `
-      <div class="dlc-panel">
-        <div class="dlc-section">
-          <h3>Global Override</h3>
-          <select id="dlc-global-override" class="dlc-select">
-            <option value="individual" ${context.globalOverride === "individual" ? "selected" : ""}>Individual Control</option>
-            <option value="forceAllManual" ${context.globalOverride === "forceAllManual" ? "selected" : ""}>Force All Manual</option>
-            <option value="forceAllDigital" ${context.globalOverride === "forceAllDigital" ? "selected" : ""}>Force All Digital</option>
-          </select>
-        </div>
+    // Create a wrapper div and populate it with HTML
+    const wrapper = document.createElement("div");
+    wrapper.className = "dlc-panel";
+    wrapper.innerHTML = `
+      <div class="dlc-section">
+        <h3>Global Override</h3>
+        <select id="dlc-global-override" class="dlc-select">
+          <option value="individual" ${context.globalOverride === "individual" ? "selected" : ""}>Individual Control</option>
+          <option value="forceAllManual" ${context.globalOverride === "forceAllManual" ? "selected" : ""}>Force All Manual</option>
+          <option value="forceAllDigital" ${context.globalOverride === "forceAllDigital" ? "selected" : ""}>Force All Digital</option>
+        </select>
+      </div>
 
-        <div class="dlc-section">
-          <h3>Your Mode: <span class="dlc-mode-badge ${context.gmMode === "manual" ? "manual" : "digital"}">${context.gmMode === "manual" ? "Manual" : "Digital"}</span></h3>
-          <button id="dlc-toggle-own" class="dlc-button">Toggle Your Dice Mode</button>
-        </div>
+      <div class="dlc-section">
+        <h3>Your Mode: <span class="dlc-mode-badge ${context.gmMode === "manual" ? "manual" : "digital"}">${context.gmMode === "manual" ? "Manual" : "Digital"}</span></h3>
+        <button id="dlc-toggle-own" class="dlc-button">Toggle Your Dice Mode</button>
+      </div>
 
-        ${context.pendingRequests.length > 0 ? `
-          <div class="dlc-section dlc-pending">
-            <h3>Pending Requests (${context.pendingRequests.length})</h3>
-            ${context.pendingRequests.map(req => `
-              <div class="dlc-player-row">
-                <span>${req.playerName}</span>
-                <div class="dlc-buttons">
-                  <button class="dlc-btn-small dlc-approve" data-player-id="${req.playerId}">Approve</button>
-                  <button class="dlc-btn-small dlc-deny" data-player-id="${req.playerId}">Deny</button>
-                </div>
-              </div>
-            `).join("")}
-          </div>
-        ` : ""}
-
-        <div class="dlc-section">
-          <h3>Player Modes</h3>
-          ${context.players.length > 0 ? context.players.map(player => `
+      ${context.pendingRequests.length > 0 ? `
+        <div class="dlc-section dlc-pending">
+          <h3>Pending Requests (${context.pendingRequests.length})</h3>
+          ${context.pendingRequests.map(req => `
             <div class="dlc-player-row">
-              <span>${player.name} - <span class="dlc-mode-badge ${player.mode === "manual" ? "manual" : "digital"}">${player.mode === "manual" ? "Manual" : "Digital"}</span></span>
+              <span>${req.playerName}</span>
               <div class="dlc-buttons">
-                ${player.canRevoke ? `<button class="dlc-btn-small dlc-revoke" data-player-id="${player.id}">Revoke</button>` : ""}
+                <button class="dlc-btn-small dlc-approve" data-player-id="${req.playerId}">Approve</button>
+                <button class="dlc-btn-small dlc-deny" data-player-id="${req.playerId}">Deny</button>
               </div>
             </div>
-          `).join("") : "<p>No players connected.</p>"}
+          `).join("")}
         </div>
+      ` : ""}
+
+      <div class="dlc-section">
+        <h3>Player Modes</h3>
+        ${context.players.length > 0 ? context.players.map(player => `
+          <div class="dlc-player-row">
+            <span>${player.name} - <span class="dlc-mode-badge ${player.mode === "manual" ? "manual" : "digital"}">${player.mode === "manual" ? "Manual" : "Digital"}</span></span>
+            <div class="dlc-buttons">
+              ${player.canRevoke ? `<button class="dlc-btn-small dlc-revoke" data-player-id="${player.id}">Revoke</button>` : ""}
+            </div>
+          </div>
+        `).join("") : "<p>No players connected.</p>"}
       </div>
     `;
-    return html;
+    
+    return wrapper;
   }
 
   _attachListeners(html) {
     // Global override dropdown
-    html.querySelector("#dlc-global-override")?.addEventListener("change", async (e) => {
-      await game.settings.set(MODULE_ID, "globalOverride", e.target.value);
-      
-      if (e.target.value === "forceAllManual") {
-        await applyManualDice();
-      } else if (e.target.value === "forceAllDigital") {
-        await applyDigitalDice();
-      }
-      
-      this.render();
-    });
+    const globalSelect = html.querySelector("#dlc-global-override");
+    if (globalSelect) {
+      globalSelect.addEventListener("change", async (e) => {
+        await game.settings.set(MODULE_ID, "globalOverride", e.target.value);
+        
+        if (e.target.value === "forceAllManual") {
+          await applyManualDice();
+        } else if (e.target.value === "forceAllDigital") {
+          await applyDigitalDice();
+        }
+        
+        this.render();
+      });
+    }
 
     // Toggle own mode
-    html.querySelector("#dlc-toggle-own")?.addEventListener("click", async () => {
-      const currentMode = game.settings.get(MODULE_ID, `playerMode_${game.user.id}`) || "digital";
-      const newMode = currentMode === "manual" ? "digital" : "manual";
-      
-      await game.settings.set(MODULE_ID, `playerMode_${game.user.id}`, newMode);
-      
-      if (newMode === "manual") {
-        await applyManualDice();
-      } else {
-        await applyDigitalDice();
-      }
-      
-      this.render();
-      ui.controls.render();
-    });
+    const toggleBtn = html.querySelector("#dlc-toggle-own");
+    if (toggleBtn) {
+      toggleBtn.addEventListener("click", async () => {
+        const currentMode = game.settings.get(MODULE_ID, `playerMode_${game.user.id}`) || "digital";
+        const newMode = currentMode === "manual" ? "digital" : "manual";
+        
+        await game.settings.set(MODULE_ID, `playerMode_${game.user.id}`, newMode);
+        
+        if (newMode === "manual") {
+          await applyManualDice();
+        } else {
+          await applyDigitalDice();
+        }
+        
+        this.render();
+        ui.controls.render();
+      });
+    }
 
     // Approve pending requests
     html.querySelectorAll(".dlc-approve").forEach(btn => {
       btn.addEventListener("click", async (e) => {
-        const playerId = e.target.dataset.playerId;
+        const playerId = btn.dataset.playerId;
         const player = game.users.get(playerId);
         
         await game.settings.set(MODULE_ID, `playerMode_${playerId}`, "manual");
@@ -377,7 +409,7 @@ class DiceLinkCompanionPanel extends foundry.applications.api.ApplicationV2 {
         
         // Send chat confirmation
         if (player) {
-          await createApprovalChatMessage(player.name, true);
+          await createApprovalChatMessage(playerId, player.name, true);
         }
         
         ui.notifications.info(`Approved manual dice for ${player?.name}.`);
@@ -389,7 +421,7 @@ class DiceLinkCompanionPanel extends foundry.applications.api.ApplicationV2 {
     // Deny pending requests
     html.querySelectorAll(".dlc-deny").forEach(btn => {
       btn.addEventListener("click", async (e) => {
-        const playerId = e.target.dataset.playerId;
+        const playerId = btn.dataset.playerId;
         const player = game.users.get(playerId);
         
         let pending = game.settings.get(MODULE_ID, "pendingRequests");
@@ -398,7 +430,7 @@ class DiceLinkCompanionPanel extends foundry.applications.api.ApplicationV2 {
         
         // Send chat confirmation
         if (player) {
-          await createApprovalChatMessage(player.name, false);
+          await createApprovalChatMessage(playerId, player.name, false);
         }
         
         ui.notifications.info(`Denied manual dice for ${player?.name}.`);
@@ -409,7 +441,7 @@ class DiceLinkCompanionPanel extends foundry.applications.api.ApplicationV2 {
     // Revoke manual mode
     html.querySelectorAll(".dlc-revoke").forEach(btn => {
       btn.addEventListener("click", async (e) => {
-        const playerId = e.target.dataset.playerId;
+        const playerId = btn.dataset.playerId;
         const player = game.users.get(playerId);
         
         await game.settings.set(MODULE_ID, `playerMode_${playerId}`, "digital");
@@ -436,9 +468,9 @@ Hooks.on("getSceneControlButtons", (controls) => {
     title: isGM ? "Dice Link Companion: Manage Dice" : "Dice Link Companion: Request/Toggle Dice",
     icon: "fa-solid fa-dice-d20",
     order: Object.keys(controls.tokens.tools).length,
-    toggle: false, // Use false so it's a clickable button, not a toggle
-    visible: true, // Show to all users
-    onClick: () => { // FIX: Use onClick instead of onChange for non-toggle buttons
+    toggle: false,
+    visible: true,
+    onClick: () => {
       if (isGM) {
         // GM: Open the management panel
         if (dlcPanelAppId && ui.windows[dlcPanelAppId]) {
