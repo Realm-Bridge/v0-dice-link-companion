@@ -23,7 +23,7 @@
   ],
   "url": "https://github.com/Realm-Bridge/v0-dice-link-companion",
   "manifest": "https://raw.githubusercontent.com/Realm-Bridge/v0-dice-link-companion/main/module.json",
-  "download": "https://github.com/Realm-Bridge/v0-dice-link-companion/releases/latest/download/module.zip",
+  "download": "https://github.com/Realm-Bridge/v0-dice-link-companion/archive/refs/heads/main.zip",
   "license": "MIT",
   "socket": false
 }
