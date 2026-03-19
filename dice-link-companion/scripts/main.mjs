@@ -12,6 +12,7 @@
 const MODULE_ID = "dice-link-companion";
 const DICE_TYPES = ["d4", "d6", "d8", "d10", "d12", "d20", "d100"];
 let dlcPanelAppId = null;
+let dlcPanelOpen = false;
 
 // ============================================================================
 // HELPERS
@@ -202,6 +203,7 @@ async function requestManualMode() {
     return;
   }
 
+  // Only send socket message - let GM handle the setting update
   game.socket.emit(`module.${MODULE_ID}`, {
     action: "playerRequestManual",
     playerId: game.user.id,
@@ -356,6 +358,10 @@ async function openManagementPanel() {
       default: true
     }],
     position: { width: 400 },
+    close: () => {
+      // Reset flag when dialog is closed
+      dlcPanelOpen = false;
+    },
     render: (event, dialogHtml) => {
       const html = dialogHtml.element || dialogHtml;
       
@@ -374,6 +380,7 @@ async function openManagementPanel() {
           }
           
           dialog.close();
+          dlcPanelOpen = false;
           openManagementPanel();
         });
       }
@@ -394,6 +401,7 @@ async function openManagementPanel() {
           }
           
           dialog.close();
+          dlcPanelOpen = false;
           openManagementPanel();
           ui.controls.render();
         });
@@ -424,6 +432,7 @@ async function openManagementPanel() {
           
           ui.notifications.info(`Approved manual dice for ${player?.name}.`);
           dialog.close();
+          dlcPanelOpen = false;
           openManagementPanel();
           ui.controls.render();
         });
@@ -445,6 +454,7 @@ async function openManagementPanel() {
           
           ui.notifications.info(`Denied manual dice for ${player?.name}.`);
           dialog.close();
+          dlcPanelOpen = false;
           openManagementPanel();
         });
       });
@@ -465,6 +475,7 @@ async function openManagementPanel() {
           
           ui.notifications.info(`Revoked manual dice for ${player?.name}.`);
           dialog.close();
+          dlcPanelOpen = false;
           openManagementPanel();
           ui.controls.render();
         });
@@ -472,6 +483,7 @@ async function openManagementPanel() {
     }
   });
 
+  dlcPanelOpen = true;
   dialog.render(true);
 }
 
