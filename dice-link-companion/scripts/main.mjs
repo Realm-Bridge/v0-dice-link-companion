@@ -1,11 +1,11 @@
 /**
- * Manual Dice Override Module for Foundry VTT v13
+ * Dice Link Companion Module for Foundry VTT v13
  * 
  * When activated: Overrides all dice to use manual input
  * When deactivated: Restores original digital roll settings
  */
 
-const MODULE_ID = "manual-dice-override";
+const MODULE_ID = "dice-link-companion";
 
 // Store original dice fulfillment settings
 let originalFulfillmentSettings = null;
@@ -60,7 +60,7 @@ function enableManualDice() {
   game.settings.set("core", "diceConfiguration", newSettings);
   
   console.log(`${MODULE_ID} | Manual dice input ENABLED for all dice types`);
-  ui.notifications.info("Manual Dice Override: Manual input enabled for all dice");
+  ui.notifications.info("Dice Link Companion: Manual input enabled for all dice");
 }
 
 /**
@@ -92,19 +92,19 @@ function disableManualDice() {
   }
   
   console.log(`${MODULE_ID} | Manual dice input DISABLED - restored digital roll`);
-  ui.notifications.info("Manual Dice Override: Restored to digital roll");
+  ui.notifications.info("Dice Link Companion: Restored to digital roll");
 }
 
 /**
  * Module initialization
  */
 Hooks.once("init", () => {
-  console.log(`${MODULE_ID} | Initializing Manual Dice Override module`);
+  console.log(`${MODULE_ID} | Initializing Dice Link Companion module`);
   
   // Register module setting for enable/disable toggle
   game.settings.register(MODULE_ID, "enabled", {
-    name: "MANUAL_DICE_OVERRIDE.Settings.Enabled.Name",
-    hint: "MANUAL_DICE_OVERRIDE.Settings.Enabled.Hint",
+    name: "DICE_LINK_COMPANION.Settings.Enabled.Name",
+    hint: "DICE_LINK_COMPANION.Settings.Enabled.Hint",
     scope: "client",
     config: true,
     type: Boolean,
@@ -150,7 +150,7 @@ Hooks.once("closeModuleManagement", () => {
 });
 
 // Export functions for external use if needed
-globalThis.ManualDiceOverride = {
+globalThis.DiceLinkCompanion = {
   enable: enableManualDice,
   disable: disableManualDice,
   isEnabled: () => game.settings.get(MODULE_ID, "enabled")

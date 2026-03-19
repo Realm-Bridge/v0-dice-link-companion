@@ -1,8 +1,8 @@
 {
-  "MANUAL_DICE_OVERRIDE": {
+  "DICE_LINK_COMPANION": {
     "Settings": {
       "Enabled": {
-        "Name": "Enable Manual Dice Override",
+        "Name": "Enable Dice Link Companion",
         "Hint": "When enabled, all dice rolls will require manual input. When disabled, dice will use digital (automatic) rolls."
       }
     }

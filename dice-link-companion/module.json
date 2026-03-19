@@ -1,6 +1,6 @@
 {
-  "id": "manual-dice-override",
-  "title": "Manual Dice Override",
+  "id": "dice-link-companion",
+  "title": "Dice Link Companion",
   "description": "When activated, overrides dice configuration to manual input. When deactivated, returns to digital roll.",
   "version": "1.0.0",
   "compatibility": {
