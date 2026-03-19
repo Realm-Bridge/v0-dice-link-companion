@@ -102,6 +102,9 @@ async function toggleManualDice() {
 /**
  * Inject a "Dice Link Companion" toggle into the Token layer controls
  * (first group in the left-hand bar, always visible on the canvas).
+ * 
+ * In v13, controls is a Record object, not an array.
+ * Access token controls via controls.tokens.tools
  */
 Hooks.on("getSceneControlButtons", (controls) => {
   // Only GMs should be able to toggle the dice mode
@@ -109,21 +112,23 @@ Hooks.on("getSceneControlButtons", (controls) => {
 
   const isEnabled = game.settings.get(MODULE_ID, "enabled");
 
-  // Find the Token control group (usually the first one)
-  const tokenControls = controls.find(c => c.name === "token");
-  if (!tokenControls) return; // Fallback if token controls don't exist
+  // v13: controls is a Record - access tokens group directly
+  if (!controls.tokens?.tools) return;
 
   // Add our D20 button to the Token controls group
-  tokenControls.tools.push({
-    name: "toggle-manual-dice",
+  // The key must match the name property
+  controls.tokens.tools.diceLinkToggle = {
+    name: "diceLinkToggle",
     title: isEnabled
       ? game.i18n.localize("DICE_LINK_COMPANION.Button.TitleActive")
       : game.i18n.localize("DICE_LINK_COMPANION.Button.Title"),
     icon: "fa-solid fa-dice-d20",
+    order: Object.keys(controls.tokens.tools).length,
     toggle: true,
     active: isEnabled,
-    onClick: () => toggleManualDice()
-  });
+    visible: game.user.isGM,
+    onChange: () => toggleManualDice()
+  };
 });
 
 // -------------------------------------------------------------------- init ---
