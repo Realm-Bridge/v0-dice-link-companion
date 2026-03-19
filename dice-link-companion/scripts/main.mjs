@@ -4,6 +4,7 @@
  * A player-GM dice mode management system with approval workflow.
  * - GMs can toggle their own mode, set global override, and manage player requests
  * - Players can request manual mode (GM approval needed) or switch back to digital
+ * - Requests appear in chat with interactive approve/deny buttons
  * - Accessed via D20 button in token controls on the canvas
  */
 
@@ -46,6 +47,121 @@ async function applyManualDice() {
 async function applyDigitalDice() {
   await setCoreConfig({});
 }
+
+// ============================================================================
+// CHAT MESSAGE HANDLERS
+// ============================================================================
+
+async function createRequestChatMessage(playerId, playerName) {
+  const content = `
+    <div class="dice-link-request">
+      <p><strong>${playerName}</strong> is requesting manual dice mode.</p>
+      <div class="dlc-chat-buttons">
+        <button class="dlc-chat-btn dlc-chat-approve" data-player-id="${playerId}" data-action="approve">
+          <i class="fas fa-check"></i> Approve
+        </button>
+        <button class="dlc-chat-btn dlc-chat-deny" data-player-id="${playerId}" data-action="deny">
+          <i class="fas fa-times"></i> Deny
+        </button>
+      </div>
+    </div>
+  `;
+
+  await ChatMessage.create({
+    user: game.user.id,
+    content,
+    type: CONST.CHAT_MESSAGE_TYPES.OTHER,
+    whisper: game.users.filter(u => u.isGM).map(u => u.id) // Only GMs see this
+  });
+}
+
+async function createApprovalChatMessage(playerName, approved) {
+  const status = approved ? "approved" : "denied";
+  const icon = approved ? "fa-check" : "fa-times";
+  const color = approved ? "green" : "red";
+  
+  const content = `
+    <div class="dice-link-result" style="border-left: 4px solid ${color}; padding: 10px; margin: 5px 0;">
+      <p><strong>${playerName}</strong>'s request for manual dice has been <strong style="color: ${color};">${status.toUpperCase()}</strong>.</p>
+    </div>
+  `;
+
+  // Get the player
+  const player = game.users.find(u => u.name === playerName);
+  if (!player) return;
+
+  // Send to GM and the player who requested
+  await ChatMessage.create({
+    user: game.user.id,
+    content,
+    type: CONST.CHAT_MESSAGE_TYPES.OTHER,
+    whisper: [game.user.id, player.id]
+  });
+}
+
+// Hook to handle chat button clicks
+Hooks.on("chatMessage", (message) => {
+  return true; // Let normal processing continue
+});
+
+// Use a delegated click handler on the chat log to catch button clicks
+Hooks.on("renderChatLog", (app, html) => {
+  html.on("click", ".dlc-chat-approve", async (e) => {
+    e.preventDefault();
+    const playerId = e.currentTarget.dataset.playerId;
+    const player = game.users.get(playerId);
+    
+    if (!game.user.isGM) {
+      ui.notifications.error("Only GMs can approve requests.");
+      return;
+    }
+
+    if (!player) {
+      ui.notifications.error("Player not found.");
+      return;
+    }
+
+    // Approve the request
+    await game.settings.set(MODULE_ID, `playerMode_${playerId}`, "manual");
+    
+    // Remove from pending
+    let pending = game.settings.get(MODULE_ID, "pendingRequests");
+    pending = pending.filter(req => req.playerId !== playerId);
+    await game.settings.set(MODULE_ID, "pendingRequests", pending);
+    
+    // Create confirmation message
+    await createApprovalChatMessage(player.name, true);
+    
+    ui.notifications.info(`Approved manual dice for ${player.name}.`);
+    ui.controls.render(); // Update button state
+  });
+
+  html.on("click", ".dlc-chat-deny", async (e) => {
+    e.preventDefault();
+    const playerId = e.currentTarget.dataset.playerId;
+    const player = game.users.get(playerId);
+    
+    if (!game.user.isGM) {
+      ui.notifications.error("Only GMs can deny requests.");
+      return;
+    }
+
+    if (!player) {
+      ui.notifications.error("Player not found.");
+      return;
+    }
+
+    // Remove from pending (don't approve)
+    let pending = game.settings.get(MODULE_ID, "pendingRequests");
+    pending = pending.filter(req => req.playerId !== playerId);
+    await game.settings.set(MODULE_ID, "pendingRequests", pending);
+    
+    // Create confirmation message
+    await createApprovalChatMessage(player.name, false);
+    
+    ui.notifications.info(`Denied manual dice for ${player.name}.`);
+  });
+});
 
 // ============================================================================
 // PLAYER REQUEST & MODE MANAGEMENT
@@ -104,8 +220,11 @@ Hooks.once("socketlib.ready", () => {
         await game.settings.set(MODULE_ID, "pendingRequests", pending);
       }
 
+      // Create chat message with approve/deny buttons
+      await createRequestChatMessage(data.playerId, data.playerName);
+
       ui.notifications.warn(
-        `${data.playerName} requested manual dice mode. Check the Dice Link panel.`,
+        `${data.playerName} requested manual dice mode.`,
         { permanent: false }
       );
     }
@@ -248,14 +367,22 @@ class DiceLinkCompanionPanel extends foundry.applications.api.ApplicationV2 {
     html.querySelectorAll(".dlc-approve").forEach(btn => {
       btn.addEventListener("click", async (e) => {
         const playerId = e.target.dataset.playerId;
+        const player = game.users.get(playerId);
+        
         await game.settings.set(MODULE_ID, `playerMode_${playerId}`, "manual");
         
         let pending = game.settings.get(MODULE_ID, "pendingRequests");
         pending = pending.filter(req => req.playerId !== playerId);
         await game.settings.set(MODULE_ID, "pendingRequests", pending);
         
-        ui.notifications.info(`Approved manual dice for ${game.users.get(playerId)?.name}.`);
+        // Send chat confirmation
+        if (player) {
+          await createApprovalChatMessage(player.name, true);
+        }
+        
+        ui.notifications.info(`Approved manual dice for ${player?.name}.`);
         this.render();
+        ui.controls.render();
       });
     });
 
@@ -263,12 +390,18 @@ class DiceLinkCompanionPanel extends foundry.applications.api.ApplicationV2 {
     html.querySelectorAll(".dlc-deny").forEach(btn => {
       btn.addEventListener("click", async (e) => {
         const playerId = e.target.dataset.playerId;
+        const player = game.users.get(playerId);
         
         let pending = game.settings.get(MODULE_ID, "pendingRequests");
         pending = pending.filter(req => req.playerId !== playerId);
         await game.settings.set(MODULE_ID, "pendingRequests", pending);
         
-        ui.notifications.info(`Denied manual dice for ${game.users.get(playerId)?.name}.`);
+        // Send chat confirmation
+        if (player) {
+          await createApprovalChatMessage(player.name, false);
+        }
+        
+        ui.notifications.info(`Denied manual dice for ${player?.name}.`);
         this.render();
       });
     });
@@ -277,10 +410,13 @@ class DiceLinkCompanionPanel extends foundry.applications.api.ApplicationV2 {
     html.querySelectorAll(".dlc-revoke").forEach(btn => {
       btn.addEventListener("click", async (e) => {
         const playerId = e.target.dataset.playerId;
+        const player = game.users.get(playerId);
+        
         await game.settings.set(MODULE_ID, `playerMode_${playerId}`, "digital");
         
-        ui.notifications.info(`Revoked manual dice for ${game.users.get(playerId)?.name}.`);
+        ui.notifications.info(`Revoked manual dice for ${player?.name}.`);
         this.render();
+        ui.controls.render();
       });
     });
   }
@@ -295,18 +431,16 @@ Hooks.on("getSceneControlButtons", (controls) => {
 
   const isGM = game.user.isGM;
   
-  // FIX: Read playerMode at click time, not at hook registration
-  // So we capture the current state when button is actually clicked
   controls.tokens.tools.diceLinkToggle = {
     name: "diceLinkToggle",
     title: isGM ? "Dice Link Companion: Manage Dice" : "Dice Link Companion: Request/Toggle Dice",
     icon: "fa-solid fa-dice-d20",
     order: Object.keys(controls.tokens.tools).length,
-    toggle: false, // FIX: Set to false so it's a button click, not a toggle
-    visible: true, // FIX: Show button to all users (GMs and players)
-    onChange: () => {
+    toggle: false, // Use false so it's a clickable button, not a toggle
+    visible: true, // Show to all users
+    onClick: () => { // FIX: Use onClick instead of onChange for non-toggle buttons
       if (isGM) {
-        // FIX: Use appId tracking instead of ui.windows.dlcPanel
+        // GM: Open the management panel
         if (dlcPanelAppId && ui.windows[dlcPanelAppId]) {
           ui.windows[dlcPanelAppId].close();
         }

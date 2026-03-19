@@ -138,3 +138,68 @@
 .dlc-revoke:hover {
   background: var(--warning-highlight, #D68910) !important;
 }
+
+/* Chat Message Styles */
+.dice-link-request {
+  padding: 10px;
+  margin: 5px 0;
+  background: var(--background-color, #fff);
+  border-left: 4px solid var(--primary-color, #6C5CE7);
+  border-radius: 3px;
+}
+
+.dice-link-request p {
+  margin: 0 0 10px 0;
+  font-size: 13px;
+}
+
+.dlc-chat-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.dlc-chat-btn {
+  padding: 6px 10px;
+  background: var(--primary-color, #6C5CE7);
+  color: white;
+  border: none;
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dlc-chat-btn:hover {
+  background: var(--primary-highlight, #5f4fd0);
+}
+
+.dlc-chat-approve {
+  background: var(--success-color, #27AE60) !important;
+}
+
+.dlc-chat-approve:hover {
+  background: var(--success-highlight, #229954) !important;
+}
+
+.dlc-chat-deny {
+  background: var(--danger-color, #E74C3C) !important;
+}
+
+.dlc-chat-deny:hover {
+  background: var(--danger-highlight, #C0392B) !important;
+}
+
+.dice-link-result {
+  padding: 10px;
+  margin: 5px 0;
+  border-radius: 3px;
+}
+
+.dice-link-result p {
+  margin: 0;
+  font-size: 13px;
+}

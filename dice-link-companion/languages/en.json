@@ -28,6 +28,14 @@
       "Deny": "Deny",
       "Revoke": "Revoke",
       "NoPlayers": "No players connected"
+    },
+    "Chat": {
+      "RequestTitle": "Manual Dice Request",
+      "RequestSent": " is requesting manual dice mode",
+      "ApprovedTitle": "Request Approved",
+      "ApprovedMessage": "'s request for manual dice has been APPROVED",
+      "DeniedTitle": "Request Denied",
+      "DeniedMessage": "'s request for manual dice has been DENIED"
     }
   }
 }
