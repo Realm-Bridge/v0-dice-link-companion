@@ -9,6 +9,7 @@
 
 const MODULE_ID = "dice-link-companion";
 const DICE_TYPES = ["d4", "d6", "d8", "d10", "d12", "d20", "d100"];
+let dlcPanelAppId = null; // Track the panel's app ID for proper window management
 
 // ============================================================================
 // HELPERS
@@ -140,7 +141,7 @@ class DiceLinkCompanionPanel extends foundry.applications.api.ApplicationV2 {
   async _prepareContext() {
     const globalOverride = game.settings.get(MODULE_ID, "globalOverride");
     const pendingRequests = game.settings.get(MODULE_ID, "pendingRequests");
-    const gmMode = game.settings.get(MODULE_ID, `playerMode_${game.user.id}`);
+    const gmMode = game.settings.get(MODULE_ID, `playerMode_${game.user.id}`) || "digital";
 
     const players = [];
     for (const user of game.users) {
@@ -293,41 +294,29 @@ Hooks.on("getSceneControlButtons", (controls) => {
   if (!controls.tokens?.tools) return;
 
   const isGM = game.user.isGM;
-  const playerMode = game.settings.get(MODULE_ID, `playerMode_${game.user.id}`) || "digital";
-  const globalOverride = game.settings.get(MODULE_ID, "globalOverride");
-
-  let title = "Dice Link Companion";
-  let active = false;
-
-  if (isGM) {
-    title = "Dice Link Companion: Open Panel";
-    active = false; // GM button is not a toggle
-  } else {
-    if (globalOverride === "forceAllManual") {
-      title = "Manual dice (Forced by GM)";
-      active = true;
-    } else if (globalOverride === "forceAllDigital") {
-      title = "Digital dice (Forced by GM)";
-      active = false;
-    } else {
-      title = playerMode === "manual" ? "Manual dice (Active)" : "Request Manual Dice";
-      active = playerMode === "manual";
-    }
-  }
-
+  
+  // FIX: Read playerMode at click time, not at hook registration
+  // So we capture the current state when button is actually clicked
   controls.tokens.tools.diceLinkToggle = {
     name: "diceLinkToggle",
-    title,
+    title: isGM ? "Dice Link Companion: Manage Dice" : "Dice Link Companion: Request/Toggle Dice",
     icon: "fa-solid fa-dice-d20",
     order: Object.keys(controls.tokens.tools).length,
-    toggle: true,
-    active,
-    visible: true,
+    toggle: false, // FIX: Set to false so it's a button click, not a toggle
+    visible: true, // FIX: Show button to all users (GMs and players)
     onChange: () => {
       if (isGM) {
-        ui.windows.dlcPanel?.close();
-        new DiceLinkCompanionPanel().render(true);
+        // FIX: Use appId tracking instead of ui.windows.dlcPanel
+        if (dlcPanelAppId && ui.windows[dlcPanelAppId]) {
+          ui.windows[dlcPanelAppId].close();
+        }
+        const panel = new DiceLinkCompanionPanel();
+        panel.render(true);
+        dlcPanelAppId = panel.appId;
       } else {
+        // Player: read current mode at click time
+        const playerMode = game.settings.get(MODULE_ID, `playerMode_${game.user.id}`) || "digital";
+        
         if (playerMode === "manual") {
           switchToDigitalMode();
         } else {
