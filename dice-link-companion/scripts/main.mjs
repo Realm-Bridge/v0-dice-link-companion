@@ -5,56 +5,119 @@
  */
 
 const MODULE_ID = "dice-link-companion";
-const DICE_TYPES = ["d4", "d6", "d8", "d10", "d12", "d20", "d100"];
 
 // Track if player has already requested this session
 let hasRequestedThisSession = false;
 
 // ============================================================================
-// DICE CONFIGURATION - Using Foundry v13 method
+// DICE CONFIGURATION - Using Foundry v13 core settings
 // ============================================================================
 
-function applyManualDice() {
+/**
+ * Apply manual dice mode by updating the core diceConfiguration setting.
+ * This is the same setting that Foundry's Configure Dice UI modifies.
+ */
+async function applyManualDice() {
   console.log("[v0] applyManualDice called");
+  console.log("[v0] Current CONFIG.Dice.fulfillment:", JSON.stringify(CONFIG.Dice.fulfillment));
   
-  // Foundry v13 dice fulfillment structure
-  if (!CONFIG.Dice.fulfillment) {
-    CONFIG.Dice.fulfillment = { dice: {} };
-  }
-  if (!CONFIG.Dice.fulfillment.dice) {
-    CONFIG.Dice.fulfillment.dice = {};
-  }
-  
-  // Set each die type to manual
-  for (const die of DICE_TYPES) {
-    CONFIG.Dice.fulfillment.dice[die] = "manual";
+  // Get current dice configuration from core settings (if accessible)
+  let currentConfig = {};
+  try {
+    currentConfig = game.settings.get("core", "diceConfiguration") || {};
+  } catch (e) {
+    console.log("[v0] Could not read core diceConfiguration, using empty object");
   }
   
-  // Set default method
-  CONFIG.Dice.fulfillment.defaultMethod = "manual";
+  console.log("[v0] Current core diceConfiguration:", JSON.stringify(currentConfig));
   
-  console.log("[v0] Manual dice applied:", JSON.stringify(CONFIG.Dice.fulfillment));
+  // Build new configuration with all dice set to manual
+  // Foundry v13 uses die denomination strings like "d4", "d6", etc.
+  const newConfig = {
+    ...currentConfig,
+    d4: "manual",
+    d6: "manual", 
+    d8: "manual",
+    d10: "manual",
+    d12: "manual",
+    d20: "manual",
+    d100: "manual"
+  };
+  
+  console.log("[v0] New diceConfiguration to apply:", JSON.stringify(newConfig));
+  
+  // Update the live CONFIG object immediately
+  if (CONFIG.Dice.fulfillment) {
+    CONFIG.Dice.fulfillment.defaultMethod = "manual";
+    if (CONFIG.Dice.fulfillment.dice) {
+      CONFIG.Dice.fulfillment.dice.d4 = "manual";
+      CONFIG.Dice.fulfillment.dice.d6 = "manual";
+      CONFIG.Dice.fulfillment.dice.d8 = "manual";
+      CONFIG.Dice.fulfillment.dice.d10 = "manual";
+      CONFIG.Dice.fulfillment.dice.d12 = "manual";
+      CONFIG.Dice.fulfillment.dice.d20 = "manual";
+      CONFIG.Dice.fulfillment.dice.d100 = "manual";
+    }
+  }
+  
+  // Only GMs can update core settings
+  if (game.user.isGM) {
+    try {
+      await game.settings.set("core", "diceConfiguration", newConfig);
+      console.log("[v0] Core diceConfiguration saved by GM");
+    } catch (e) {
+      console.log("[v0] Failed to save core diceConfiguration:", e);
+    }
+  }
+  
+  console.log("[v0] Manual dice applied. CONFIG.Dice.fulfillment now:", JSON.stringify(CONFIG.Dice.fulfillment));
 }
 
-function applyDigitalDice() {
+/**
+ * Apply digital dice mode by clearing the dice configuration.
+ */
+async function applyDigitalDice() {
   console.log("[v0] applyDigitalDice called");
+  console.log("[v0] Current CONFIG.Dice.fulfillment:", JSON.stringify(CONFIG.Dice.fulfillment));
   
-  if (!CONFIG.Dice.fulfillment) {
-    CONFIG.Dice.fulfillment = { dice: {} };
+  // Build empty configuration (digital/default)
+  const newConfig = {
+    d4: "",
+    d6: "",
+    d8: "",
+    d10: "",
+    d12: "",
+    d20: "",
+    d100: ""
+  };
+  
+  console.log("[v0] New diceConfiguration to apply:", JSON.stringify(newConfig));
+  
+  // Update the live CONFIG object immediately
+  if (CONFIG.Dice.fulfillment) {
+    CONFIG.Dice.fulfillment.defaultMethod = "";
+    if (CONFIG.Dice.fulfillment.dice) {
+      CONFIG.Dice.fulfillment.dice.d4 = "";
+      CONFIG.Dice.fulfillment.dice.d6 = "";
+      CONFIG.Dice.fulfillment.dice.d8 = "";
+      CONFIG.Dice.fulfillment.dice.d10 = "";
+      CONFIG.Dice.fulfillment.dice.d12 = "";
+      CONFIG.Dice.fulfillment.dice.d20 = "";
+      CONFIG.Dice.fulfillment.dice.d100 = "";
+    }
   }
-  if (!CONFIG.Dice.fulfillment.dice) {
-    CONFIG.Dice.fulfillment.dice = {};
+  
+  // Only GMs can update core settings
+  if (game.user.isGM) {
+    try {
+      await game.settings.set("core", "diceConfiguration", newConfig);
+      console.log("[v0] Core diceConfiguration cleared by GM");
+    } catch (e) {
+      console.log("[v0] Failed to clear core diceConfiguration:", e);
+    }
   }
   
-  // Clear each die type (back to digital/default)
-  for (const die of DICE_TYPES) {
-    CONFIG.Dice.fulfillment.dice[die] = "";
-  }
-  
-  // Clear default method
-  CONFIG.Dice.fulfillment.defaultMethod = "";
-  
-  console.log("[v0] Digital dice applied:", JSON.stringify(CONFIG.Dice.fulfillment));
+  console.log("[v0] Digital dice applied. CONFIG.Dice.fulfillment now:", JSON.stringify(CONFIG.Dice.fulfillment));
 }
 
 // ============================================================================
