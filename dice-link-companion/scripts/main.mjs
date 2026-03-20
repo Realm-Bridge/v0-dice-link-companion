@@ -170,13 +170,19 @@ function setupChatButtonHandlers() {
       return;
     }
 
-    const playerId = $(this).data("player-id");
+    const $btn = $(this);
+    const $container = $btn.closest(".dice-link-request");
+    const playerId = $btn.data("player-id");
     const player = game.users.get(playerId);
 
     if (!player) {
       ui.notifications.error("Player not found.");
       return;
     }
+
+    // Disable buttons immediately to prevent double-clicks
+    $container.find(".dlc-chat-btn").prop("disabled", true).addClass("dlc-btn-disabled");
+    $container.find(".dlc-chat-buttons").html('<em>Request approved</em>');
 
     // Update setting
     await game.settings.set(MODULE_ID, `playerMode_${playerId}`, "manual");
@@ -206,7 +212,9 @@ function setupChatButtonHandlers() {
       return;
     }
 
-    const playerId = $(this).data("player-id");
+    const $btn = $(this);
+    const $container = $btn.closest(".dice-link-request");
+    const playerId = $btn.data("player-id");
     const player = game.users.get(playerId);
 
     if (!player) {
@@ -214,10 +222,20 @@ function setupChatButtonHandlers() {
       return;
     }
 
+    // Disable buttons immediately to prevent double-clicks
+    $container.find(".dlc-chat-btn").prop("disabled", true).addClass("dlc-btn-disabled");
+    $container.find(".dlc-chat-buttons").html('<em>Request denied</em>');
+
     // Clear from pending
     let pending = game.settings.get(MODULE_ID, "pendingRequests") || [];
     pending = pending.filter(req => req.playerId !== playerId);
     await game.settings.set(MODULE_ID, "pendingRequests", pending);
+    
+    // Send socket to player so they can make another request
+    game.socket.emit(`module.${MODULE_ID}`, {
+      action: "requestDenied",
+      playerId: playerId
+    });
     
     await createApprovalChatMessage(playerId, player.name, false);
     ui.notifications.info(`Denied manual dice for ${player.name}.`);
@@ -279,6 +297,12 @@ function setupSocketListeners() {
       applyDigitalDice();
       hasRequestedThisSession = false;
       ui.notifications.warn("GM has revoked your manual dice mode.");
+    }
+
+    // Request denied - allow player to request again
+    if (data.action === "requestDenied" && data.playerId === game.user.id) {
+      hasRequestedThisSession = false;
+      // Notification already shown via chat message
     }
   });
 }

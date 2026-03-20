@@ -329,6 +329,19 @@
   background: var(--danger-highlight, #C0392B) !important;
 }
 
+.dlc-chat-btn.dlc-btn-disabled,
+.dlc-chat-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.dlc-chat-buttons em {
+  color: #666;
+  font-size: 12px;
+  padding: 6px 0;
+}
+
 .dice-link-result {
   padding: 10px;
   margin: 5px 0;
