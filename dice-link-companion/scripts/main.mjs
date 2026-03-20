@@ -380,15 +380,20 @@ function getManualRollsPermissions() {
 /**
  * Set MANUAL_ROLLS permission for a specific role.
  * This ONLY modifies the permissions setting, not the dice configuration.
+ * Preserves the current dice configuration to prevent Foundry's auto-sync.
  */
 async function setManualRollsPermission(role, enabled) {
   try {
-    console.log("[v0] setManualRollsPermission called - role:", role, "enabled:", enabled);
+    // Save current dice configuration before changing permissions
+    let currentDiceConfig = {};
+    try {
+      currentDiceConfig = game.settings.get("core", "diceConfiguration") || {};
+    } catch (e) {
+      // If we can't read it, we'll just proceed
+    }
     
     const permissions = game.settings.get("core", "permissions") || {};
     let roles = permissions.MANUAL_ROLLS || [];
-    
-    console.log("[v0] Current MANUAL_ROLLS before change:", JSON.stringify(roles));
     
     // Make a copy to avoid mutation issues
     roles = [...roles];
@@ -402,18 +407,24 @@ async function setManualRollsPermission(role, enabled) {
     // Sort for consistency
     roles.sort((a, b) => a - b);
     
-    console.log("[v0] New MANUAL_ROLLS to set:", JSON.stringify(roles));
-    
-    // Create a new permissions object to avoid any reference issues
+    // Create a new permissions object
     const newPermissions = { ...permissions, MANUAL_ROLLS: roles };
     
-    console.log("[v0] About to set core permissions (ONLY permissions, NOT dice config)");
+    // Set the core permissions
     await game.settings.set("core", "permissions", newPermissions);
-    console.log("[v0] Permissions set successfully");
+    
+    // Restore the dice configuration to prevent Foundry's automatic sync
+    // from changing it when permissions change
+    if (Object.keys(currentDiceConfig).length > 0) {
+      try {
+        await game.settings.set("core", "diceConfiguration", currentDiceConfig);
+      } catch (e) {
+        // If we can't restore it, that's okay - it's just a restoration attempt
+      }
+    }
     
     return true;
   } catch (e) {
-    console.log("[v0] Error setting permissions:", e);
     ui.notifications.error(`Failed to update manual rolls permission for role ${role}.`);
     return false;
   }
