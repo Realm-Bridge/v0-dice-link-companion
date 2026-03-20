@@ -380,16 +380,23 @@ function getManualRollsPermissions() {
 /**
  * Set MANUAL_ROLLS permission for a specific role.
  * This ONLY modifies the permissions setting, not the dice configuration.
- * Preserves the current dice configuration to prevent Foundry's auto-sync.
+ * 
+ * When ENABLING permission: Preserve current dice config (prevent Foundry auto-sync)
+ * When DISABLING permission: Let Foundry handle it naturally (don't restore manual config
+ *                            for users who no longer have permission)
  */
 async function setManualRollsPermission(role, enabled) {
   try {
-    // Save current dice configuration before changing permissions
-    let currentDiceConfig = {};
-    try {
-      currentDiceConfig = game.settings.get("core", "diceConfiguration") || {};
-    } catch (e) {
-      // If we can't read it, we'll just proceed
+    // Only save/restore dice config when ENABLING permission
+    // (prevents Foundry from auto-syncing to manual when we grant permission)
+    // When disabling, we don't restore - it's appropriate for manual configs to reset
+    let currentDiceConfig = null;
+    if (enabled) {
+      try {
+        currentDiceConfig = game.settings.get("core", "diceConfiguration") || {};
+      } catch (e) {
+        // If we can't read it, we'll just proceed without restoration
+      }
     }
     
     const permissions = game.settings.get("core", "permissions") || {};
@@ -413,13 +420,13 @@ async function setManualRollsPermission(role, enabled) {
     // Set the core permissions
     await game.settings.set("core", "permissions", newPermissions);
     
-    // Restore the dice configuration to prevent Foundry's automatic sync
-    // from changing it when permissions change
-    if (Object.keys(currentDiceConfig).length > 0) {
+    // Only restore dice config when ENABLING permission
+    // This prevents Foundry from auto-enabling manual dice when we grant permission
+    if (enabled && currentDiceConfig && Object.keys(currentDiceConfig).length > 0) {
       try {
         await game.settings.set("core", "diceConfiguration", currentDiceConfig);
       } catch (e) {
-        // If we can't restore it, that's okay - it's just a restoration attempt
+        // If we can't restore it, that's okay
       }
     }
     
