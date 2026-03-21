@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.2.1
+ * Version 1.0.2.2
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -8,7 +8,8 @@
 
 const MODULE_ID = "dice-link-companion";
 const REALM_BRIDGE_URL = "https://realmbridge.co.uk";
-const LOGO_URL = "https://realmbridge.co.uk/wp-content/uploads/2024/11/REALM-BRIDGE-DICE-LINK-white.png";
+const LOGO_URL = "modules/dice-link-companion/assets/logo-header.png";
+const LOGO_SQUARE_URL = "modules/dice-link-companion/assets/logo-square.png";
 
 // Track if player has already requested this session
 let hasRequestedThisSession = false;
@@ -574,7 +575,7 @@ function generateGMPanelContent() {
                 <div class="dlc-video-cell"><span class="dlc-video-placeholder">Stay Tuned</span></div>
                 <div class="dlc-video-cell">
                   <a href="${REALM_BRIDGE_URL}" target="_blank" class="dlc-video-logo-link" title="Visit Realm Bridge">
-                    <img src="${LOGO_URL}" alt="Realm Bridge" class="dlc-video-logo" onerror="this.parentElement.innerHTML='<span class=dlc-video-placeholder>Realm Bridge</span>'">
+                    <img src="${LOGO_SQUARE_URL}" alt="Realm Bridge" class="dlc-video-logo" onerror="this.parentElement.innerHTML='<span class=dlc-video-placeholder>Realm Bridge</span>'">
                   </a>
                 </div>
               </div>
@@ -612,6 +613,9 @@ function generatePlayerPanelContent() {
 
   const canRequest = !myPending && myMode === "digital" && globalOverride === "individual";
   const canSwitchToDigital = myMode === "manual" && globalOverride !== "forceAllManual";
+  
+  const otherPlayers = players.filter(p => !p.isSelf);
+  const selfPlayer = players.find(p => p.isSelf);
 
   return `
     <div class="dlc-panel dlc-player-panel">
@@ -624,22 +628,23 @@ function generatePlayerPanelContent() {
 
       <!-- Bottom Sections -->
       <div class="dlc-bottom-sections" style="padding-top: 12px;">
-        <!-- Player Modes -->
+        <!-- Player Modes - Two Column Layout -->
         <div class="dlc-section ${collapsedSections.playerModes ? 'collapsed' : ''}">
           <div class="dlc-section-header" data-section="playerModes">
             <span class="dlc-collapse-btn">${collapsedSections.playerModes ? '+' : '−'}</span>
             <h3><i class="fas fa-users"></i> Player Modes</h3>
           </div>
           <div class="dlc-section-content">
-            <div class="dlc-players-grid">
-              ${players.map(player => `
-                <div class="dlc-player-card ${player.isSelf ? 'self' : ''}">
-                  <div class="dlc-player-info">
-                    <span class="dlc-player-name">${player.name}</span>
-                    ${player.isSelf ? '<span class="dlc-self-indicator">(You)</span>' : ''}
-                    <span class="dlc-mode-badge ${player.isPending ? 'pending' : player.mode}">${player.isPending ? 'Pending' : player.mode}</span>
-                  </div>
-                  ${player.isSelf ? `
+            <div class="dlc-player-split-layout">
+              <!-- Left: Self Player Status -->
+              <div class="dlc-player-self-section">
+                ${selfPlayer ? `
+                  <div class="dlc-player-card dlc-player-card-self">
+                    <div class="dlc-player-info">
+                      <span class="dlc-player-name">${selfPlayer.name}</span>
+                      <span class="dlc-self-indicator">(You)</span>
+                      <span class="dlc-mode-badge ${selfPlayer.isPending ? 'pending' : selfPlayer.mode}">${selfPlayer.isPending ? 'Pending' : selfPlayer.mode}</span>
+                    </div>
                     <div class="dlc-player-actions">
                       ${canRequest ? `
                         <button type="button" class="dlc-btn dlc-btn-sm dlc-btn-success dlc-player-request">
@@ -655,9 +660,25 @@ function generatePlayerPanelContent() {
                         </button>
                       ` : ''}
                     </div>
-                  ` : ''}
-                </div>
-              `).join('')}
+                  </div>
+                ` : ''}
+              </div>
+
+              <!-- Right: Other Players Status (2 columns) -->
+              <div class="dlc-player-others-section">
+                ${otherPlayers.length > 0 ? `
+                  <div class="dlc-players-grid dlc-other-players-grid">
+                    ${otherPlayers.map(player => `
+                      <div class="dlc-player-card">
+                        <div class="dlc-player-info">
+                          <span class="dlc-player-name">${player.name}</span>
+                          <span class="dlc-mode-badge ${player.isPending ? 'pending' : player.mode}">${player.isPending ? 'Pending' : player.mode}</span>
+                        </div>
+                      </div>
+                    `).join('')}
+                  </div>
+                ` : '<p class="dlc-no-players">No other players connected.</p>'}
+              </div>
             </div>
             ${globalOverride !== "individual" ? `
               <p class="dlc-no-players" style="margin-top: 10px;">
@@ -681,7 +702,7 @@ function generatePlayerPanelContent() {
                 <div class="dlc-video-cell"><span class="dlc-video-placeholder">Stay Tuned</span></div>
                 <div class="dlc-video-cell">
                   <a href="${REALM_BRIDGE_URL}" target="_blank" class="dlc-video-logo-link" title="Visit Realm Bridge">
-                    <img src="${LOGO_URL}" alt="Realm Bridge" class="dlc-video-logo" onerror="this.parentElement.innerHTML='<span class=dlc-video-placeholder>Realm Bridge</span>'">
+                    <img src="${LOGO_SQUARE_URL}" alt="Realm Bridge" class="dlc-video-logo" onerror="this.parentElement.innerHTML='<span class=dlc-video-placeholder>Realm Bridge</span>'">
                   </a>
                 </div>
               </div>
