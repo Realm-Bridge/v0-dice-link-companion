@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.2.0
+ * Version 1.0.2.1
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -15,7 +15,8 @@ let hasRequestedThisSession = false;
 
 // Track collapsed sections state
 const collapsedSections = {
-  permissions: false,
+  topRow: false, // Settings section (Permissions, Global Override, GM Mode)
+  pending: false,
   playerModes: false,
   videoFeed: true // Start collapsed
 };
@@ -426,12 +427,17 @@ function generateGMPanelContent() {
       <div class="dlc-header">
         <a href="${REALM_BRIDGE_URL}" target="_blank" class="dlc-logo-link" title="Visit Realm Bridge">
           <img src="${LOGO_URL}" alt="Realm Bridge" class="dlc-logo" onerror="this.style.display='none'">
-          <span class="dlc-header-title">Dice Link Companion</span>
         </a>
       </div>
 
-      <!-- Top Row: Permissions | Global Override | GM Mode -->
-      <div class="dlc-top-row">
+      <!-- Top Row: Permissions | Global Override | GM Mode (Collapsible) -->
+      <div class="dlc-section dlc-top-section ${collapsedSections.topRow ? 'collapsed' : ''}" style="margin: 12px 12px 0 12px;">
+        <div class="dlc-section-header" data-section="topRow">
+          <span class="dlc-collapse-btn">${collapsedSections.topRow ? '+' : '−'}</span>
+          <h3><i class="fas fa-cog"></i> Settings</h3>
+        </div>
+        <div class="dlc-section-content">
+          <div class="dlc-top-row">
         <!-- Permissions -->
         <div class="dlc-mini-section">
           <h4>Permissions</h4>
@@ -491,8 +497,10 @@ function generateGMPanelContent() {
               </button>
             </div>
           </div>
+          </div>
         </div>
       </div>
+    </div>
 
       <!-- Bottom Sections -->
       <div class="dlc-bottom-sections">
@@ -500,8 +508,8 @@ function generateGMPanelContent() {
           <!-- Pending Requests -->
           <div class="dlc-section dlc-pending-section">
             <div class="dlc-section-header" data-section="pending">
-              <h3><i class="fas fa-clock"></i> Pending Requests (${pendingRequests.length})</h3>
               <span class="dlc-collapse-btn">${collapsedSections.pending ? '+' : '−'}</span>
+              <h3><i class="fas fa-clock"></i> Pending Requests (${pendingRequests.length})</h3>
             </div>
             <div class="dlc-section-content">
               <div class="dlc-pending-list">
@@ -526,8 +534,8 @@ function generateGMPanelContent() {
         <!-- Player Modes -->
         <div class="dlc-section ${collapsedSections.playerModes ? 'collapsed' : ''}">
           <div class="dlc-section-header" data-section="playerModes">
-            <h3><i class="fas fa-users"></i> Player Modes</h3>
             <span class="dlc-collapse-btn">${collapsedSections.playerModes ? '+' : '−'}</span>
+            <h3><i class="fas fa-users"></i> Player Modes</h3>
           </div>
           <div class="dlc-section-content">
             ${players.length > 0 ? `
@@ -555,8 +563,8 @@ function generateGMPanelContent() {
         <!-- Video Feed Placeholder -->
         <div class="dlc-section ${collapsedSections.videoFeed ? 'collapsed' : ''}">
           <div class="dlc-section-header" data-section="videoFeed">
-            <h3><i class="fas fa-video"></i> Video Feed</h3>
             <span class="dlc-collapse-btn">${collapsedSections.videoFeed ? '+' : '−'}</span>
+            <h3><i class="fas fa-video"></i> Video Feed</h3>
           </div>
           <div class="dlc-section-content">
             <div class="dlc-video-feed">
@@ -564,7 +572,11 @@ function generateGMPanelContent() {
                 <div class="dlc-video-cell"><span class="dlc-video-placeholder">Coming Soon</span></div>
                 <div class="dlc-video-cell"><span class="dlc-video-placeholder">Future Feature</span></div>
                 <div class="dlc-video-cell"><span class="dlc-video-placeholder">Stay Tuned</span></div>
-                <div class="dlc-video-cell"><span class="dlc-video-placeholder">Realm Bridge</span></div>
+                <div class="dlc-video-cell">
+                  <a href="${REALM_BRIDGE_URL}" target="_blank" class="dlc-video-logo-link" title="Visit Realm Bridge">
+                    <img src="${LOGO_URL}" alt="Realm Bridge" class="dlc-video-logo" onerror="this.parentElement.innerHTML='<span class=dlc-video-placeholder>Realm Bridge</span>'">
+                  </a>
+                </div>
               </div>
             </div>
           </div>
@@ -607,7 +619,6 @@ function generatePlayerPanelContent() {
       <div class="dlc-header">
         <a href="${REALM_BRIDGE_URL}" target="_blank" class="dlc-logo-link" title="Visit Realm Bridge">
           <img src="${LOGO_URL}" alt="Realm Bridge" class="dlc-logo" onerror="this.style.display='none'">
-          <span class="dlc-header-title">Dice Link Companion</span>
         </a>
       </div>
 
@@ -616,8 +627,8 @@ function generatePlayerPanelContent() {
         <!-- Player Modes -->
         <div class="dlc-section ${collapsedSections.playerModes ? 'collapsed' : ''}">
           <div class="dlc-section-header" data-section="playerModes">
-            <h3><i class="fas fa-users"></i> Player Modes</h3>
             <span class="dlc-collapse-btn">${collapsedSections.playerModes ? '+' : '−'}</span>
+            <h3><i class="fas fa-users"></i> Player Modes</h3>
           </div>
           <div class="dlc-section-content">
             <div class="dlc-players-grid">
@@ -659,8 +670,8 @@ function generatePlayerPanelContent() {
         <!-- Video Feed Placeholder -->
         <div class="dlc-section ${collapsedSections.videoFeed ? 'collapsed' : ''}">
           <div class="dlc-section-header" data-section="videoFeed">
-            <h3><i class="fas fa-video"></i> Video Feed</h3>
             <span class="dlc-collapse-btn">${collapsedSections.videoFeed ? '+' : '−'}</span>
+            <h3><i class="fas fa-video"></i> Video Feed</h3>
           </div>
           <div class="dlc-section-content">
             <div class="dlc-video-feed">
@@ -668,7 +679,11 @@ function generatePlayerPanelContent() {
                 <div class="dlc-video-cell"><span class="dlc-video-placeholder">Coming Soon</span></div>
                 <div class="dlc-video-cell"><span class="dlc-video-placeholder">Future Feature</span></div>
                 <div class="dlc-video-cell"><span class="dlc-video-placeholder">Stay Tuned</span></div>
-                <div class="dlc-video-cell"><span class="dlc-video-placeholder">Realm Bridge</span></div>
+                <div class="dlc-video-cell">
+                  <a href="${REALM_BRIDGE_URL}" target="_blank" class="dlc-video-logo-link" title="Visit Realm Bridge">
+                    <img src="${LOGO_URL}" alt="Realm Bridge" class="dlc-video-logo" onerror="this.parentElement.innerHTML='<span class=dlc-video-placeholder>Realm Bridge</span>'">
+                  </a>
+                </div>
               </div>
             </div>
           </div>
