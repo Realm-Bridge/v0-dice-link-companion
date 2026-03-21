@@ -717,6 +717,56 @@
 }
 
 /* ============================================================================
+   PLAYER PANEL TWO-COLUMN LAYOUT
+   ============================================================================ */
+.dlc-player-split-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.dlc-player-self-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.dlc-player-self-section .dlc-player-card-self {
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.dlc-player-others-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.dlc-other-players-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px !important;
+}
+
+.dlc-other-players-grid .dlc-player-card {
+  min-height: 80px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.dlc-other-players-grid .dlc-player-info {
+  flex: 1;
+}
+
+.dlc-self-indicator {
+  font-size: 10px;
+  color: var(--dlc-accent);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+/* ============================================================================
    DIALOG OVERRIDES FOR FOUNDRY
    ============================================================================ */
 .dlc-dialog {
