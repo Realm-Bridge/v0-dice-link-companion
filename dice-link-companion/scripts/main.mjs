@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.3.5
+ * Version 1.0.3.6
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -170,8 +170,10 @@ function setupChatButtonHandlers() {
       return;
     }
 
-    $container.find(".dlc-chat-btn").prop("disabled", true).addClass("dlc-btn-disabled");
-    $container.find(".dlc-chat-buttons").html('<em>Request approved</em>');
+    // Remove buttons from ALL chat messages for this player
+    $(`.dlc-chat-approve[data-player-id="${playerId}"], .dlc-chat-deny[data-player-id="${playerId}"]`).each(function() {
+      $(this).closest(".dlc-chat-buttons").html('<em>Request approved</em>');
+    });
 
     await game.settings.set(MODULE_ID, `playerMode_${playerId}`, "manual");
     
@@ -208,8 +210,10 @@ function setupChatButtonHandlers() {
       return;
     }
 
-    $container.find(".dlc-chat-btn").prop("disabled", true).addClass("dlc-btn-disabled");
-    $container.find(".dlc-chat-buttons").html('<em>Request denied</em>');
+    // Remove buttons from ALL chat messages for this player
+    $(`.dlc-chat-approve[data-player-id="${playerId}"], .dlc-chat-deny[data-player-id="${playerId}"]`).each(function() {
+      $(this).closest(".dlc-chat-buttons").html('<em>Request denied</em>');
+    });
 
     let pending = game.settings.get(MODULE_ID, "pendingRequests") || [];
     pending = pending.filter(req => req.playerId !== playerId);
@@ -474,40 +478,37 @@ function generateGMPanelContent() {
 
         <!-- Global Override -->
         <div class="dlc-mini-section">
-          <h4>Global Override</h4>
-          <div class="dlc-three-way-container">
-            <div class="dlc-three-way-switch">
-              <button type="button" class="dlc-three-way-option ${globalOverride === 'individual' ? 'active individual' : ''}" data-value="individual">
-                Individual
-              </button>
-              <button type="button" class="dlc-three-way-option ${globalOverride === 'forceAllManual' ? 'active force-manual' : ''}" data-value="forceAllManual">
-                All Manual
-              </button>
-              <button type="button" class="dlc-three-way-option ${globalOverride === 'forceAllDigital' ? 'active force-digital' : ''}" data-value="forceAllDigital">
-                All Digital
-              </button>
+          <h4>Override</h4>
+          <div class="dlc-role-toggles">
+            <div class="dlc-toggle-row">
+              <label class="dlc-switch">
+                <input type="checkbox" class="dlc-override-manual" ${globalOverride === 'forceAllManual' ? 'checked' : ''}>
+                <span class="dlc-slider"></span>
+              </label>
+              <span class="dlc-toggle-label">All Manual</span>
             </div>
-            <div class="dlc-override-status">
-              ${globalOverride === 'individual' ? 'Players control their own mode' : 
-                globalOverride === 'forceAllManual' ? 'All forced to manual dice' : 
-                'All forced to digital dice'}
+            <div class="dlc-toggle-row">
+              <label class="dlc-switch">
+                <input type="checkbox" class="dlc-override-digital" ${globalOverride === 'forceAllDigital' ? 'checked' : ''}>
+                <span class="dlc-slider"></span>
+              </label>
+              <span class="dlc-toggle-label">All Digital</span>
             </div>
           </div>
         </div>
 
         <!-- GM Mode -->
         <div class="dlc-mini-section">
-          <h4>Your Dice Mode</h4>
-          <div class="dlc-gm-toggle">
-            <div class="dlc-mode-switch">
-              <button type="button" class="dlc-mode-option ${gmMode === 'digital' ? 'active digital' : ''}" data-mode="digital">
-                <i class="fas fa-desktop"></i> Digital
-              </button>
-              <button type="button" class="dlc-mode-option ${gmMode === 'manual' ? 'active manual' : ''}" data-mode="manual">
-                <i class="fas fa-dice"></i> Manual
-              </button>
+          <h4>Your Mode</h4>
+          <div class="dlc-role-toggles">
+            <div class="dlc-toggle-row">
+              <label class="dlc-switch dlc-gm-mode-switch">
+                <input type="checkbox" class="dlc-gm-mode-toggle" ${gmMode === 'manual' ? 'checked' : ''}>
+                <span class="dlc-slider"></span>
+              </label>
+              <span class="dlc-toggle-label">${gmMode === 'manual' ? 'Manual' : 'Digital'}</span>
             </div>
-            <button type="button" class="dlc-btn dlc-btn-secondary dlc-refresh-btn" style="margin-top: 6px;">
+            <button type="button" class="dlc-btn dlc-btn-secondary dlc-btn-sm dlc-refresh-btn" style="margin-top: 4px;">
               <i class="fas fa-sync-alt"></i> Refresh
             </button>
           </div>
@@ -552,17 +553,22 @@ function generateGMPanelContent() {
             <h3><i class="fas fa-users"></i> Player Modes</h3>
           </div>
           <div class="dlc-section-content">
+            <div class="dlc-mode-legend">
+              <span class="dlc-legend-item"><span class="dlc-mode-dot digital"></span>Digital</span>
+              <span class="dlc-legend-item"><span class="dlc-mode-dot manual"></span>Manual</span>
+              <span class="dlc-legend-item"><span class="dlc-mode-dot pending"></span>Pending</span>
+            </div>
             ${players.length > 0 ? `
               <div class="dlc-players-grid">
                 ${players.map(player => `
                   <div class="dlc-player-card">
                     <div class="dlc-player-info">
+                      <span class="dlc-mode-dot ${player.isPending ? 'pending' : player.mode}"></span>
                       <span class="dlc-player-name">${player.name}</span>
-                      <span class="dlc-mode-badge ${player.isPending ? 'pending' : player.mode}">${player.isPending ? 'Pending' : player.mode}</span>
                     </div>
                     <div class="dlc-player-actions">
                       ${player.canRevoke ? `
-                        <button type="button" class="dlc-btn dlc-btn-sm dlc-btn-warning dlc-panel-revoke" data-player-id="${player.id}">
+                        <button type="button" class="dlc-btn dlc-btn-xs dlc-btn-warning dlc-panel-revoke" data-player-id="${player.id}">
                           Revoke
                         </button>
                       ` : ''}
@@ -648,26 +654,31 @@ function generatePlayerPanelContent() {
             <h3><i class="fas fa-users"></i> Player Modes</h3>
           </div>
           <div class="dlc-section-content">
+            <div class="dlc-mode-legend">
+              <span class="dlc-legend-item"><span class="dlc-mode-dot digital"></span>Digital</span>
+              <span class="dlc-legend-item"><span class="dlc-mode-dot manual"></span>Manual</span>
+              <span class="dlc-legend-item"><span class="dlc-mode-dot pending"></span>Pending</span>
+            </div>
             <div class="dlc-players-grid">
               ${selfPlayer ? `
                 <div class="dlc-player-card dlc-player-card-self">
                   <div class="dlc-player-info">
+                    <span class="dlc-mode-dot ${selfPlayer.isPending ? 'pending' : selfPlayer.mode}"></span>
                     <span class="dlc-player-name">${selfPlayer.name}</span>
                     <span class="dlc-self-indicator">(You)</span>
-                    <span class="dlc-mode-badge ${selfPlayer.isPending ? 'pending' : selfPlayer.mode}">${selfPlayer.isPending ? 'Pending' : selfPlayer.mode}</span>
                   </div>
                   <div class="dlc-player-actions">
                     ${canRequest ? `
-                      <button type="button" class="dlc-btn dlc-btn-sm dlc-btn-success dlc-player-request">
-                        <i class="fas fa-dice"></i> Request Manual
+                      <button type="button" class="dlc-btn dlc-btn-xs dlc-btn-success dlc-player-request">
+                        <i class="fas fa-dice"></i> Request
                       </button>
                     ` : ''}
                     ${myPending ? `
-                      <span class="dlc-mode-badge pending">Awaiting GM</span>
+                      <span class="dlc-awaiting">Awaiting GM</span>
                     ` : ''}
                     ${canSwitchToDigital ? `
-                      <button type="button" class="dlc-btn dlc-btn-sm dlc-btn-secondary dlc-player-digital">
-                        <i class="fas fa-desktop"></i> Switch Digital
+                      <button type="button" class="dlc-btn dlc-btn-xs dlc-btn-secondary dlc-player-digital">
+                        <i class="fas fa-desktop"></i> Digital
                       </button>
                     ` : ''}
                   </div>
@@ -676,8 +687,8 @@ function generatePlayerPanelContent() {
               ${otherPlayers.map(player => `
                 <div class="dlc-player-card">
                   <div class="dlc-player-info">
+                    <span class="dlc-mode-dot ${player.isPending ? 'pending' : player.mode}"></span>
                     <span class="dlc-player-name">${player.name}</span>
-                    <span class="dlc-mode-badge ${player.isPending ? 'pending' : player.mode}">${player.isPending ? 'Pending' : player.mode}</span>
                   </div>
                 </div>
               `).join('')}
@@ -747,42 +758,51 @@ function attachGMPanelListeners(html) {
     ui.notifications.info("Panel refreshed.");
   });
 
-  // Global override 3-way switch
-  html.find(".dlc-three-way-option").click(async function() {
-    const newValue = $(this).data("value");
-    await game.settings.set(MODULE_ID, "globalOverride", newValue);
-    
-    if (newValue === "forceAllManual") {
+  // Global override - All Manual toggle
+  html.find(".dlc-override-manual").change(async function() {
+    const checked = $(this).is(":checked");
+    if (checked) {
+      await game.settings.set(MODULE_ID, "globalOverride", "forceAllManual");
       applyManualDice();
       game.socket.emit(`module.${MODULE_ID}`, { action: "globalOverride", mode: "forceAllManual" });
       ui.notifications.info("Forced all to manual dice.");
-    } else if (newValue === "forceAllDigital") {
-      applyDigitalDice();
-      game.socket.emit(`module.${MODULE_ID}`, { action: "globalOverride", mode: "forceAllDigital" });
-      ui.notifications.info("Forced all to digital dice.");
     } else {
+      await game.settings.set(MODULE_ID, "globalOverride", "individual");
       ui.notifications.info("Set to individual control.");
     }
     refreshPanel();
   });
 
-  // GM mode toggle
-  html.find(".dlc-mode-option").click(async function() {
-    const newMode = $(this).data("mode");
-    const currentMode = game.settings.get(MODULE_ID, `playerMode_${game.user.id}`) || "digital";
-    
-    if (newMode !== currentMode) {
-      await game.settings.set(MODULE_ID, `playerMode_${game.user.id}`, newMode);
-      
-      if (newMode === "manual") {
-        applyManualDice();
-        ui.notifications.info("Your dice: Manual");
-      } else {
-        applyDigitalDice();
-        ui.notifications.info("Your dice: Digital");
-      }
-      refreshPanel();
+  // Global override - All Digital toggle
+  html.find(".dlc-override-digital").change(async function() {
+    const checked = $(this).is(":checked");
+    if (checked) {
+      await game.settings.set(MODULE_ID, "globalOverride", "forceAllDigital");
+      applyDigitalDice();
+      game.socket.emit(`module.${MODULE_ID}`, { action: "globalOverride", mode: "forceAllDigital" });
+      ui.notifications.info("Forced all to digital dice.");
+    } else {
+      await game.settings.set(MODULE_ID, "globalOverride", "individual");
+      ui.notifications.info("Set to individual control.");
     }
+    refreshPanel();
+  });
+
+  // GM mode toggle (switch style)
+  html.find(".dlc-gm-mode-toggle").change(async function() {
+    const isManual = $(this).is(":checked");
+    const newMode = isManual ? "manual" : "digital";
+    
+    await game.settings.set(MODULE_ID, `playerMode_${game.user.id}`, newMode);
+    
+    if (newMode === "manual") {
+      applyManualDice();
+      ui.notifications.info("Your dice: Manual");
+    } else {
+      applyDigitalDice();
+      ui.notifications.info("Your dice: Digital");
+    }
+    refreshPanel();
   });
 
   // Approve buttons
