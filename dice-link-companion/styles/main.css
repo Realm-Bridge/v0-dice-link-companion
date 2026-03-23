@@ -1,5 +1,5 @@
 /* Dice Link Companion - Realm Bridge Branded Styles */
-/* Version 1.0.2.0 */
+/* Version 1.0.2.4 */
 
 /* ============================================================================
    CSS VARIABLES - Realm Bridge Brand Colors
@@ -38,6 +38,8 @@
   background: var(--dlc-bg-dark);
   color: var(--dlc-text-primary);
   border-radius: 8px;
+  display: flex;
+  flex-direction: column;
 }
 
 /* ============================================================================
@@ -87,6 +89,8 @@
    ============================================================================ */
 .dlc-top-section {
   border-color: var(--dlc-accent);
+  margin: 8px 12px 0 12px;
+  width: calc(100% - 24px);
 }
 
 .dlc-top-section .dlc-section-header {
@@ -107,11 +111,10 @@
   border: 1px solid var(--dlc-border);
   border-radius: 6px;
   overflow: hidden;
-  margin-bottom: 12px;
 }
 
-.dlc-section:last-child {
-  margin-bottom: 0;
+.dlc-bottom-sections .dlc-section {
+  margin: 0 12px;
 }
 
 .dlc-section-header {
@@ -572,7 +575,10 @@
    BOTTOM SECTION WRAPPER
    ============================================================================ */
 .dlc-bottom-sections {
-  padding: 0 12px 12px 12px;
+  padding: 8px 12px 0 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 /* ============================================================================
@@ -781,12 +787,17 @@
 .dlc-dialog .dialog-buttons {
   background: var(--dlc-bg-section) !important;
   border-top: 1px solid var(--dlc-border) !important;
+  padding: 8px 12px !important;
+  gap: 8px !important;
+  display: flex !important;
+  justify-content: flex-end;
 }
 
 .dlc-dialog .dialog-button {
   background: var(--dlc-accent) !important;
   color: white !important;
   border: none !important;
+  padding: 8px 16px !important;
 }
 
 .dlc-dialog .dialog-button:hover {
