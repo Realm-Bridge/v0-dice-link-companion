@@ -1,5 +1,5 @@
 /* Dice Link Companion - Realm Bridge Branded Styles */
-/* Version 1.0.2.4 */
+/* Version 1.0.2.5 */
 
 /* ============================================================================
    CSS VARIABLES - Realm Bridge Brand Colors
@@ -32,8 +32,8 @@
    MAIN PANEL CONTAINER
    ============================================================================ */
 .dlc-panel {
-  min-width: 650px;
-  padding: 0;
+  min-width: 700px;
+  padding: 0 0 12px 0;
   font-size: 13px;
   background: var(--dlc-bg-dark);
   color: var(--dlc-text-primary);
@@ -89,8 +89,7 @@
    ============================================================================ */
 .dlc-top-section {
   border-color: var(--dlc-accent);
-  margin: 8px 12px 0 12px;
-  width: calc(100% - 24px);
+  margin: 8px 12px 0 12px !important;
 }
 
 .dlc-top-section .dlc-section-header {
@@ -114,7 +113,7 @@
 }
 
 .dlc-bottom-sections .dlc-section {
-  margin: 0 12px;
+  margin: 0 !important;
 }
 
 .dlc-section-header {
@@ -393,6 +392,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 8px;
+  align-items: stretch;
 }
 
 .dlc-player-card {
@@ -404,6 +404,8 @@
   border: 1px solid var(--dlc-border);
   border-radius: 6px;
   transition: border-color 0.2s ease;
+  min-height: 44px;
+  box-sizing: border-box;
 }
 
 .dlc-player-card:hover {
@@ -414,6 +416,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: 1;
+  min-width: 0;
 }
 
 .dlc-player-name {
@@ -575,7 +579,7 @@
    BOTTOM SECTION WRAPPER
    ============================================================================ */
 .dlc-bottom-sections {
-  padding: 8px 12px 0 12px;
+  padding: 8px 12px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -777,6 +781,7 @@
    ============================================================================ */
 .dlc-dialog {
   background: var(--dlc-bg-dark) !important;
+  min-width: 720px !important;
 }
 
 .dlc-dialog .dialog-content {
@@ -784,22 +789,7 @@
   background: var(--dlc-bg-dark) !important;
 }
 
+/* Hide the button container entirely since we have no buttons */
 .dlc-dialog .dialog-buttons {
-  background: var(--dlc-bg-section) !important;
-  border-top: 1px solid var(--dlc-border) !important;
-  padding: 8px 12px !important;
-  gap: 8px !important;
-  display: flex !important;
-  justify-content: flex-end;
-}
-
-.dlc-dialog .dialog-button {
-  background: var(--dlc-accent) !important;
-  color: white !important;
-  border: none !important;
-  padding: 8px 16px !important;
-}
-
-.dlc-dialog .dialog-button:hover {
-  background: var(--dlc-accent-hover) !important;
+  display: none !important;
 }

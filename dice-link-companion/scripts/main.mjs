@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.2.4
+ * Version 1.0.2.5
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -891,12 +891,7 @@ function openPanel() {
   currentPanelDialog = new Dialog({
     title: "Dice Link Companion",
     content,
-    buttons: {
-      close: {
-        icon: '<i class="fas fa-times"></i>',
-        label: "Close"
-      }
-    },
+    buttons: {},
     default: "close",
     render: (html) => {
       // Add custom class to dialog for styling
