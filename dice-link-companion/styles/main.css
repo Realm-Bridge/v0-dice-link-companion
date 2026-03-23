@@ -1,5 +1,5 @@
 /* Dice Link Companion - Realm Bridge Branded Styles */
-/* Version 1.0.3.3 */
+/* Version 1.0.3.4 */
 
 /* ============================================================================
    CSS VARIABLES - Realm Bridge Brand Colors
@@ -99,9 +99,16 @@
 }
 
 .dlc-top-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
+  justify-content: flex-start;
+}
+
+.dlc-top-row .dlc-mini-section {
+  flex: 0 0 auto;
+  width: 130px;
+  box-sizing: border-box;
 }
 
 /* ============================================================================
@@ -761,48 +768,39 @@
 }
 
 /* ============================================================================
-   PLAYER PANEL TWO-COLUMN LAYOUT
+   PLAYER PANEL LAYOUT - matches GM panel grid behaviour
    ============================================================================ */
 .dlc-player-split-layout {
-  display: grid;
-  grid-template-columns: 1fr 2fr;
-  gap: 10px;
+  display: contents;
 }
 
 .dlc-player-self-section {
-  display: flex;
-  flex-direction: column;
+  display: contents;
 }
 
 .dlc-player-self-section .dlc-player-card-self {
-  height: 100%;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--dlc-bg-input);
+  border: 1px solid var(--dlc-border);
+  border-radius: 6px;
   box-sizing: border-box;
+  grid-column: span 1;
 }
 
 .dlc-player-others-section {
-  display: flex;
-  flex-direction: column;
+  display: contents;
 }
 
-.dlc-other-players-grid {
+/* Player panel uses the same grid as GM's .dlc-players-grid */
+.dlc-player-panel .dlc-players-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px !important;
-}
-
-.dlc-other-players-grid .dlc-player-card {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  min-height: 36px;
-}
-
-.dlc-other-players-grid .dlc-player-info {
-  flex: 1;
-  min-width: 0;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+  align-items: stretch;
+  grid-auto-rows: 44px;
 }
 
 .dlc-self-indicator {
