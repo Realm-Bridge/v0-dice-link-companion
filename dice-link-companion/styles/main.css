@@ -1,5 +1,5 @@
 /* Dice Link Companion - Realm Bridge Branded Styles */
-/* Version 1.0.3.6 */
+/* Version 1.0.3.7 */
 
 /* ============================================================================
    CSS VARIABLES - Realm Bridge Brand Colors
@@ -107,9 +107,45 @@
 
 .dlc-top-row .dlc-mini-section {
   flex: 0 0 auto;
-  width: 145px;
+  width: 140px;
   box-sizing: border-box;
   overflow: hidden;
+}
+
+/* Override and Your Mode boxes can be narrower */
+.dlc-top-row .dlc-mini-section.dlc-mini-compact {
+  width: 110px;
+}
+
+/* Inline row for toggle + refresh button */
+.dlc-mode-inline-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+
+/* Icon-only refresh button */
+.dlc-refresh-icon-btn {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--dlc-bg-input);
+  border: 1px solid var(--dlc-border);
+  border-radius: 4px;
+  color: var(--dlc-text-secondary);
+  font-size: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dlc-refresh-icon-btn:hover {
+  background: var(--dlc-border);
+  color: var(--dlc-text-primary);
 }
 
 /* ============================================================================
@@ -503,6 +539,19 @@
   font-style: italic;
 }
 
+/* Request / action row above player grid - fixed size, never stretches */
+.dlc-player-action-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.dlc-player-action-row .dlc-btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 /* Keep badge styles for backwards compatibility */
 .dlc-mode-badge {
   display: inline-block;
@@ -859,7 +908,7 @@
 /* Player panel uses the same grid as GM's .dlc-players-grid */
 .dlc-player-panel .dlc-players-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
   gap: 6px;
   align-items: stretch;
   grid-auto-rows: 44px;

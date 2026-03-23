@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.3.6
+ * Version 1.0.3.7
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -477,7 +477,7 @@ function generateGMPanelContent() {
         </div>
 
         <!-- Global Override -->
-        <div class="dlc-mini-section">
+        <div class="dlc-mini-section dlc-mini-compact">
           <h4>Override</h4>
           <div class="dlc-role-toggles">
             <div class="dlc-toggle-row">
@@ -485,32 +485,32 @@ function generateGMPanelContent() {
                 <input type="checkbox" class="dlc-override-manual" ${globalOverride === 'forceAllManual' ? 'checked' : ''}>
                 <span class="dlc-slider"></span>
               </label>
-              <span class="dlc-toggle-label">All Manual</span>
+              <span class="dlc-toggle-label">Manual</span>
             </div>
             <div class="dlc-toggle-row">
               <label class="dlc-switch">
                 <input type="checkbox" class="dlc-override-digital" ${globalOverride === 'forceAllDigital' ? 'checked' : ''}>
                 <span class="dlc-slider"></span>
               </label>
-              <span class="dlc-toggle-label">All Digital</span>
+              <span class="dlc-toggle-label">Digital</span>
             </div>
           </div>
         </div>
 
         <!-- GM Mode -->
-        <div class="dlc-mini-section">
+        <div class="dlc-mini-section dlc-mini-compact">
           <h4>Your Mode</h4>
           <div class="dlc-role-toggles">
-            <div class="dlc-toggle-row">
+            <div class="dlc-mode-inline-row">
               <label class="dlc-switch dlc-gm-mode-switch">
                 <input type="checkbox" class="dlc-gm-mode-toggle" ${gmMode === 'manual' ? 'checked' : ''}>
                 <span class="dlc-slider"></span>
               </label>
               <span class="dlc-toggle-label">${gmMode === 'manual' ? 'Manual' : 'Digital'}</span>
+              <button type="button" class="dlc-refresh-icon-btn dlc-refresh-btn" title="Refresh Panel">
+                <i class="fas fa-sync-alt"></i>
+              </button>
             </div>
-            <button type="button" class="dlc-btn dlc-btn-secondary dlc-btn-sm dlc-refresh-btn" style="margin-top: 4px;">
-              <i class="fas fa-sync-alt"></i> Refresh
-            </button>
           </div>
           </div>
         </div>
@@ -659,6 +659,23 @@ function generatePlayerPanelContent() {
               <span class="dlc-legend-item"><span class="dlc-mode-dot manual"></span>Manual</span>
               <span class="dlc-legend-item"><span class="dlc-mode-dot pending"></span>Pending</span>
             </div>
+            ${canRequest || myPending || canSwitchToDigital ? `
+              <div class="dlc-player-action-row">
+                ${canRequest ? `
+                  <button type="button" class="dlc-btn dlc-btn-sm dlc-btn-success dlc-player-request">
+                    <i class="fas fa-dice"></i> Request Manual
+                  </button>
+                ` : ''}
+                ${myPending ? `
+                  <span class="dlc-awaiting"><i class="fas fa-clock"></i> Awaiting GM approval</span>
+                ` : ''}
+                ${canSwitchToDigital ? `
+                  <button type="button" class="dlc-btn dlc-btn-sm dlc-btn-secondary dlc-player-digital">
+                    <i class="fas fa-desktop"></i> Switch to Digital
+                  </button>
+                ` : ''}
+              </div>
+            ` : ''}
             <div class="dlc-players-grid">
               ${selfPlayer ? `
                 <div class="dlc-player-card dlc-player-card-self">
@@ -666,21 +683,6 @@ function generatePlayerPanelContent() {
                     <span class="dlc-mode-dot ${selfPlayer.isPending ? 'pending' : selfPlayer.mode}"></span>
                     <span class="dlc-player-name">${selfPlayer.name}</span>
                     <span class="dlc-self-indicator">(You)</span>
-                  </div>
-                  <div class="dlc-player-actions">
-                    ${canRequest ? `
-                      <button type="button" class="dlc-btn dlc-btn-xs dlc-btn-success dlc-player-request">
-                        <i class="fas fa-dice"></i> Request
-                      </button>
-                    ` : ''}
-                    ${myPending ? `
-                      <span class="dlc-awaiting">Awaiting GM</span>
-                    ` : ''}
-                    ${canSwitchToDigital ? `
-                      <button type="button" class="dlc-btn dlc-btn-xs dlc-btn-secondary dlc-player-digital">
-                        <i class="fas fa-desktop"></i> Digital
-                      </button>
-                    ` : ''}
                   </div>
                 </div>
               ` : ''}
