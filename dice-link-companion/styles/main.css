@@ -1,5 +1,5 @@
 /* Dice Link Companion - Realm Bridge Branded Styles */
-/* Version 1.0.2.8 */
+/* Version 1.0.2.9 */
 
 /* ============================================================================
    CSS VARIABLES - Realm Bridge Brand Colors
@@ -644,6 +644,7 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  padding: 12px;
   box-sizing: border-box;
 }
 
@@ -653,13 +654,13 @@
 
 .dlc-player-self-section .dlc-player-actions {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 8px;
-  width: 100%;
+  padding-top: 4px;
 }
 
 .dlc-player-self-section .dlc-player-actions .dlc-btn {
-  width: 100%;
+  width: auto;
 }
 
 .dlc-self-indicator {
