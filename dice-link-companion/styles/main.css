@@ -1,5 +1,5 @@
 /* Dice Link Companion - Realm Bridge Branded Styles */
-/* Version 1.0.2.5 */
+/* Version 1.0.2.6 */
 
 /* ============================================================================
    CSS VARIABLES - Realm Bridge Brand Colors
@@ -32,7 +32,7 @@
    MAIN PANEL CONTAINER
    ============================================================================ */
 .dlc-panel {
-  min-width: 700px;
+  min-width: 580px;
   padding: 0 0 12px 0;
   font-size: 13px;
   background: var(--dlc-bg-dark);
@@ -392,20 +392,24 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 8px;
+  /* stretch makes all cells in the same implicit row equal height */
   align-items: stretch;
+  grid-auto-rows: 44px;
 }
 
 .dlc-player-card {
   display: flex;
+  flex-direction: row;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 12px;
+  padding: 0 12px;
   background: var(--dlc-bg-input);
   border: 1px solid var(--dlc-border);
   border-radius: 6px;
   transition: border-color 0.2s ease;
-  min-height: 44px;
+  /* Fixed height enforced by grid-auto-rows; no flex-grow on content */
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .dlc-player-card:hover {
@@ -414,16 +418,21 @@
 
 .dlc-player-info {
   display: flex;
+  flex-direction: row;
   align-items: center;
   gap: 8px;
   flex: 1;
   min-width: 0;
+  overflow: hidden;
 }
 
 .dlc-player-name {
   font-size: 12px;
   font-weight: 500;
   color: var(--dlc-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .dlc-mode-badge {
@@ -434,6 +443,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  flex-shrink: 0;
 }
 
 .dlc-mode-badge.manual {
@@ -454,6 +464,7 @@
 .dlc-player-actions {
   display: flex;
   gap: 4px;
+  flex-shrink: 0;
 }
 
 /* ============================================================================
@@ -781,12 +792,24 @@
    ============================================================================ */
 .dlc-dialog {
   background: var(--dlc-bg-dark) !important;
-  min-width: 720px !important;
+  min-width: 620px !important;
+  height: auto !important;
+  min-height: unset !important;
+}
+
+/* Remove Foundry's inner white/light window-content border box */
+.dlc-dialog .window-content {
+  padding: 0 !important;
+  background: var(--dlc-bg-dark) !important;
+  border: none !important;
+  box-shadow: none !important;
+  height: auto !important;
 }
 
 .dlc-dialog .dialog-content {
   padding: 0 !important;
   background: var(--dlc-bg-dark) !important;
+  height: auto !important;
 }
 
 /* Hide the button container entirely since we have no buttons */
