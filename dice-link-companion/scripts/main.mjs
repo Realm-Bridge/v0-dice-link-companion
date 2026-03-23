@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.2.9
+ * Version 1.0.3.0
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -16,9 +16,9 @@ let hasRequestedThisSession = false;
 
 // Track collapsed sections state
 const collapsedSections = {
-  topRow: false, // Settings section (Permissions, Global Override, GM Mode)
-  pending: false,
-  playerModes: false,
+  topRow: true, // Settings section (Permissions, Global Override, GM Mode)
+  pending: true,
+  playerModes: true,
   videoFeed: true // Start collapsed
 };
 
