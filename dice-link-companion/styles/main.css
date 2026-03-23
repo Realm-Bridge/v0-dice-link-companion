@@ -1,5 +1,5 @@
 /* Dice Link Companion - Realm Bridge Branded Styles */
-/* Version 1.0.3.5 */
+/* Version 1.0.3.6 */
 
 /* ============================================================================
    CSS VARIABLES - Realm Bridge Brand Colors
@@ -449,6 +449,61 @@
   text-overflow: ellipsis;
 }
 
+/* Color dots for mode indication */
+.dlc-mode-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dlc-mode-dot.digital {
+  background: var(--dlc-digital);
+  box-shadow: 0 0 4px var(--dlc-digital);
+}
+
+.dlc-mode-dot.manual {
+  background: var(--dlc-success);
+  box-shadow: 0 0 4px var(--dlc-success);
+}
+
+.dlc-mode-dot.pending {
+  background: var(--dlc-warning);
+  box-shadow: 0 0 4px var(--dlc-warning);
+}
+
+/* Legend for color dots */
+.dlc-mode-legend {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 8px;
+  padding: 4px 8px;
+  background: var(--dlc-bg-input);
+  border-radius: 4px;
+  font-size: 9px;
+  color: var(--dlc-text-muted);
+}
+
+.dlc-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dlc-legend-item .dlc-mode-dot {
+  width: 8px;
+  height: 8px;
+}
+
+/* Awaiting GM text */
+.dlc-awaiting {
+  font-size: 9px;
+  color: var(--dlc-warning);
+  font-style: italic;
+}
+
+/* Keep badge styles for backwards compatibility */
 .dlc-mode-badge {
   display: inline-block;
   padding: 2px 8px;
@@ -507,6 +562,11 @@
 .dlc-btn-sm {
   padding: 4px 8px;
   font-size: 10px;
+}
+
+.dlc-btn-xs {
+  padding: 3px 6px;
+  font-size: 9px;
 }
 
 .dlc-btn-success {
@@ -799,34 +859,33 @@
 /* Player panel uses the same grid as GM's .dlc-players-grid */
 .dlc-player-panel .dlc-players-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 8px;
-  align-items: start;
-  grid-auto-rows: minmax(44px, auto);
-}
-
-/* Self-card in player panel needs more height for buttons */
-.dlc-player-panel .dlc-player-card-self {
-  grid-row: span 2;
-  min-height: 80px;
-  display: flex;
-  flex-direction: column;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   gap: 6px;
-  padding: 8px 10px;
+  align-items: stretch;
+  grid-auto-rows: 44px;
 }
 
-.dlc-player-panel .dlc-player-card-self .dlc-player-info {
-  flex-wrap: wrap;
+/* Self-card in player panel - same height as others but with actions */
+.dlc-player-panel .dlc-player-card-self {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
   gap: 4px;
 }
 
-.dlc-player-panel .dlc-player-card-self .dlc-player-actions {
-  margin-top: auto;
+.dlc-player-panel .dlc-player-card-self .dlc-player-info {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
-.dlc-player-panel .dlc-player-card-self .dlc-btn {
-  font-size: 9px;
-  padding: 4px 8px;
+.dlc-player-panel .dlc-player-card-self .dlc-player-actions {
+  flex-shrink: 0;
 }
 
 .dlc-self-indicator {
