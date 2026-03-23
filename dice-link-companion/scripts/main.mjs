@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.3.3
+ * Version 1.0.3.4
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -507,8 +507,8 @@ function generateGMPanelContent() {
                 <i class="fas fa-dice"></i> Manual
               </button>
             </div>
-            <button type="button" class="dlc-btn dlc-btn-secondary dlc-refresh-btn" style="margin-top: 8px; width: 100%;">
-              <i class="fas fa-sync-alt"></i> Refresh Panel
+            <button type="button" class="dlc-btn dlc-btn-secondary dlc-refresh-btn" style="margin-top: 6px;">
+              <i class="fas fa-sync-alt"></i> Refresh
             </button>
           </div>
           </div>
@@ -648,50 +648,39 @@ function generatePlayerPanelContent() {
             <h3><i class="fas fa-users"></i> Player Modes</h3>
           </div>
           <div class="dlc-section-content">
-            <div class="dlc-player-split-layout">
-              <!-- Left: Self Player Status -->
-              <div class="dlc-player-self-section">
-                ${selfPlayer ? `
-                  <div class="dlc-player-card dlc-player-card-self">
-                    <div class="dlc-player-info">
-                      <span class="dlc-player-name">${selfPlayer.name}</span>
-                      <span class="dlc-self-indicator">(You)</span>
-                      <span class="dlc-mode-badge ${selfPlayer.isPending ? 'pending' : selfPlayer.mode}">${selfPlayer.isPending ? 'Pending' : selfPlayer.mode}</span>
-                    </div>
-                    <div class="dlc-player-actions">
-                      ${canRequest ? `
-                        <button type="button" class="dlc-btn dlc-btn-sm dlc-btn-success dlc-player-request">
-                          <i class="fas fa-dice"></i> Request Manual
-                        </button>
-                      ` : ''}
-                      ${myPending ? `
-                        <span class="dlc-mode-badge pending">Awaiting GM</span>
-                      ` : ''}
-                      ${canSwitchToDigital ? `
-                        <button type="button" class="dlc-btn dlc-btn-sm dlc-btn-secondary dlc-player-digital">
-                          <i class="fas fa-desktop"></i> Switch to Digital
-                        </button>
-                      ` : ''}
-                    </div>
+            <div class="dlc-players-grid">
+              ${selfPlayer ? `
+                <div class="dlc-player-card dlc-player-card-self">
+                  <div class="dlc-player-info">
+                    <span class="dlc-player-name">${selfPlayer.name}</span>
+                    <span class="dlc-self-indicator">(You)</span>
+                    <span class="dlc-mode-badge ${selfPlayer.isPending ? 'pending' : selfPlayer.mode}">${selfPlayer.isPending ? 'Pending' : selfPlayer.mode}</span>
                   </div>
-                ` : ''}
-              </div>
-
-              <!-- Right: Other Players Status (2 columns) -->
-              <div class="dlc-player-others-section">
-                ${otherPlayers.length > 0 ? `
-                  <div class="dlc-players-grid dlc-other-players-grid">
-                    ${otherPlayers.map(player => `
-                      <div class="dlc-player-card">
-                        <div class="dlc-player-info">
-                          <span class="dlc-player-name">${player.name}</span>
-                          <span class="dlc-mode-badge ${player.isPending ? 'pending' : player.mode}">${player.isPending ? 'Pending' : player.mode}</span>
-                        </div>
-                      </div>
-                    `).join('')}
+                  <div class="dlc-player-actions">
+                    ${canRequest ? `
+                      <button type="button" class="dlc-btn dlc-btn-sm dlc-btn-success dlc-player-request">
+                        <i class="fas fa-dice"></i> Request Manual
+                      </button>
+                    ` : ''}
+                    ${myPending ? `
+                      <span class="dlc-mode-badge pending">Awaiting GM</span>
+                    ` : ''}
+                    ${canSwitchToDigital ? `
+                      <button type="button" class="dlc-btn dlc-btn-sm dlc-btn-secondary dlc-player-digital">
+                        <i class="fas fa-desktop"></i> Switch Digital
+                      </button>
+                    ` : ''}
                   </div>
-                ` : '<p class="dlc-no-players">No other players connected.</p>'}
-              </div>
+                </div>
+              ` : ''}
+              ${otherPlayers.map(player => `
+                <div class="dlc-player-card">
+                  <div class="dlc-player-info">
+                    <span class="dlc-player-name">${player.name}</span>
+                    <span class="dlc-mode-badge ${player.isPending ? 'pending' : player.mode}">${player.isPending ? 'Pending' : player.mode}</span>
+                  </div>
+                </div>
+              `).join('')}
             </div>
             ${globalOverride !== "individual" ? `
               <p class="dlc-no-players" style="margin-top: 10px;">
