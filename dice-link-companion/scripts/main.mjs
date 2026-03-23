@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.2.6
+ * Version 1.0.2.7
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -411,14 +411,24 @@ function generateGMPanelContent() {
   const players = [];
   for (const user of game.users) {
     if (user.isGM) continue;
-    const mode = game.settings.get(MODULE_ID, `playerMode_${user.id}`) || "digital";
+    const storedMode = game.settings.get(MODULE_ID, `playerMode_${user.id}`) || "digital";
     const isPending = pendingRequests.some(req => req.playerId === user.id);
+    
+    // Determine effective mode based on global override
+    let effectiveMode = storedMode;
+    if (globalOverride === "forceAllManual") {
+      effectiveMode = "manual";
+    } else if (globalOverride === "forceAllDigital") {
+      effectiveMode = "digital";
+    }
+    
     players.push({
       id: user.id,
       name: user.name,
-      mode,
-      isPending,
-      canRevoke: mode === "manual"
+      mode: effectiveMode,
+      storedMode: storedMode,
+      isPending: globalOverride === "individual" ? isPending : false,
+      canRevoke: globalOverride === "individual" && storedMode === "manual"
     });
   }
 
@@ -497,6 +507,9 @@ function generateGMPanelContent() {
                 <i class="fas fa-dice"></i> Manual
               </button>
             </div>
+            <button type="button" class="dlc-btn dlc-btn-secondary dlc-refresh-btn" style="margin-top: 8px; width: 100%;">
+              <i class="fas fa-sync-alt"></i> Refresh Panel
+            </button>
           </div>
           </div>
         </div>
@@ -739,6 +752,12 @@ function attachGMPanelListeners(html) {
     refreshPanel();
   });
 
+  // Refresh button
+  html.find(".dlc-refresh-btn").click(function() {
+    refreshPanel();
+    ui.notifications.info("Panel refreshed.");
+  });
+
   // Global override 3-way switch
   html.find(".dlc-three-way-option").click(async function() {
     const newValue = $(this).data("value");
@@ -912,7 +931,7 @@ function openPanel() {
   }, {
     width: isGM ? 660 : 560,
     height: "auto",
-    resizable: false
+    resizable: true
   });
   
   currentPanelDialog.render(true);
