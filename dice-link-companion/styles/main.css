@@ -1,5 +1,5 @@
 /* Dice Link Companion - Realm Bridge Branded Styles */
-/* Version 1.0.3.4 */
+/* Version 1.0.3.5 */
 
 /* ============================================================================
    CSS VARIABLES - Realm Bridge Brand Colors
@@ -107,8 +107,9 @@
 
 .dlc-top-row .dlc-mini-section {
   flex: 0 0 auto;
-  width: 130px;
+  width: 145px;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 /* ============================================================================
@@ -359,16 +360,17 @@
   display: inline-flex;
   background: var(--dlc-bg-input);
   border: 1px solid var(--dlc-border);
-  border-radius: 6px;
+  border-radius: 4px;
   overflow: hidden;
   width: auto;
+  max-width: 100%;
 }
 
 .dlc-mode-option {
   flex: 0 0 auto;
-  padding: 6px 10px;
+  padding: 4px 6px;
   text-align: center;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 600;
   text-transform: uppercase;
   cursor: pointer;
@@ -799,8 +801,32 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 8px;
-  align-items: stretch;
-  grid-auto-rows: 44px;
+  align-items: start;
+  grid-auto-rows: minmax(44px, auto);
+}
+
+/* Self-card in player panel needs more height for buttons */
+.dlc-player-panel .dlc-player-card-self {
+  grid-row: span 2;
+  min-height: 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+}
+
+.dlc-player-panel .dlc-player-card-self .dlc-player-info {
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.dlc-player-panel .dlc-player-card-self .dlc-player-actions {
+  margin-top: auto;
+}
+
+.dlc-player-panel .dlc-player-card-self .dlc-btn {
+  font-size: 9px;
+  padding: 4px 8px;
 }
 
 .dlc-self-indicator {
