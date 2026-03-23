@@ -1,5 +1,5 @@
 /* Dice Link Companion - Realm Bridge Branded Styles */
-/* Version 1.0.3.2 */
+/* Version 1.0.3.3 */
 
 /* ============================================================================
    CSS VARIABLES - Realm Bridge Brand Colors
@@ -100,7 +100,7 @@
 
 .dlc-top-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 8px;
 }
 
@@ -184,13 +184,13 @@
   background: var(--dlc-bg-section);
   border: 1px solid var(--dlc-border);
   border-radius: 6px;
-  padding: 12px;
+  padding: 8px;
 }
 
 .dlc-mini-section h4 {
-  margin: 0 0 10px 0;
+  margin: 0 0 6px 0;
   font-weight: 600;
-  font-size: 11px;
+  font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--dlc-accent);
@@ -202,17 +202,17 @@
 .dlc-role-toggles {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .dlc-toggle-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .dlc-toggle-label {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--dlc-text-secondary);
 }
 
@@ -282,18 +282,19 @@
 }
 
 .dlc-three-way-switch {
-  display: flex;
+  display: inline-flex;
   background: var(--dlc-bg-input);
   border: 1px solid var(--dlc-border);
   border-radius: 6px;
   overflow: hidden;
+  width: 100%;
 }
 
 .dlc-three-way-option {
-  flex: 1;
-  padding: 8px 4px;
+  flex: 1 1 0;
+  padding: 6px 4px;
   text-align: center;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 600;
   text-transform: uppercase;
   cursor: pointer;
@@ -301,6 +302,7 @@
   color: var(--dlc-text-muted);
   border: none;
   background: transparent;
+  white-space: nowrap;
 }
 
 .dlc-three-way-option:not(:last-child) {
@@ -342,24 +344,24 @@
 .dlc-gm-toggle {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 8px;
+  align-items: flex-start;
+  gap: 6px;
 }
 
 .dlc-mode-switch {
-  display: flex;
+  display: inline-flex;
   background: var(--dlc-bg-input);
   border: 1px solid var(--dlc-border);
   border-radius: 6px;
   overflow: hidden;
-  width: 100%;
+  width: auto;
 }
 
 .dlc-mode-option {
-  flex: 1;
-  padding: 10px 8px;
+  flex: 0 0 auto;
+  padding: 6px 10px;
   text-align: center;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
   cursor: pointer;
@@ -367,6 +369,7 @@
   color: var(--dlc-text-muted);
   border: none;
   background: transparent;
+  white-space: nowrap;
 }
 
 .dlc-mode-option:first-child {
@@ -645,9 +648,10 @@
 .dlc-player-self-section .dlc-player-card-self {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 12px;
+  gap: 8px;
+  padding: 10px;
   box-sizing: border-box;
+  height: 100%;
 }
 
 .dlc-player-self-section .dlc-player-info {
@@ -657,12 +661,14 @@
 .dlc-player-self-section .dlc-player-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  padding-top: 4px;
+  gap: 6px;
+  padding-top: 2px;
 }
 
 .dlc-player-self-section .dlc-player-actions .dlc-btn {
   width: auto;
+  font-size: 10px;
+  padding: 5px 10px;
 }
 
 .dlc-self-indicator {
@@ -759,8 +765,8 @@
    ============================================================================ */
 .dlc-player-split-layout {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
+  grid-template-columns: 1fr 2fr;
+  gap: 10px;
 }
 
 .dlc-player-self-section {
@@ -784,17 +790,19 @@
 .dlc-other-players-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px !important;
+  gap: 6px !important;
 }
 
 .dlc-other-players-grid .dlc-player-card {
   display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
+  flex-direction: row;
+  align-items: center;
+  min-height: 36px;
 }
 
 .dlc-other-players-grid .dlc-player-info {
   flex: 1;
+  min-width: 0;
 }
 
 .dlc-self-indicator {
