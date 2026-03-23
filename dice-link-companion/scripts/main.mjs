@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.2.5
+ * Version 1.0.2.6
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -877,6 +877,9 @@ function refreshPanel() {
     } else {
       attachPlayerPanelListeners(currentPanelDialog.element);
     }
+
+    // Recalculate dialog height to fit content after collapse/expand
+    currentPanelDialog.setPosition({ height: "auto" });
   }
 }
 
@@ -907,8 +910,9 @@ function openPanel() {
       currentPanelDialog = null;
     }
   }, {
-    width: isGM ? 700 : 500,
-    resizable: true
+    width: isGM ? 660 : 560,
+    height: "auto",
+    resizable: false
   });
   
   currentPanelDialog.render(true);
