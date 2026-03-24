@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.3.13
+ * Version 1.0.3.14
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -253,6 +253,9 @@ function setupSocketListeners() {
     if (game.user.isGM && data.action === "playerSwitchToDigital") {
       await game.settings.set(MODULE_ID, `playerMode_${data.playerId}`, "digital");
       refreshPanel();
+    } else if (data.action === "playerSwitchToDigital") {
+      // Another player switched to digital, refresh our panel to see the update
+      refreshPanel();
     }
 
     if (data.action === "applyMode" && data.playerId === game.user.id) {
@@ -294,6 +297,9 @@ function setupSocketListeners() {
       applyDigitalDice();
       hasRequestedThisSession = false;
       ui.notifications.warn("GM has revoked your manual dice mode.");
+      refreshPanel();
+    } else if (data.action === "revokeMode") {
+      // Another player's mode was revoked, refresh our panel to see the update
       refreshPanel();
     }
 
