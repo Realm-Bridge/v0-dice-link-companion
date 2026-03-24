@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.3.7
+ * Version 1.0.3.8
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -189,6 +189,7 @@ function setupChatButtonHandlers() {
     
     await createApprovalChatMessage(playerId, player.name, true);
     ui.notifications.info(`Approved manual dice for ${player.name}.`);
+    refreshPanel();
   });
 
   $(document).on("click", ".dlc-chat-deny", async function(e) {
@@ -226,6 +227,7 @@ function setupChatButtonHandlers() {
     
     await createApprovalChatMessage(playerId, player.name, false);
     ui.notifications.info(`Denied manual dice for ${player.name}.`);
+    refreshPanel();
   });
 }
 
@@ -501,16 +503,16 @@ function generateGMPanelContent() {
         <div class="dlc-mini-section dlc-mini-compact">
           <h4>Your Mode</h4>
           <div class="dlc-role-toggles">
-            <div class="dlc-mode-inline-row">
+            <div class="dlc-toggle-row">
               <label class="dlc-switch dlc-gm-mode-switch">
                 <input type="checkbox" class="dlc-gm-mode-toggle" ${gmMode === 'manual' ? 'checked' : ''}>
                 <span class="dlc-slider"></span>
               </label>
               <span class="dlc-toggle-label">${gmMode === 'manual' ? 'Manual' : 'Digital'}</span>
-              <button type="button" class="dlc-refresh-icon-btn dlc-refresh-btn" title="Refresh Panel">
-                <i class="fas fa-sync-alt"></i>
-              </button>
             </div>
+            <button type="button" class="dlc-refresh-icon-btn dlc-refresh-btn" title="Refresh Panel" style="margin-top: 4px;">
+              <i class="fas fa-sync-alt"></i>
+            </button>
           </div>
           </div>
         </div>
@@ -659,24 +661,22 @@ function generatePlayerPanelContent() {
               <span class="dlc-legend-item"><span class="dlc-mode-dot manual"></span>Manual</span>
               <span class="dlc-legend-item"><span class="dlc-mode-dot pending"></span>Pending</span>
             </div>
-            ${canRequest || myPending || canSwitchToDigital ? `
-              <div class="dlc-player-action-row">
-                ${canRequest ? `
-                  <button type="button" class="dlc-btn dlc-btn-sm dlc-btn-success dlc-player-request">
-                    <i class="fas fa-dice"></i> Request Manual
-                  </button>
-                ` : ''}
-                ${myPending ? `
-                  <span class="dlc-awaiting"><i class="fas fa-clock"></i> Awaiting GM approval</span>
-                ` : ''}
-                ${canSwitchToDigital ? `
-                  <button type="button" class="dlc-btn dlc-btn-sm dlc-btn-secondary dlc-player-digital">
-                    <i class="fas fa-desktop"></i> Switch to Digital
-                  </button>
-                ` : ''}
-              </div>
-            ` : ''}
             <div class="dlc-players-grid">
+              ${canRequest ? `
+                <button type="button" class="dlc-player-card dlc-player-action-card dlc-btn-success dlc-player-request">
+                  <i class="fas fa-dice"></i> Request Manual
+                </button>
+              ` : ''}
+              ${myPending ? `
+                <div class="dlc-player-card dlc-player-pending-card">
+                  <i class="fas fa-clock"></i> Awaiting GM
+                </div>
+              ` : ''}
+              ${canSwitchToDigital ? `
+                <button type="button" class="dlc-player-card dlc-player-action-card dlc-btn-secondary dlc-player-digital">
+                  <i class="fas fa-desktop"></i> To Digital
+                </button>
+              ` : ''}
               ${selfPlayer ? `
                 <div class="dlc-player-card dlc-player-card-self">
                   <div class="dlc-player-info">
@@ -819,6 +819,11 @@ function attachGMPanelListeners(html) {
     pending = pending.filter(req => req.playerId !== playerId);
     await game.settings.set(MODULE_ID, "pendingRequests", pending);
     
+    // Clear chat buttons for this player across ALL chat messages
+    $(`.dlc-chat-approve[data-player-id="${playerId}"], .dlc-chat-deny[data-player-id="${playerId}"]`).each(function() {
+      $(this).closest(".dlc-chat-buttons").html('<em>Request approved</em>');
+    });
+
     game.socket.emit(`module.${MODULE_ID}`, {
       action: "applyMode",
       playerId: playerId,
@@ -839,6 +844,11 @@ function attachGMPanelListeners(html) {
     let pending = game.settings.get(MODULE_ID, "pendingRequests") || [];
     pending = pending.filter(req => req.playerId !== playerId);
     await game.settings.set(MODULE_ID, "pendingRequests", pending);
+
+    // Clear chat buttons for this player across ALL chat messages
+    $(`.dlc-chat-approve[data-player-id="${playerId}"], .dlc-chat-deny[data-player-id="${playerId}"]`).each(function() {
+      $(this).closest(".dlc-chat-buttons").html('<em>Request denied</em>');
+    });
     
     game.socket.emit(`module.${MODULE_ID}`, {
       action: "requestDenied",
