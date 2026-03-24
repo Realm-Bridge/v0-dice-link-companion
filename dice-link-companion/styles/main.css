@@ -1,5 +1,5 @@
 /* Dice Link Companion - Realm Bridge Branded Styles */
-/* Version 1.0.3.7 */
+/* Version 1.0.3.8 */
 
 /* ============================================================================
    CSS VARIABLES - Realm Bridge Brand Colors
@@ -539,17 +539,53 @@
   font-style: italic;
 }
 
-/* Request / action row above player grid - fixed size, never stretches */
-.dlc-player-action-row {
+/* Action card - sits inside the player grid, same height as player cards */
+.dlc-player-action-card {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
+  justify-content: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+  white-space: nowrap;
+  padding: 0 8px;
 }
 
-.dlc-player-action-row .dlc-btn {
-  flex: 0 0 auto;
-  white-space: nowrap;
+.dlc-player-action-card.dlc-btn-success {
+  background: var(--dlc-success);
+}
+
+.dlc-player-action-card.dlc-btn-success:hover {
+  background: var(--dlc-success-hover);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+}
+
+.dlc-player-action-card.dlc-btn-secondary {
+  background: var(--dlc-bg-input);
+  border: 1px solid var(--dlc-border);
+  color: var(--dlc-text-secondary);
+}
+
+.dlc-player-action-card.dlc-btn-secondary:hover {
+  background: var(--dlc-border);
+  color: var(--dlc-text-primary);
+}
+
+/* Pending card - same grid size, shows awaiting state */
+.dlc-player-pending-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--dlc-warning);
+  font-style: italic;
 }
 
 /* Keep badge styles for backwards compatibility */
