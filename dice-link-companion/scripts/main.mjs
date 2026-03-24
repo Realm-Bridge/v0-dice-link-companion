@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.3.10
+ * Version 1.0.3.11
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -620,12 +620,16 @@ function generatePlayerPanelContent() {
   const players = [];
   for (const user of game.users) {
     if (user.isGM) continue;
-    const mode = game.settings.get(MODULE_ID, `playerMode_${user.id}`) || "digital";
-    const isPending = pendingRequests.some(req => req.playerId === user.id);
+    const storedMode = game.settings.get(MODULE_ID, `playerMode_${user.id}`) || "digital";
+    const isPendingRaw = pendingRequests.some(req => req.playerId === user.id);
+    let effectiveMode = storedMode;
+    if (globalOverride === "forceAllManual") effectiveMode = "manual";
+    else if (globalOverride === "forceAllDigital") effectiveMode = "digital";
+    const isPending = globalOverride === "individual" ? isPendingRaw : false;
     players.push({
       id: user.id,
       name: user.name,
-      mode,
+      mode: effectiveMode,
       isPending,
       isSelf: user.id === game.user.id
     });
