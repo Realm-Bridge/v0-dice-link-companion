@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.4.11
+ * Version 1.0.4.12
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1359,12 +1359,24 @@ function isUserInManualMode() {
 /**
  * Create a synthetic event that triggers fastForward behavior in dnd5e.
  * Based on dnd5e keybindings: Shift = skip dialog, Alt = advantage, Ctrl = disadvantage
+ * Includes a mock DOM target to satisfy dnd5e/midi-qol's event.target.closest() calls.
  */
 function createFastForwardEvent(advantage = false, disadvantage = false) {
+  // Create a mock DOM element that satisfies closest() calls
+  const mockElement = {
+    closest: () => null,
+    dataset: {},
+    getAttribute: () => null,
+    querySelector: () => null,
+    querySelectorAll: () => []
+  };
+  
   return {
     shiftKey: true,  // This triggers fastForward in dnd5e
     altKey: advantage,
     ctrlKey: disadvantage,
+    target: mockElement,
+    currentTarget: mockElement,
     preventDefault: () => {},
     stopPropagation: () => {}
   };
@@ -1712,95 +1724,24 @@ function setupRollInterception() {
   // -------------------------------------------------------------------------
   // ATTACK ROLLS
   // -------------------------------------------------------------------------
-  registerRollHook("dnd5e.preRollAttackV2", "dnd5e.preRollAttack", (config, dialog, ...rest) => {
-    // For attacks, subject is the Item (weapon/spell), parent is the Actor
-    const item = config?.subject;
-    const actor = item?.parent;
-    const actorName = actor?.name || "Unknown";
-    const itemName = item?.name || "Attack";
-    
-    // Get attack bonus from item labels
-    const attackBonus = item?.labels?.toHit || "";
-    const formula = attackBonus ? `1d20 ${attackBonus}` : "1d20";
-    
-    return interceptRoll(
-      `${itemName} Attack`,
-      actorName,
-      formula,
-      async (opts) => {
-        // Try native dnd5e roll first for proper integration
-        try {
-          bypassInterception = true;
-          
-          if (item?.rollAttack) {
-            // Create synthetic event for fastForward with advantage/disadvantage
-            const event = createFastForwardEvent(opts.advantage, opts.disadvantage);
-            
-            await item.rollAttack({
-              event: event,
-              advantage: opts.advantage,
-              disadvantage: opts.disadvantage,
-              fastForward: true
-            });
-          } else {
-            // Fallback to direct roll
-            await executeDirectRoll(actor, formula, `${actorName} - ${itemName} Attack`, opts);
-          }
-        } catch (e) {
-          console.error("[v0] Error executing attack roll:", e);
-          // Fallback to direct roll on error
-          await executeDirectRoll(actor, formula, `${actorName} - ${itemName} Attack`, opts);
-        } finally {
-          bypassInterception = false;
-        }
-      },
-      { hasAdvantage: true, hasDisadvantage: true }
-    );
-  });
+  // Attack and damage rolls are NOT intercepted because they require deep
+  // integration with dnd5e/midi-qol workflows for:
+  // - Hit/miss determination against target AC
+  // - Damage application to targets
+  // - Merged item cards in chat
+  // - Concentration tracking
+  // - Active effects application
+  //
+  // For attack/damage, players should use the native dnd5e dialogs.
+  // Dice Link Companion handles: skill checks, ability checks, saving throws,
+  // death saves, hit dice, initiative, and tool checks.
+  //
+  // Future versions may integrate with Foundry's dice fulfillment API
+  // (CONFIG.Dice.fulfillment) to provide manual dice entry for attacks.
 
   // -------------------------------------------------------------------------
-  // DAMAGE ROLLS
+  // DAMAGE ROLLS - NOT INTERCEPTED (see above)
   // -------------------------------------------------------------------------
-  registerRollHook("dnd5e.preRollDamageV2", "dnd5e.preRollDamage", (config, dialog, ...rest) => {
-    // For damage, subject is the Item
-    const item = config?.subject;
-    const actor = item?.parent;
-    const actorName = actor?.name || "Unknown";
-    const itemName = item?.name || "Damage";
-    
-    // Get damage formula from item
-    const damageFormula = item?.labels?.damage || item?.system?.damage?.parts?.[0]?.[0] || "1d6";
-    
-    return interceptRoll(
-      `${itemName} Damage`,
-      actorName,
-      damageFormula,
-      async (opts) => {
-        try {
-          bypassInterception = true;
-          
-          if (item?.rollDamage) {
-            // Create synthetic event
-            const event = createFastForwardEvent(false, false);
-            
-            await item.rollDamage({
-              event: event,
-              critical: opts.critical,
-              fastForward: true
-            });
-          } else {
-            await executeDirectRoll(actor, damageFormula, `${actorName} - ${itemName} Damage`, opts);
-          }
-        } catch (e) {
-          console.error("[v0] Error executing damage roll:", e);
-          await executeDirectRoll(actor, damageFormula, `${actorName} - ${itemName} Damage`, opts);
-        } finally {
-          bypassInterception = false;
-        }
-      },
-      { hasAdvantage: false, hasDisadvantage: false, hasCritical: true }
-    );
-  });
 
   // -------------------------------------------------------------------------
   // HIT DICE
