@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.4.3
+ * Version 1.0.4.4
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1179,9 +1179,16 @@ function attachDiceTrayListeners(html) {
 
   // Advantage / Normal / Disadvantage buttons
   html.find(".dlc-roll-action-btn").click(async function() {
-    if (!pendingRollRequest) return;
+    console.log("[v0] Roll action button clicked");
+    console.log("[v0] pendingRollRequest:", pendingRollRequest);
+    
+    if (!pendingRollRequest) {
+      console.log("[v0] No pending roll request!");
+      return;
+    }
     const rollMode = $(this).data("roll-mode");
     const bonus = html.find(".dlc-situational-bonus").val()?.trim() || "";
+    console.log("[v0] rollMode:", rollMode, "bonus:", bonus);
 
     try {
       // Build the roll options to pass back to the dnd5e roll function
@@ -1191,9 +1198,12 @@ function attachDiceTrayListeners(html) {
       if (rollMode === "critical") opts.critical = true;
       if (bonus) opts.situationalBonus = bonus;
 
+      console.log("[v0] Calling rollFn with opts:", opts);
       // Call the captured roll function with our chosen options
       await pendingRollRequest.rollFn(opts);
+      console.log("[v0] rollFn completed successfully");
     } catch (e) {
+      console.error("[v0] Roll failed with error:", e);
       ui.notifications.error("Roll failed. Please try again.");
     } finally {
       pendingRollRequest = null;
@@ -1403,19 +1413,38 @@ function setupRollInterception() {
   // SKILL CHECKS
   // -------------------------------------------------------------------------
   registerRollHook("dnd5e.preRollSkillV2", "dnd5e.preRollSkill", (config, dialog, ...rest) => {
-    // Handle different argument patterns between versions
-    const actor = rest[0] || dialog?.actor || config?.actor;
-    const actorName = getActorName(config, actor);
-    const skill = config?.skill?.label || config?.skillId || dialog?.options?.skillId || "";
-    const ability = config?.ability?.label || config?.abilityId || "";
-    const formula = getFormula(config);
+    // DEBUG: Log everything we receive to understand dnd5e 5.x structure
+    console.log("[v0] SKILL CHECK HOOK FIRED");
+    console.log("[v0] config:", config);
+    console.log("[v0] dialog:", dialog);
+    console.log("[v0] rest:", rest);
+    console.log("[v0] config keys:", config ? Object.keys(config) : "null");
     
+    // Try to extract data from various possible locations
+    const actorName = config?.subject?.parent?.name || config?.actor?.name || config?.data?.name || "Unknown";
+    const skill = config?.skill || config?.subject?.label || config?.data?.skill || "";
+    const ability = config?.ability || "";
+    const formula = config?.rolls?.[0]?.formula || config?.formula || "1d20";
+    
+    console.log("[v0] Extracted - actor:", actorName, "skill:", skill, "formula:", formula);
+    
+    // Store the entire config so we can work with it later
     return interceptRoll(
       `${skill} Check`,
       actorName,
       formula,
-      (opts) => { if (dialog?.configure) dialog.configure(opts); },
-      { abilityOptions: ability, hasAdvantage: true, hasDisadvantage: true }
+      async (opts) => {
+        // We need to modify the config and let the roll proceed
+        console.log("[v0] Roll button clicked with opts:", opts);
+        // For now, just log - we'll figure out how to actually trigger the roll
+      },
+      { 
+        abilityOptions: ability, 
+        hasAdvantage: true, 
+        hasDisadvantage: true,
+        originalConfig: config,
+        originalDialog: dialog
+      }
     );
   });
 
