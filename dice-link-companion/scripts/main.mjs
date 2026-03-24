@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.4.4
+ * Version 1.0.4.5
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1368,12 +1368,17 @@ function interceptRoll(title, subtitle, formula, rollFn, options = {}) {
     ...options
   };
 
-  // Auto-open panel if not already open
-  if (!currentPanelDialog || !currentPanelDialog.rendered) {
+  // Auto-open panel and expand the roll request section
+  collapsedSections.rollRequest = false;
+  
+  // Check if panel is open and rendered
+  const panelIsOpen = currentPanelDialog && currentPanelDialog.rendered && currentPanelDialog._state === Application.RENDER_STATES.RENDERED;
+  
+  if (!panelIsOpen) {
+    // Panel is closed or doesn't exist - open it
     openPanel();
   } else {
-    // Expand the roll request section if collapsed
-    collapsedSections.rollRequest = false;
+    // Panel is already open - just refresh to show the pending roll
     refreshPanel();
   }
 
@@ -1413,33 +1418,50 @@ function setupRollInterception() {
   // SKILL CHECKS
   // -------------------------------------------------------------------------
   registerRollHook("dnd5e.preRollSkillV2", "dnd5e.preRollSkill", (config, dialog, ...rest) => {
-    // DEBUG: Log everything we receive to understand dnd5e 5.x structure
-    console.log("[v0] SKILL CHECK HOOK FIRED");
-    console.log("[v0] config:", config);
-    console.log("[v0] dialog:", dialog);
-    console.log("[v0] rest:", rest);
-    console.log("[v0] config keys:", config ? Object.keys(config) : "null");
+    // Extract data from dnd5e 5.x structure
+    const subject = config?.subject;
+    const actor = subject?.parent || rest[0]?.actor;
+    const actorName = actor?.name || "Unknown";
     
-    // Try to extract data from various possible locations
-    const actorName = config?.subject?.parent?.name || config?.actor?.name || config?.data?.name || "Unknown";
-    const skill = config?.skill || config?.subject?.label || config?.data?.skill || "";
-    const ability = config?.ability || "";
-    const formula = config?.rolls?.[0]?.formula || config?.formula || "1d20";
+    // Get full skill label from CONFIG or subject
+    const skillId = config?.skill || "";
+    const skillLabel = subject?.label || CONFIG.DND5E?.skills?.[skillId]?.label || skillId;
     
-    console.log("[v0] Extracted - actor:", actorName, "skill:", skill, "formula:", formula);
+    // Get ability used for this skill
+    const abilityId = config?.ability || "";
+    const abilityLabel = CONFIG.DND5E?.abilities?.[abilityId]?.label || abilityId;
     
-    // Store the entire config so we can work with it later
+    // Get the formula from rolls array
+    const formula = config?.rolls?.[0]?.options?.formula || config?.rolls?.[0]?.formula || "1d20";
+    
     return interceptRoll(
-      `${skill} Check`,
+      `${skillLabel} Check`,
       actorName,
       formula,
       async (opts) => {
-        // We need to modify the config and let the roll proceed
-        console.log("[v0] Roll button clicked with opts:", opts);
-        // For now, just log - we'll figure out how to actually trigger the roll
+        // Modify the original config with user's choices
+        if (opts.advantage) config.advantage = true;
+        if (opts.disadvantage) config.disadvantage = true;
+        
+        // Use the dialog's applicationClass to proceed with the roll
+        // by submitting the form programmatically
+        try {
+          const DialogClass = dialog.applicationClass;
+          if (DialogClass) {
+            const d = new DialogClass(config);
+            // Configure and submit
+            await d._finalizeRolls();
+          }
+        } catch (e) {
+          console.error("[v0] Error executing skill roll:", e);
+          // Fallback: try to roll directly on the actor
+          if (actor && skillId) {
+            await actor.rollSkill?.(skillId, { advantage: opts.advantage, disadvantage: opts.disadvantage });
+          }
+        }
       },
       { 
-        abilityOptions: ability, 
+        abilityOptions: abilityLabel, 
         hasAdvantage: true, 
         hasDisadvantage: true,
         originalConfig: config,
@@ -1452,17 +1474,33 @@ function setupRollInterception() {
   // ABILITY CHECKS
   // -------------------------------------------------------------------------
   registerRollHook("dnd5e.preRollAbilityTestV2", "dnd5e.preRollAbilityTest", (config, dialog, ...rest) => {
-    const actor = rest[0] || dialog?.actor || config?.actor;
-    const actorName = getActorName(config, actor);
-    const ability = config?.ability?.label || config?.abilityId || "";
-    const formula = getFormula(config);
+    const subject = config?.subject;
+    const actor = subject?.parent || rest[0]?.actor;
+    const actorName = actor?.name || "Unknown";
+    const abilityId = config?.ability || "";
+    const abilityLabel = CONFIG.DND5E?.abilities?.[abilityId]?.label || abilityId;
+    const formula = config?.rolls?.[0]?.options?.formula || "1d20";
     
     return interceptRoll(
-      `${ability} Check`,
+      `${abilityLabel} Check`,
       actorName,
       formula,
-      (opts) => { if (dialog?.configure) dialog.configure(opts); },
-      { hasAdvantage: true, hasDisadvantage: true }
+      async (opts) => {
+        if (opts.advantage) config.advantage = true;
+        if (opts.disadvantage) config.disadvantage = true;
+        try {
+          const DialogClass = dialog.applicationClass;
+          if (DialogClass) {
+            const d = new DialogClass(config);
+            await d._finalizeRolls();
+          }
+        } catch (e) {
+          if (actor && abilityId) {
+            await actor.rollAbilityTest?.(abilityId, { advantage: opts.advantage, disadvantage: opts.disadvantage });
+          }
+        }
+      },
+      { hasAdvantage: true, hasDisadvantage: true, originalConfig: config, originalDialog: dialog }
     );
   });
 
@@ -1470,17 +1508,33 @@ function setupRollInterception() {
   // SAVING THROWS
   // -------------------------------------------------------------------------
   registerRollHook("dnd5e.preRollAbilitySaveV2", "dnd5e.preRollAbilitySave", (config, dialog, ...rest) => {
-    const actor = rest[0] || dialog?.actor || config?.actor;
-    const actorName = getActorName(config, actor);
-    const ability = config?.ability?.label || config?.abilityId || "";
-    const formula = getFormula(config);
+    const subject = config?.subject;
+    const actor = subject?.parent || rest[0]?.actor;
+    const actorName = actor?.name || "Unknown";
+    const abilityId = config?.ability || "";
+    const abilityLabel = CONFIG.DND5E?.abilities?.[abilityId]?.label || abilityId;
+    const formula = config?.rolls?.[0]?.options?.formula || "1d20";
     
     return interceptRoll(
-      `${ability} Saving Throw`,
+      `${abilityLabel} Saving Throw`,
       actorName,
       formula,
-      (opts) => { if (dialog?.configure) dialog.configure(opts); },
-      { hasAdvantage: true, hasDisadvantage: true }
+      async (opts) => {
+        if (opts.advantage) config.advantage = true;
+        if (opts.disadvantage) config.disadvantage = true;
+        try {
+          const DialogClass = dialog.applicationClass;
+          if (DialogClass) {
+            const d = new DialogClass(config);
+            await d._finalizeRolls();
+          }
+        } catch (e) {
+          if (actor && abilityId) {
+            await actor.rollAbilitySave?.(abilityId, { advantage: opts.advantage, disadvantage: opts.disadvantage });
+          }
+        }
+      },
+      { hasAdvantage: true, hasDisadvantage: true, originalConfig: config, originalDialog: dialog }
     );
   });
 
@@ -1488,15 +1542,31 @@ function setupRollInterception() {
   // DEATH SAVES
   // -------------------------------------------------------------------------
   registerRollHook("dnd5e.preRollDeathSaveV2", "dnd5e.preRollDeathSave", (config, dialog, ...rest) => {
-    const actor = rest[0] || dialog?.actor || config?.actor;
-    const actorName = getActorName(config, actor);
+    const subject = config?.subject;
+    const actor = subject?.parent || rest[0]?.actor;
+    const actorName = actor?.name || "Unknown";
+    const formula = config?.rolls?.[0]?.options?.formula || "1d20";
     
     return interceptRoll(
       "Death Saving Throw",
       actorName,
-      getFormula(config),
-      (opts) => { if (dialog?.configure) dialog.configure(opts); },
-      { hasAdvantage: true, hasDisadvantage: true }
+      formula,
+      async (opts) => {
+        if (opts.advantage) config.advantage = true;
+        if (opts.disadvantage) config.disadvantage = true;
+        try {
+          const DialogClass = dialog.applicationClass;
+          if (DialogClass) {
+            const d = new DialogClass(config);
+            await d._finalizeRolls();
+          }
+        } catch (e) {
+          if (actor) {
+            await actor.rollDeathSave?.({ advantage: opts.advantage, disadvantage: opts.disadvantage });
+          }
+        }
+      },
+      { hasAdvantage: true, hasDisadvantage: true, originalConfig: config, originalDialog: dialog }
     );
   });
 
@@ -1504,16 +1574,32 @@ function setupRollInterception() {
   // ATTACK ROLLS
   // -------------------------------------------------------------------------
   registerRollHook("dnd5e.preRollAttackV2", "dnd5e.preRollAttack", (config, dialog, ...rest) => {
-    const actor = rest[0] || dialog?.actor || config?.actor;
-    const actorName = getActorName(config, actor);
-    const item = config?.item?.name || config?.subject?.name || "";
+    const subject = config?.subject;
+    const actor = subject?.parent || rest[0]?.actor;
+    const actorName = actor?.name || "Unknown";
+    const itemName = subject?.name || config?.item?.name || "Attack";
+    const formula = config?.rolls?.[0]?.options?.formula || "1d20";
     
     return interceptRoll(
-      `${item} Attack Roll`,
+      `${itemName} Attack`,
       actorName,
-      getFormula(config),
-      (opts) => { if (dialog?.configure) dialog.configure(opts); },
-      { hasAdvantage: true, hasDisadvantage: true }
+      formula,
+      async (opts) => {
+        if (opts.advantage) config.advantage = true;
+        if (opts.disadvantage) config.disadvantage = true;
+        try {
+          const DialogClass = dialog.applicationClass;
+          if (DialogClass) {
+            const d = new DialogClass(config);
+            await d._finalizeRolls();
+          }
+        } catch (e) {
+          if (subject?.rollAttack) {
+            await subject.rollAttack({ advantage: opts.advantage, disadvantage: opts.disadvantage });
+          }
+        }
+      },
+      { hasAdvantage: true, hasDisadvantage: true, originalConfig: config, originalDialog: dialog }
     );
   });
 
@@ -1521,16 +1607,31 @@ function setupRollInterception() {
   // DAMAGE ROLLS
   // -------------------------------------------------------------------------
   registerRollHook("dnd5e.preRollDamageV2", "dnd5e.preRollDamage", (config, dialog, ...rest) => {
-    const actor = rest[0] || dialog?.actor || config?.actor;
-    const actorName = getActorName(config, actor);
-    const item = config?.item?.name || config?.subject?.name || "";
+    const subject = config?.subject;
+    const actor = subject?.parent || rest[0]?.actor;
+    const actorName = actor?.name || "Unknown";
+    const itemName = subject?.name || config?.item?.name || "Damage";
+    const formula = config?.rolls?.[0]?.formula || "1d6";
     
     return interceptRoll(
-      `${item} Damage Roll`,
+      `${itemName} Damage`,
       actorName,
-      getFormula(config) || "1d6",
-      (opts) => { if (dialog?.configure) dialog.configure(opts); },
-      { hasAdvantage: false, hasDisadvantage: false, hasCritical: true }
+      formula,
+      async (opts) => {
+        if (opts.critical) config.critical = true;
+        try {
+          const DialogClass = dialog.applicationClass;
+          if (DialogClass) {
+            const d = new DialogClass(config);
+            await d._finalizeRolls();
+          }
+        } catch (e) {
+          if (subject?.rollDamage) {
+            await subject.rollDamage({ critical: opts.critical });
+          }
+        }
+      },
+      { hasAdvantage: false, hasDisadvantage: false, hasCritical: true, originalConfig: config, originalDialog: dialog }
     );
   });
 
@@ -1538,31 +1639,61 @@ function setupRollInterception() {
   // HIT DICE
   // -------------------------------------------------------------------------
   registerRollHook("dnd5e.preRollHitDieV2", "dnd5e.preRollHitDie", (config, dialog, ...rest) => {
-    const actor = rest[0] || dialog?.actor || config?.actor;
-    const actorName = getActorName(config, actor);
+    const subject = config?.subject;
+    const actor = subject?.parent || rest[0]?.actor;
+    const actorName = actor?.name || "Unknown";
+    const formula = config?.rolls?.[0]?.formula || "1d8";
     
     return interceptRoll(
       "Hit Die",
       actorName,
-      getFormula(config) || "1d8",
-      (opts) => { if (dialog?.configure) dialog.configure(opts); },
-      { hasAdvantage: false, hasDisadvantage: false }
+      formula,
+      async (opts) => {
+        try {
+          const DialogClass = dialog.applicationClass;
+          if (DialogClass) {
+            const d = new DialogClass(config);
+            await d._finalizeRolls();
+          }
+        } catch (e) {
+          if (actor?.rollHitDie) {
+            await actor.rollHitDie();
+          }
+        }
+      },
+      { hasAdvantage: false, hasDisadvantage: false, originalConfig: config, originalDialog: dialog }
     );
   });
 
   // -------------------------------------------------------------------------
-  // INITIATIVE (may not have a preRoll hook in all versions)
+  // INITIATIVE
   // -------------------------------------------------------------------------
   registerRollHook("dnd5e.preRollInitiativeV2", "dnd5e.preRollInitiative", (config, dialog, ...rest) => {
-    const actor = rest[0] || dialog?.actor || config?.actor;
-    const actorName = getActorName(config, actor);
+    const subject = config?.subject;
+    const actor = subject?.parent || rest[0]?.actor;
+    const actorName = actor?.name || "Unknown";
+    const formula = config?.rolls?.[0]?.options?.formula || "1d20";
     
     return interceptRoll(
       "Initiative",
       actorName,
-      getFormula(config),
-      (opts) => { if (dialog?.configure) dialog.configure(opts); },
-      { hasAdvantage: true, hasDisadvantage: true }
+      formula,
+      async (opts) => {
+        if (opts.advantage) config.advantage = true;
+        if (opts.disadvantage) config.disadvantage = true;
+        try {
+          const DialogClass = dialog.applicationClass;
+          if (DialogClass) {
+            const d = new DialogClass(config);
+            await d._finalizeRolls();
+          }
+        } catch (e) {
+          if (actor?.rollInitiative) {
+            await actor.rollInitiative({ createCombatants: true, rerollInitiative: true });
+          }
+        }
+      },
+      { hasAdvantage: true, hasDisadvantage: true, originalConfig: config, originalDialog: dialog }
     );
   });
 
@@ -1570,16 +1701,32 @@ function setupRollInterception() {
   // TOOL CHECKS
   // -------------------------------------------------------------------------
   registerRollHook("dnd5e.preRollToolCheckV2", "dnd5e.preRollToolCheck", (config, dialog, ...rest) => {
-    const actor = rest[0] || dialog?.actor || config?.actor;
-    const actorName = getActorName(config, actor);
-    const tool = config?.item?.name || "";
+    const subject = config?.subject;
+    const actor = subject?.parent || rest[0]?.actor;
+    const actorName = actor?.name || "Unknown";
+    const toolName = subject?.name || config?.item?.name || "Tool";
+    const formula = config?.rolls?.[0]?.options?.formula || "1d20";
     
     return interceptRoll(
-      `${tool} Tool Check`,
+      `${toolName} Check`,
       actorName,
-      getFormula(config),
-      (opts) => { if (dialog?.configure) dialog.configure(opts); },
-      { hasAdvantage: true, hasDisadvantage: true }
+      formula,
+      async (opts) => {
+        if (opts.advantage) config.advantage = true;
+        if (opts.disadvantage) config.disadvantage = true;
+        try {
+          const DialogClass = dialog.applicationClass;
+          if (DialogClass) {
+            const d = new DialogClass(config);
+            await d._finalizeRolls();
+          }
+        } catch (e) {
+          if (subject?.rollToolCheck) {
+            await subject.rollToolCheck({ advantage: opts.advantage, disadvantage: opts.disadvantage });
+          }
+        }
+      },
+      { hasAdvantage: true, hasDisadvantage: true, originalConfig: config, originalDialog: dialog }
     );
   });
 
