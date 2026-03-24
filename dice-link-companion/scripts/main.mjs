@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.4.9
+ * Version 1.0.5.0
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -17,9 +17,6 @@ let hasRequestedThisSession = false;
 // Track any pending intercepted roll request
 let pendingRollRequest = null;
 // { title, subtitle, formula, flavor, rollFn, rollOptions }
-
-// Flag to bypass interception when we're executing our own roll via dnd5e methods
-let bypassInterception = false;
 
 // Track collapsed sections state
 const collapsedSections = {
@@ -1414,9 +1411,6 @@ async function executeDirectRoll(actor, formula, flavor, opts = {}) {
 }
 
 function interceptRoll(title, subtitle, formula, rollFn, options = {}) {
-  // If we're executing our own roll, don't intercept again
-  if (bypassInterception) return true;
-  
   if (!isUserInManualMode()) return true; // Not in manual mode, let Foundry handle it normally
 
   pendingRollRequest = {
@@ -1582,92 +1576,18 @@ function setupRollInterception() {
   });
 
   // -------------------------------------------------------------------------
-  // ATTACK ROLLS
+  // ATTACK ROLLS - NOT INTERCEPTED
   // -------------------------------------------------------------------------
-  registerRollHook("dnd5e.preRollAttackV2", "dnd5e.preRollAttack", (config, dialog, ...rest) => {
-    // For attacks, subject is the Item (weapon/spell), parent is the Actor
-    const item = config?.subject;
-    const actor = item?.parent;
-    const actorName = actor?.name || "Unknown";
-    const itemName = item?.name || "Attack";
-    
-    // Get attack bonus from item
-    const attackBonus = item?.labels?.toHit || item?.system?.attack?.bonus || "";
-    const formula = attackBonus ? `1d20 ${attackBonus}` : "1d20";
-    
-    // Store the original config so we can modify and proceed
-    const originalConfig = config;
-    
-    return interceptRoll(
-      `${itemName} Attack`,
-      actorName,
-      formula,
-      async (opts) => {
-        // Use item.rollAttack() which integrates with midi-qol
-        // Set bypass flag to prevent re-interception
-        try {
-          bypassInterception = true;
-          if (item?.rollAttack) {
-            await item.rollAttack({
-              advantage: opts.advantage,
-              disadvantage: opts.disadvantage,
-              fastForward: true,
-              event: null
-            });
-          } else {
-            await executeDirectRoll(actor, formula, `${actorName} - ${itemName} Attack`, opts);
-          }
-        } catch (e) {
-          console.error("[v0] Error executing attack roll:", e);
-          await executeDirectRoll(actor, formula, `${actorName} - ${itemName} Attack`, opts);
-        } finally {
-          bypassInterception = false;
-        }
-      },
-      { hasAdvantage: true, hasDisadvantage: true }
-    );
-  });
+  // Attack rolls are NOT intercepted because they need deep integration with
+  // dnd5e's item workflow and midi-qol's hit/miss determination. Intercepting
+  // them breaks the integration with item cards and target damage application.
+  // Let dnd5e/midi-qol handle attack rolls with their native dialogs.
 
   // -------------------------------------------------------------------------
-  // DAMAGE ROLLS
+  // DAMAGE ROLLS - NOT INTERCEPTED
   // -------------------------------------------------------------------------
-  registerRollHook("dnd5e.preRollDamageV2", "dnd5e.preRollDamage", (config, dialog, ...rest) => {
-    // For damage, subject is the Item
-    const item = config?.subject;
-    const actor = item?.parent;
-    const actorName = actor?.name || "Unknown";
-    const itemName = item?.name || "Damage";
-    
-    // Get damage formula from item
-    const damageFormula = item?.labels?.damage || item?.system?.damage?.parts?.[0]?.[0] || "1d6";
-    
-    return interceptRoll(
-      `${itemName} Damage`,
-      actorName,
-      damageFormula,
-      async (opts) => {
-        // Use item.rollDamage() which integrates with midi-qol
-        try {
-          bypassInterception = true;
-          if (item?.rollDamage) {
-            await item.rollDamage({
-              critical: opts.critical,
-              fastForward: true,
-              event: null
-            });
-          } else {
-            await executeDirectRoll(actor, damageFormula, `${actorName} - ${itemName} Damage`, opts);
-          }
-        } catch (e) {
-          console.error("[v0] Error executing damage roll:", e);
-          await executeDirectRoll(actor, damageFormula, `${actorName} - ${itemName} Damage`, opts);
-        } finally {
-          bypassInterception = false;
-        }
-      },
-      { hasAdvantage: false, hasDisadvantage: false, hasCritical: true }
-    );
-  });
+  // Damage rolls are NOT intercepted for the same reason as attacks - they
+  // need to integrate with the item workflow for proper damage application.
 
   // -------------------------------------------------------------------------
   // HIT DICE
