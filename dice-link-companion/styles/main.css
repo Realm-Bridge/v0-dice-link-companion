@@ -1,5 +1,5 @@
 /* Dice Link Companion - Realm Bridge Branded Styles */
-/* Version 1.0.3.9 */
+/* Version 1.0.3.10 */
 
 /* ============================================================================
    CSS VARIABLES - Realm Bridge Brand Colors
@@ -620,6 +620,62 @@
   display: flex;
   gap: 4px;
   flex-shrink: 0;
+}
+
+/* Revokable card needs position:relative for the corner button */
+.dlc-player-card-revokable {
+  position: relative;
+  overflow: visible;
+}
+
+/* Small X icon pinned to top-right corner of the card */
+.dlc-revoke-corner {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--dlc-warning);
+  color: #1a1a1a;
+  border: 1px solid var(--dlc-bg-dark);
+  font-size: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.15s ease;
+  padding: 0;
+  line-height: 1;
+  z-index: 2;
+}
+
+.dlc-revoke-corner:hover {
+  background: var(--dlc-warning-hover);
+  transform: scale(1.2);
+}
+
+/* Legend dot for revoke */
+.dlc-revoke-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dlc-warning);
+  flex-shrink: 0;
+  position: relative;
+}
+
+.dlc-revoke-dot::after {
+  content: "\00D7";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 7px;
+  color: #1a1a1a;
+  font-weight: 900;
+  line-height: 1;
 }
 
 /* ============================================================================

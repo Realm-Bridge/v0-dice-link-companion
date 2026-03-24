@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.3.9
+ * Version 1.0.3.10
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -559,22 +559,21 @@ function generateGMPanelContent() {
               <span class="dlc-legend-item"><span class="dlc-mode-dot digital"></span>Digital</span>
               <span class="dlc-legend-item"><span class="dlc-mode-dot manual"></span>Manual</span>
               <span class="dlc-legend-item"><span class="dlc-mode-dot pending"></span>Pending</span>
+              <span class="dlc-legend-item"><span class="dlc-revoke-dot"></span>Revoke</span>
             </div>
             ${players.length > 0 ? `
               <div class="dlc-players-grid">
                 ${players.map(player => `
-                  <div class="dlc-player-card">
+                  <div class="dlc-player-card${player.canRevoke ? ' dlc-player-card-revokable' : ''}">
                     <div class="dlc-player-info">
                       <span class="dlc-mode-dot ${player.isPending ? 'pending' : player.mode}"></span>
                       <span class="dlc-player-name">${player.name}</span>
                     </div>
-                    <div class="dlc-player-actions">
-                      ${player.canRevoke ? `
-                        <button type="button" class="dlc-btn dlc-btn-xs dlc-btn-warning dlc-panel-revoke" data-player-id="${player.id}">
-                          Revoke
-                        </button>
-                      ` : ''}
-                    </div>
+                    ${player.canRevoke ? `
+                      <button type="button" class="dlc-revoke-corner dlc-panel-revoke" data-player-id="${player.id}" title="Revoke manual dice">
+                        <i class="fas fa-times"></i>
+                      </button>
+                    ` : ''}
                   </div>
                 `).join('')}
               </div>
