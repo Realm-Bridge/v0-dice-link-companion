@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.4.11
+ * Version 1.0.4.13
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -16,10 +16,7 @@ let hasRequestedThisSession = false;
 
 // Track any pending intercepted roll request
 let pendingRollRequest = null;
-// { title, subtitle, formula, flavor, rollFn, rollOptions }
-
-// Flag to bypass interception when we're executing our own roll
-let bypassInterception = false;
+// { title, subtitle, formula, config, dialog, onComplete }
 
 // Track collapsed sections state
 const collapsedSections = {
@@ -1193,31 +1190,28 @@ function attachDiceTrayListeners(html) {
     const bonus = html.find(".dlc-situational-bonus").val()?.trim() || "";
     console.log("[v0] rollMode:", rollMode, "bonus:", bonus);
 
-    try {
-      // Build the roll options to pass back to the dnd5e roll function
-      const opts = {};
-      if (rollMode === "advantage") opts.advantage = true;
-      if (rollMode === "disadvantage") opts.disadvantage = true;
-      if (rollMode === "critical") opts.critical = true;
-      if (bonus) opts.situationalBonus = bonus;
+    // Build the user choice object
+    const userChoice = {
+      advantage: rollMode === "advantage",
+      disadvantage: rollMode === "disadvantage",
+      critical: rollMode === "critical",
+      situationalBonus: bonus || null
+    };
 
-      console.log("[v0] Calling rollFn with opts:", opts);
-      // Call the captured roll function with our chosen options
-      await pendingRollRequest.rollFn(opts);
-      console.log("[v0] rollFn completed successfully");
-    } catch (e) {
-      console.error("[v0] Roll failed with error:", e);
-      ui.notifications.error("Roll failed. Please try again.");
-    } finally {
-      pendingRollRequest = null;
-      refreshPanel();
+    // Call the onComplete callback to resolve the Promise and proceed with the roll
+    if (pendingRollRequest.onComplete) {
+      pendingRollRequest.onComplete(userChoice);
     }
   });
 
   // Cancel roll button
   html.find(".dlc-roll-cancel-btn").click(function() {
-    pendingRollRequest = null;
-    refreshPanel();
+    if (pendingRollRequest?.onComplete) {
+      pendingRollRequest.onComplete("cancel");
+    } else {
+      pendingRollRequest = null;
+      refreshPanel();
+    }
     ui.notifications.info("Roll cancelled.");
   });
 }
@@ -1357,59 +1351,8 @@ function isUserInManualMode() {
 }
 
 /**
- * Create a synthetic event that triggers fastForward behavior in dnd5e.
- * Based on dnd5e keybindings: Shift = skip dialog, Alt = advantage, Ctrl = disadvantage
- */
-function createFastForwardEvent(advantage = false, disadvantage = false) {
-  return {
-    shiftKey: true,  // This triggers fastForward in dnd5e
-    altKey: advantage,
-    ctrlKey: disadvantage,
-    preventDefault: () => {},
-    stopPropagation: () => {}
-  };
-}
-
-/**
- * Execute a roll using native dnd5e methods with fastForward.
- * This maintains proper integration with dnd5e/midi-qol workflows.
- */
-async function executeNativeRoll(rollMethod, rollArgs, opts = {}) {
-  try {
-    bypassInterception = true;
-    
-    // Create synthetic event for fastForward
-    const event = createFastForwardEvent(opts.advantage, opts.disadvantage);
-    
-    // Merge our options with the event
-    const rollOptions = {
-      ...rollArgs,
-      event: event,
-      fastForward: true,
-      advantage: opts.advantage || false,
-      disadvantage: opts.disadvantage || false,
-      critical: opts.critical || false
-    };
-    
-    // Add situational bonus if provided
-    if (opts.situationalBonus) {
-      rollOptions.parts = rollOptions.parts || [];
-      rollOptions.parts.push(opts.situationalBonus);
-    }
-    
-    await rollMethod(rollOptions);
-    return true;
-  } catch (e) {
-    console.error("[v0] Error executing native roll:", e);
-    return false;
-  } finally {
-    bypassInterception = false;
-  }
-}
-
-/**
  * Execute a roll directly using Foundry's Roll API.
- * This bypasses dnd5e/midi-qol hooks - used as fallback or for simple rolls.
+ * This bypasses dnd5e/midi-qol hooks and is used as a fallback.
  */
 async function executeDirectRoll(actor, formula, flavor, opts = {}) {
   try {
@@ -1464,39 +1407,88 @@ async function executeDirectRoll(actor, formula, flavor, opts = {}) {
   }
 }
 
-function interceptRoll(title, subtitle, formula, rollFn, options = {}) {
-  // If we're executing our own roll, don't intercept again
-  if (bypassInterception) return true;
-  
+/**
+ * Intercept a roll and show our UI. Returns a Promise that:
+ * - Resolves with `true` after modifying the config (roll proceeds with our choices)
+ * - Resolves with `false` if user cancels (roll is cancelled)
+ * 
+ * This approach lets the roll continue through normal dnd5e/midi-qol workflow
+ * with our advantage/disadvantage/critical choices already applied.
+ */
+function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
   if (!isUserInManualMode()) return true; // Not in manual mode, let Foundry handle it normally
 
-  pendingRollRequest = {
-    title,
-    subtitle,
-    formula,
-    rollFn,
-    situationalBonus: "",
-    hasAdvantage: options.hasAdvantage !== false,
-    hasDisadvantage: options.hasDisadvantage !== false,
-    abilityOptions: options.abilityOptions || null,
-    ...options
-  };
+  return new Promise((resolve) => {
+    pendingRollRequest = {
+      title,
+      subtitle,
+      formula,
+      config,       // Store the original config so we can modify it
+      dialog,       // Store the dialog config so we can disable native dialog
+      situationalBonus: "",
+      hasAdvantage: options.hasAdvantage !== false,
+      hasDisadvantage: options.hasDisadvantage !== false,
+      hasCritical: options.hasCritical || false,
+      abilityOptions: options.abilityOptions || null,
+      // Callback to resolve the promise when user makes a choice
+      onComplete: (userChoice) => {
+        if (userChoice === "cancel") {
+          pendingRollRequest = null;
+          refreshPanel();
+          resolve(false); // Cancel the roll
+          return;
+        }
+        
+        // Apply user's choices to the original config
+        if (config) {
+          // Set advantage/disadvantage on the roll config
+          if (userChoice.advantage) {
+            config.advantage = true;
+            config.disadvantage = false;
+          } else if (userChoice.disadvantage) {
+            config.advantage = false;
+            config.disadvantage = true;
+          } else {
+            config.advantage = false;
+            config.disadvantage = false;
+          }
+          
+          // Set critical for damage rolls
+          if (userChoice.critical !== undefined) {
+            config.critical = userChoice.critical;
+          }
+          
+          // Add situational bonus if provided
+          if (userChoice.situationalBonus) {
+            config.parts = config.parts || [];
+            config.parts.push(userChoice.situationalBonus);
+          }
+        }
+        
+        // Disable the native dialog since we've already collected user input
+        if (dialog) {
+          dialog.configure = false;
+        }
+        
+        pendingRollRequest = null;
+        refreshPanel();
+        resolve(true); // Let the roll proceed with our modifications
+      },
+      ...options
+    };
 
-  // Auto-open panel and expand the roll request section
-  collapsedSections.rollRequest = false;
-  
-  // Check if panel is open and rendered
-  const panelIsOpen = currentPanelDialog && currentPanelDialog.rendered && currentPanelDialog._state === Application.RENDER_STATES.RENDERED;
-  
-  if (!panelIsOpen) {
-    // Panel is closed or doesn't exist - open it
-    openPanel();
-  } else {
-    // Panel is already open - just refresh to show the pending roll
-    refreshPanel();
-  }
-
-  return false; // Cancel the default Foundry/dnd5e dialog
+    // Auto-open panel and expand the roll request section
+    collapsedSections.rollRequest = false;
+    
+    // Check if panel is open and rendered
+    const panelIsOpen = currentPanelDialog && currentPanelDialog.rendered && currentPanelDialog._state === Application.RENDER_STATES.RENDERED;
+    
+    if (!panelIsOpen) {
+      openPanel();
+    } else {
+      refreshPanel();
+    }
+  });
 }
 
 function setupRollInterception() {
@@ -1532,55 +1524,26 @@ function setupRollInterception() {
   // SKILL CHECKS
   // -------------------------------------------------------------------------
   registerRollHook("dnd5e.preRollSkillV2", "dnd5e.preRollSkill", (config, dialog, ...rest) => {
-    // In dnd5e 5.x, config.subject IS the actor
     const actor = config?.subject;
     const actorName = actor?.name || "Unknown";
-    
-    // Get skill info
     const skillId = config?.skill || "";
     const skillLabel = CONFIG.DND5E?.skills?.[skillId]?.label || skillId;
-    
-    // Get ability used for this skill
     const abilityId = config?.ability || "";
     const abilityLabel = CONFIG.DND5E?.abilities?.[abilityId]?.label || abilityId;
     
-    // Build formula with modifier from actor's skill data
+    // Build formula for display
     const skillData = actor?.system?.skills?.[skillId];
     const modifier = skillData?.total ?? 0;
     const formula = modifier >= 0 ? `1d20 + ${modifier}` : `1d20 - ${Math.abs(modifier)}`;
     
+    // Pass config and dialog - interceptRoll will modify them and return Promise
     return interceptRoll(
       `${skillLabel} Check`,
       actorName,
       formula,
-      async (opts) => {
-        // Try native dnd5e method first for proper integration
-        try {
-          bypassInterception = true;
-          
-          if (actor?.rollSkill) {
-            const event = createFastForwardEvent(opts.advantage, opts.disadvantage);
-            await actor.rollSkill(skillId, {
-              event: event,
-              advantage: opts.advantage,
-              disadvantage: opts.disadvantage,
-              fastForward: true
-            });
-          } else {
-            await executeDirectRoll(actor, formula, `${actorName} - ${skillLabel} Check`, opts);
-          }
-        } catch (e) {
-          console.error("[v0] Error executing skill roll:", e);
-          await executeDirectRoll(actor, formula, `${actorName} - ${skillLabel} Check`, opts);
-        } finally {
-          bypassInterception = false;
-        }
-      },
-      { 
-        abilityOptions: abilityLabel, 
-        hasAdvantage: true, 
-        hasDisadvantage: true
-      }
+      config,
+      dialog,
+      { abilityOptions: abilityLabel, hasAdvantage: true, hasDisadvantage: true }
     );
   });
 
@@ -1593,27 +1556,170 @@ function setupRollInterception() {
     const abilityId = config?.ability || "";
     const abilityLabel = CONFIG.DND5E?.abilities?.[abilityId]?.label || abilityId;
     
-    // Build formula with modifier
-    const abilityData = actor?.system?.abilities?.[abilityId];
-    const modifier = abilityData?.mod ?? 0;
-    const formula = modifier >= 0 ? `1d20 + ${modifier}` : `1d20 - ${Math.abs(modifier)}`;
+    const abilityMod = actor?.system?.abilities?.[abilityId]?.mod || 0;
+    const formula = abilityMod >= 0 ? `1d20 + ${abilityMod}` : `1d20 - ${Math.abs(abilityMod)}`;
     
     return interceptRoll(
       `${abilityLabel} Check`,
       actorName,
       formula,
-      async (opts) => {
-        try {
-          bypassInterception = true;
-          
-          if (actor?.rollAbilityTest) {
-            const event = createFastForwardEvent(opts.advantage, opts.disadvantage);
-            await actor.rollAbilityTest(abilityId, {
-              event: event,
-              advantage: opts.advantage,
-              disadvantage: opts.disadvantage,
-              fastForward: true
-            });
+      config,
+      dialog,
+      { hasAdvantage: true, hasDisadvantage: true }
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // SAVING THROWS
+  // -------------------------------------------------------------------------
+  registerRollHook("dnd5e.preRollAbilitySaveV2", "dnd5e.preRollAbilitySave", (config, dialog, ...rest) => {
+    const actor = config?.subject;
+    const actorName = actor?.name || "Unknown";
+    const abilityId = config?.ability || "";
+    const abilityLabel = CONFIG.DND5E?.abilities?.[abilityId]?.label || abilityId;
+    
+    const saveData = actor?.system?.abilities?.[abilityId]?.save;
+    const modifier = saveData?.total ?? 0;
+    const formula = modifier >= 0 ? `1d20 + ${modifier}` : `1d20 - ${Math.abs(modifier)}`;
+    
+    return interceptRoll(
+      `${abilityLabel} Saving Throw`,
+      actorName,
+      formula,
+      config,
+      dialog,
+      { hasAdvantage: true, hasDisadvantage: true }
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // DEATH SAVES
+  // -------------------------------------------------------------------------
+  registerRollHook("dnd5e.preRollDeathSaveV2", "dnd5e.preRollDeathSave", (config, dialog, ...rest) => {
+    const actor = config?.subject;
+    const actorName = actor?.name || "Unknown";
+    
+    return interceptRoll(
+      "Death Saving Throw",
+      actorName,
+      "1d20",
+      config,
+      dialog,
+      { hasAdvantage: true, hasDisadvantage: true }
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // ATTACK ROLLS
+  // -------------------------------------------------------------------------
+  registerRollHook("dnd5e.preRollAttackV2", "dnd5e.preRollAttack", (config, dialog, ...rest) => {
+    const item = config?.subject;
+    const actor = item?.parent;
+    const actorName = actor?.name || "Unknown";
+    const itemName = item?.name || "Attack";
+    
+    const attackBonus = item?.labels?.toHit || "";
+    const formula = attackBonus ? `1d20 ${attackBonus}` : "1d20";
+    
+    return interceptRoll(
+      `${itemName} Attack`,
+      actorName,
+      formula,
+      config,
+      dialog,
+      { hasAdvantage: true, hasDisadvantage: true }
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // DAMAGE ROLLS
+  // -------------------------------------------------------------------------
+  registerRollHook("dnd5e.preRollDamageV2", "dnd5e.preRollDamage", (config, dialog, ...rest) => {
+    const item = config?.subject;
+    const actor = item?.parent;
+    const actorName = actor?.name || "Unknown";
+    const itemName = item?.name || "Damage";
+    
+    const damageFormula = item?.labels?.damage || item?.system?.damage?.parts?.[0]?.[0] || "1d6";
+    
+    return interceptRoll(
+      `${itemName} Damage`,
+      actorName,
+      damageFormula,
+      config,
+      dialog,
+      { hasAdvantage: false, hasDisadvantage: false, hasCritical: true }
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // HIT DICE
+  // -------------------------------------------------------------------------
+  registerRollHook("dnd5e.preRollHitDieV2", "dnd5e.preRollHitDie", (config, dialog, ...rest) => {
+    const actor = config?.subject;
+    const actorName = actor?.name || "Unknown";
+    
+    const classes = actor?.classes || {};
+    const firstClass = Object.values(classes)[0];
+    const hitDie = firstClass?.system?.hitDice || "d8";
+    const conMod = actor?.system?.abilities?.con?.mod || 0;
+    const formula = conMod >= 0 ? `1${hitDie} + ${conMod}` : `1${hitDie} - ${Math.abs(conMod)}`;
+    
+    return interceptRoll(
+      "Hit Die",
+      actorName,
+      formula,
+      config,
+      dialog,
+      { hasAdvantage: false, hasDisadvantage: false }
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // INITIATIVE
+  // -------------------------------------------------------------------------
+  registerRollHook("dnd5e.preRollInitiativeV2", "dnd5e.preRollInitiative", (config, dialog, ...rest) => {
+    const actor = config?.subject;
+    const actorName = actor?.name || "Unknown";
+    
+    const initMod = actor?.system?.attributes?.init?.total ?? actor?.system?.abilities?.dex?.mod ?? 0;
+    const formula = initMod >= 0 ? `1d20 + ${initMod}` : `1d20 - ${Math.abs(initMod)}`;
+    
+    return interceptRoll(
+      "Initiative",
+      actorName,
+      formula,
+      config,
+      dialog,
+      { hasAdvantage: true, hasDisadvantage: true }
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // TOOL CHECKS
+  // -------------------------------------------------------------------------
+  registerRollHook("dnd5e.preRollToolCheckV2", "dnd5e.preRollToolCheck", (config, dialog, ...rest) => {
+    const tool = config?.subject;
+    const actor = tool?.parent;
+    const actorName = actor?.name || "Unknown";
+    const toolName = tool?.name || "Tool";
+    
+    const prof = tool?.system?.proficient || 0;
+    const abilityId = tool?.system?.ability || "int";
+    const abilityMod = actor?.system?.abilities?.[abilityId]?.mod || 0;
+    const profBonus = actor?.system?.attributes?.prof || 0;
+    const modifier = abilityMod + (prof * profBonus);
+    const formula = modifier >= 0 ? `1d20 + ${modifier}` : `1d20 - ${Math.abs(modifier)}`;
+    
+    return interceptRoll(
+      `${toolName} Check`,
+      actorName,
+      formula,
+      config,
+      dialog,
+      { hasAdvantage: true, hasDisadvantage: true }
+    );
+  });
           } else {
             await executeDirectRoll(actor, formula, `${actorName} - ${abilityLabel} Check`, opts);
           }
@@ -1712,95 +1818,24 @@ function setupRollInterception() {
   // -------------------------------------------------------------------------
   // ATTACK ROLLS
   // -------------------------------------------------------------------------
-  registerRollHook("dnd5e.preRollAttackV2", "dnd5e.preRollAttack", (config, dialog, ...rest) => {
-    // For attacks, subject is the Item (weapon/spell), parent is the Actor
-    const item = config?.subject;
-    const actor = item?.parent;
-    const actorName = actor?.name || "Unknown";
-    const itemName = item?.name || "Attack";
-    
-    // Get attack bonus from item labels
-    const attackBonus = item?.labels?.toHit || "";
-    const formula = attackBonus ? `1d20 ${attackBonus}` : "1d20";
-    
-    return interceptRoll(
-      `${itemName} Attack`,
-      actorName,
-      formula,
-      async (opts) => {
-        // Try native dnd5e roll first for proper integration
-        try {
-          bypassInterception = true;
-          
-          if (item?.rollAttack) {
-            // Create synthetic event for fastForward with advantage/disadvantage
-            const event = createFastForwardEvent(opts.advantage, opts.disadvantage);
-            
-            await item.rollAttack({
-              event: event,
-              advantage: opts.advantage,
-              disadvantage: opts.disadvantage,
-              fastForward: true
-            });
-          } else {
-            // Fallback to direct roll
-            await executeDirectRoll(actor, formula, `${actorName} - ${itemName} Attack`, opts);
-          }
-        } catch (e) {
-          console.error("[v0] Error executing attack roll:", e);
-          // Fallback to direct roll on error
-          await executeDirectRoll(actor, formula, `${actorName} - ${itemName} Attack`, opts);
-        } finally {
-          bypassInterception = false;
-        }
-      },
-      { hasAdvantage: true, hasDisadvantage: true }
-    );
-  });
+  // Attack and damage rolls are NOT intercepted because they require deep
+  // integration with dnd5e/midi-qol workflows for:
+  // - Hit/miss determination against target AC
+  // - Damage application to targets
+  // - Merged item cards in chat
+  // - Concentration tracking
+  // - Active effects application
+  //
+  // For attack/damage, players should use the native dnd5e dialogs.
+  // Dice Link Companion handles: skill checks, ability checks, saving throws,
+  // death saves, hit dice, initiative, and tool checks.
+  //
+  // Future versions may integrate with Foundry's dice fulfillment API
+  // (CONFIG.Dice.fulfillment) to provide manual dice entry for attacks.
 
   // -------------------------------------------------------------------------
-  // DAMAGE ROLLS
+  // DAMAGE ROLLS - NOT INTERCEPTED (see above)
   // -------------------------------------------------------------------------
-  registerRollHook("dnd5e.preRollDamageV2", "dnd5e.preRollDamage", (config, dialog, ...rest) => {
-    // For damage, subject is the Item
-    const item = config?.subject;
-    const actor = item?.parent;
-    const actorName = actor?.name || "Unknown";
-    const itemName = item?.name || "Damage";
-    
-    // Get damage formula from item
-    const damageFormula = item?.labels?.damage || item?.system?.damage?.parts?.[0]?.[0] || "1d6";
-    
-    return interceptRoll(
-      `${itemName} Damage`,
-      actorName,
-      damageFormula,
-      async (opts) => {
-        try {
-          bypassInterception = true;
-          
-          if (item?.rollDamage) {
-            // Create synthetic event
-            const event = createFastForwardEvent(false, false);
-            
-            await item.rollDamage({
-              event: event,
-              critical: opts.critical,
-              fastForward: true
-            });
-          } else {
-            await executeDirectRoll(actor, damageFormula, `${actorName} - ${itemName} Damage`, opts);
-          }
-        } catch (e) {
-          console.error("[v0] Error executing damage roll:", e);
-          await executeDirectRoll(actor, damageFormula, `${actorName} - ${itemName} Damage`, opts);
-        } finally {
-          bypassInterception = false;
-        }
-      },
-      { hasAdvantage: false, hasDisadvantage: false, hasCritical: true }
-    );
-  });
 
   // -------------------------------------------------------------------------
   // HIT DICE
