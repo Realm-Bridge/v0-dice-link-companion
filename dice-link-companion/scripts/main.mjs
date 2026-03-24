@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.4.14
+ * Version 1.0.4.15
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1418,13 +1418,19 @@ async function executeDirectRoll(actor, formula, flavor, opts = {}) {
 function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
   if (!isUserInManualMode()) return true; // Not in manual mode, let Foundry handle it normally
 
+  // IMMEDIATELY disable the native dialog before showing our UI
+  // This must happen before returning the Promise to prevent the dialog from appearing
+  if (dialog) {
+    dialog.configure = false;
+  }
+
   return new Promise((resolve) => {
     pendingRollRequest = {
       title,
       subtitle,
       formula,
       config,       // Store the original config so we can modify it
-      dialog,       // Store the dialog config so we can disable native dialog
+      dialog,       // Store the dialog config
       situationalBonus: "",
       hasAdvantage: options.hasAdvantage !== false,
       hasDisadvantage: options.hasDisadvantage !== false,
@@ -1463,11 +1469,6 @@ function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
             config.parts = config.parts || [];
             config.parts.push(userChoice.situationalBonus);
           }
-        }
-        
-        // Disable the native dialog since we've already collected user input
-        if (dialog) {
-          dialog.configure = false;
         }
         
         pendingRollRequest = null;
