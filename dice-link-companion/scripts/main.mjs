@@ -1193,31 +1193,28 @@ function attachDiceTrayListeners(html) {
     const bonus = html.find(".dlc-situational-bonus").val()?.trim() || "";
     console.log("[v0] rollMode:", rollMode, "bonus:", bonus);
 
-    try {
-      // Build the roll options to pass back to the dnd5e roll function
-      const opts = {};
-      if (rollMode === "advantage") opts.advantage = true;
-      if (rollMode === "disadvantage") opts.disadvantage = true;
-      if (rollMode === "critical") opts.critical = true;
-      if (bonus) opts.situationalBonus = bonus;
+    // Build the user choice object
+    const userChoice = {
+      advantage: rollMode === "advantage",
+      disadvantage: rollMode === "disadvantage",
+      critical: rollMode === "critical",
+      situationalBonus: bonus || null
+    };
 
-      console.log("[v0] Calling rollFn with opts:", opts);
-      // Call the captured roll function with our chosen options
-      await pendingRollRequest.rollFn(opts);
-      console.log("[v0] rollFn completed successfully");
-    } catch (e) {
-      console.error("[v0] Roll failed with error:", e);
-      ui.notifications.error("Roll failed. Please try again.");
-    } finally {
-      pendingRollRequest = null;
-      refreshPanel();
+    // Call the onComplete callback to resolve the Promise and proceed with the roll
+    if (pendingRollRequest.onComplete) {
+      pendingRollRequest.onComplete(userChoice);
     }
   });
 
   // Cancel roll button
   html.find(".dlc-roll-cancel-btn").click(function() {
-    pendingRollRequest = null;
-    refreshPanel();
+    if (pendingRollRequest?.onComplete) {
+      pendingRollRequest.onComplete("cancel");
+    } else {
+      pendingRollRequest = null;
+      refreshPanel();
+    }
     ui.notifications.info("Roll cancelled.");
   });
 }
@@ -1476,39 +1473,88 @@ async function executeDirectRoll(actor, formula, flavor, opts = {}) {
   }
 }
 
-function interceptRoll(title, subtitle, formula, rollFn, options = {}) {
-  // If we're executing our own roll, don't intercept again
-  if (bypassInterception) return true;
-  
+/**
+ * Intercept a roll and show our UI. Returns a Promise that:
+ * - Resolves with `true` after modifying the config (roll proceeds with our choices)
+ * - Resolves with `false` if user cancels (roll is cancelled)
+ * 
+ * This approach lets the roll continue through normal dnd5e/midi-qol workflow
+ * with our advantage/disadvantage/critical choices already applied.
+ */
+function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
   if (!isUserInManualMode()) return true; // Not in manual mode, let Foundry handle it normally
 
-  pendingRollRequest = {
-    title,
-    subtitle,
-    formula,
-    rollFn,
-    situationalBonus: "",
-    hasAdvantage: options.hasAdvantage !== false,
-    hasDisadvantage: options.hasDisadvantage !== false,
-    abilityOptions: options.abilityOptions || null,
-    ...options
-  };
+  return new Promise((resolve) => {
+    pendingRollRequest = {
+      title,
+      subtitle,
+      formula,
+      config,       // Store the original config so we can modify it
+      dialog,       // Store the dialog config so we can disable native dialog
+      situationalBonus: "",
+      hasAdvantage: options.hasAdvantage !== false,
+      hasDisadvantage: options.hasDisadvantage !== false,
+      hasCritical: options.hasCritical || false,
+      abilityOptions: options.abilityOptions || null,
+      // Callback to resolve the promise when user makes a choice
+      onComplete: (userChoice) => {
+        if (userChoice === "cancel") {
+          pendingRollRequest = null;
+          refreshPanel();
+          resolve(false); // Cancel the roll
+          return;
+        }
+        
+        // Apply user's choices to the original config
+        if (config) {
+          // Set advantage/disadvantage on the roll config
+          if (userChoice.advantage) {
+            config.advantage = true;
+            config.disadvantage = false;
+          } else if (userChoice.disadvantage) {
+            config.advantage = false;
+            config.disadvantage = true;
+          } else {
+            config.advantage = false;
+            config.disadvantage = false;
+          }
+          
+          // Set critical for damage rolls
+          if (userChoice.critical !== undefined) {
+            config.critical = userChoice.critical;
+          }
+          
+          // Add situational bonus if provided
+          if (userChoice.situationalBonus) {
+            config.parts = config.parts || [];
+            config.parts.push(userChoice.situationalBonus);
+          }
+        }
+        
+        // Disable the native dialog since we've already collected user input
+        if (dialog) {
+          dialog.configure = false;
+        }
+        
+        pendingRollRequest = null;
+        refreshPanel();
+        resolve(true); // Let the roll proceed with our modifications
+      },
+      ...options
+    };
 
-  // Auto-open panel and expand the roll request section
-  collapsedSections.rollRequest = false;
-  
-  // Check if panel is open and rendered
-  const panelIsOpen = currentPanelDialog && currentPanelDialog.rendered && currentPanelDialog._state === Application.RENDER_STATES.RENDERED;
-  
-  if (!panelIsOpen) {
-    // Panel is closed or doesn't exist - open it
-    openPanel();
-  } else {
-    // Panel is already open - just refresh to show the pending roll
-    refreshPanel();
-  }
-
-  return false; // Cancel the default Foundry/dnd5e dialog
+    // Auto-open panel and expand the roll request section
+    collapsedSections.rollRequest = false;
+    
+    // Check if panel is open and rendered
+    const panelIsOpen = currentPanelDialog && currentPanelDialog.rendered && currentPanelDialog._state === Application.RENDER_STATES.RENDERED;
+    
+    if (!panelIsOpen) {
+      openPanel();
+    } else {
+      refreshPanel();
+    }
+  });
 }
 
 function setupRollInterception() {
@@ -1544,55 +1590,26 @@ function setupRollInterception() {
   // SKILL CHECKS
   // -------------------------------------------------------------------------
   registerRollHook("dnd5e.preRollSkillV2", "dnd5e.preRollSkill", (config, dialog, ...rest) => {
-    // In dnd5e 5.x, config.subject IS the actor
     const actor = config?.subject;
     const actorName = actor?.name || "Unknown";
-    
-    // Get skill info
     const skillId = config?.skill || "";
     const skillLabel = CONFIG.DND5E?.skills?.[skillId]?.label || skillId;
-    
-    // Get ability used for this skill
     const abilityId = config?.ability || "";
     const abilityLabel = CONFIG.DND5E?.abilities?.[abilityId]?.label || abilityId;
     
-    // Build formula with modifier from actor's skill data
+    // Build formula for display
     const skillData = actor?.system?.skills?.[skillId];
     const modifier = skillData?.total ?? 0;
     const formula = modifier >= 0 ? `1d20 + ${modifier}` : `1d20 - ${Math.abs(modifier)}`;
     
+    // Pass config and dialog - interceptRoll will modify them and return Promise
     return interceptRoll(
       `${skillLabel} Check`,
       actorName,
       formula,
-      async (opts) => {
-        // Try native dnd5e method first for proper integration
-        try {
-          bypassInterception = true;
-          
-          if (actor?.rollSkill) {
-            const event = createFastForwardEvent(opts.advantage, opts.disadvantage);
-            await actor.rollSkill(skillId, {
-              event: event,
-              advantage: opts.advantage,
-              disadvantage: opts.disadvantage,
-              fastForward: true
-            });
-          } else {
-            await executeDirectRoll(actor, formula, `${actorName} - ${skillLabel} Check`, opts);
-          }
-        } catch (e) {
-          console.error("[v0] Error executing skill roll:", e);
-          await executeDirectRoll(actor, formula, `${actorName} - ${skillLabel} Check`, opts);
-        } finally {
-          bypassInterception = false;
-        }
-      },
-      { 
-        abilityOptions: abilityLabel, 
-        hasAdvantage: true, 
-        hasDisadvantage: true
-      }
+      config,
+      dialog,
+      { abilityOptions: abilityLabel, hasAdvantage: true, hasDisadvantage: true }
     );
   });
 
