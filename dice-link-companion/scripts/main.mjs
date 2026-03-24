@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.4.0
+ * Version 1.0.4.2
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -13,6 +13,10 @@ const LOGO_SQUARE_URL = "modules/dice-link-companion/assets/logo-square.png";
 
 // Track if player has already requested this session
 let hasRequestedThisSession = false;
+
+// Track any pending intercepted roll request
+let pendingRollRequest = null;
+// { title, subtitle, formula, flavor, rollFn, rollOptions }
 
 // Track collapsed sections state
 const collapsedSections = {
@@ -489,6 +493,95 @@ class DiceLinkCompanionApp extends Application {
 }
 
 // ============================================================================
+// ROLL REQUEST SECTION (shared between GM and Player panels)
+// ============================================================================
+
+function generateDiceTrayHTML() {
+  return `
+    <div class="dlc-dice-tray">
+      <div class="dlc-dice-formula-row">
+        <input type="text" class="dlc-dice-formula-input" placeholder="/r 1d20" value="/r ">
+      </div>
+      <div class="dlc-dice-buttons-row">
+        ${[4, 6, 8, 10, 12, 20, 100].map(die => `
+          <button type="button" class="dlc-dice-btn" data-die="${die}" title="d${die}">
+            <span class="dlc-die-icon">d${die}</span>
+            <span class="dlc-die-count" style="display:none;">0</span>
+          </button>
+        `).join('')}
+      </div>
+      <div class="dlc-dice-controls-row">
+        <button type="button" class="dlc-dice-mod-btn dlc-dice-minus" title="Decrease modifier">−</button>
+        <span class="dlc-dice-modifier">0</span>
+        <button type="button" class="dlc-dice-mod-btn dlc-dice-plus" title="Increase modifier">+</button>
+        <button type="button" class="dlc-dice-adv-btn" data-mode="normal" title="Toggle Advantage/Disadvantage">ADV/DIS</button>
+        <button type="button" class="dlc-dice-roll-btn dlc-btn-success" title="Roll dice">Roll</button>
+      </div>
+    </div>
+  `;
+}
+
+function generatePendingRollHTML(roll) {
+  return `
+    <div class="dlc-pending-roll">
+      <div class="dlc-pending-roll-header">
+        <h4 class="dlc-pending-roll-title">${roll.title}</h4>
+        ${roll.subtitle ? `<p class="dlc-pending-roll-subtitle">${roll.subtitle}</p>` : ''}
+      </div>
+      <div class="dlc-pending-roll-formula">
+        <span class="dlc-pending-formula-text">${roll.formula}</span>
+        <span class="dlc-pending-formula-label">Formula</span>
+      </div>
+      ${roll.situationalBonus !== undefined ? `
+      <div class="dlc-pending-roll-bonus">
+        <input type="text" class="dlc-dice-formula-input dlc-situational-bonus" placeholder="Situational Bonus?" value="${roll.situationalBonus || ''}">
+      </div>
+      ` : ''}
+      ${roll.abilityOptions ? `
+      <div class="dlc-pending-roll-config">
+        <div class="dlc-config-row">
+          <label>Ability</label>
+          <span class="dlc-config-value">${roll.abilityOptions}</span>
+        </div>
+      </div>
+      ` : ''}
+      <div class="dlc-pending-roll-actions">
+        ${roll.hasAdvantage !== false ? `<button type="button" class="dlc-roll-action-btn dlc-roll-advantage" data-roll-mode="advantage">Advantage</button>` : ''}
+        <button type="button" class="dlc-roll-action-btn dlc-roll-normal" data-roll-mode="normal">Normal</button>
+        ${roll.hasDisadvantage !== false ? `<button type="button" class="dlc-roll-action-btn dlc-roll-disadvantage" data-roll-mode="disadvantage">Disadvantage</button>` : ''}
+      </div>
+      <div class="dlc-pending-roll-footer">
+        <button type="button" class="dlc-roll-cancel-btn">Cancel Roll</button>
+      </div>
+    </div>
+  `;
+}
+
+function generateRollRequestSection(mode, globalOverride) {
+  // Determine effective mode
+  let effectiveMode = mode;
+  if (globalOverride === "forceAllManual") effectiveMode = "manual";
+  else if (globalOverride === "forceAllDigital") effectiveMode = "digital";
+
+  if (effectiveMode !== "manual") return '';
+
+  const hasPending = pendingRollRequest !== null;
+  const sectionClass = `dlc-section dlc-roll-request-section${hasPending ? ' dlc-roll-request-pending' : ''}`;
+
+  return `
+    <div class="${sectionClass} ${collapsedSections.rollRequest ? 'collapsed' : ''}">
+      <div class="dlc-section-header" data-section="rollRequest">
+        <span class="dlc-collapse-btn">${collapsedSections.rollRequest ? '+' : '−'}</span>
+        <h3><i class="fas fa-dice-d20"></i> Roll Request${hasPending ? ' <span class="dlc-pending-badge">PENDING</span>' : ''}</h3>
+      </div>
+      <div class="dlc-section-content">
+        ${hasPending ? generatePendingRollHTML(pendingRollRequest) : generateDiceTrayHTML()}
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================================
 // GM MANAGEMENT PANEL
 // ============================================================================
 
@@ -667,59 +760,7 @@ function generateGMPanelContent() {
           </div>
         </div>
 
-        ${gmMode === "manual" ? `
-        <!-- Roll Request Section (Manual Mode Only) -->
-        <div class="dlc-section dlc-roll-request-section ${collapsedSections.rollRequest ? 'collapsed' : ''}">
-          <div class="dlc-section-header" data-section="rollRequest">
-            <span class="dlc-collapse-btn">${collapsedSections.rollRequest ? '+' : '−'}</span>
-            <h3><i class="fas fa-dice-d20"></i> Roll Request</h3>
-          </div>
-          <div class="dlc-section-content">
-            <div class="dlc-dice-tray">
-              <div class="dlc-dice-formula-row">
-                <input type="text" class="dlc-dice-formula-input" placeholder="/r 1d20" value="/r ">
-              </div>
-              <div class="dlc-dice-buttons-row">
-                <button type="button" class="dlc-dice-btn" data-die="4" title="d4">
-                  <span class="dlc-die-icon">d4</span>
-                  <span class="dlc-die-count" style="display:none;">0</span>
-                </button>
-                <button type="button" class="dlc-dice-btn" data-die="6" title="d6">
-                  <span class="dlc-die-icon">d6</span>
-                  <span class="dlc-die-count" style="display:none;">0</span>
-                </button>
-                <button type="button" class="dlc-dice-btn" data-die="8" title="d8">
-                  <span class="dlc-die-icon">d8</span>
-                  <span class="dlc-die-count" style="display:none;">0</span>
-                </button>
-                <button type="button" class="dlc-dice-btn" data-die="10" title="d10">
-                  <span class="dlc-die-icon">d10</span>
-                  <span class="dlc-die-count" style="display:none;">0</span>
-                </button>
-                <button type="button" class="dlc-dice-btn" data-die="12" title="d12">
-                  <span class="dlc-die-icon">d12</span>
-                  <span class="dlc-die-count" style="display:none;">0</span>
-                </button>
-                <button type="button" class="dlc-dice-btn" data-die="20" title="d20">
-                  <span class="dlc-die-icon">d20</span>
-                  <span class="dlc-die-count" style="display:none;">0</span>
-                </button>
-                <button type="button" class="dlc-dice-btn" data-die="100" title="d100">
-                  <span class="dlc-die-icon">d100</span>
-                  <span class="dlc-die-count" style="display:none;">0</span>
-                </button>
-              </div>
-              <div class="dlc-dice-controls-row">
-                <button type="button" class="dlc-dice-mod-btn dlc-dice-minus" title="Decrease modifier">−</button>
-                <span class="dlc-dice-modifier">0</span>
-                <button type="button" class="dlc-dice-mod-btn dlc-dice-plus" title="Increase modifier">+</button>
-                <button type="button" class="dlc-dice-adv-btn" data-mode="normal" title="Toggle Advantage/Disadvantage">ADV/DIS</button>
-                <button type="button" class="dlc-dice-roll-btn dlc-btn-success" title="Roll dice">Roll</button>
-              </div>
-            </div>
-          </div>
-        </div>
-        ` : ''}
+        ${generateRollRequestSection(gmMode, "individual")}
 
         <!-- Video Feed Placeholder -->
         <div class="dlc-section ${collapsedSections.videoFeed ? 'collapsed' : ''}">
@@ -846,69 +887,7 @@ function generatePlayerPanelContent() {
           </div>
         </div>
 
-        ${(() => {
-          // Determine effective mode for current user
-          let effectiveMyMode = myMode;
-          if (globalOverride === "forceAllManual") effectiveMyMode = "manual";
-          else if (globalOverride === "forceAllDigital") effectiveMyMode = "digital";
-          
-          if (effectiveMyMode === "manual") {
-            return `
-        <!-- Roll Request Section (Manual Mode Only) -->
-        <div class="dlc-section dlc-roll-request-section ${collapsedSections.rollRequest ? 'collapsed' : ''}">
-          <div class="dlc-section-header" data-section="rollRequest">
-            <span class="dlc-collapse-btn">${collapsedSections.rollRequest ? '+' : '−'}</span>
-            <h3><i class="fas fa-dice-d20"></i> Roll Request</h3>
-          </div>
-          <div class="dlc-section-content">
-            <div class="dlc-dice-tray">
-              <div class="dlc-dice-formula-row">
-                <input type="text" class="dlc-dice-formula-input" placeholder="/r 1d20" value="/r ">
-              </div>
-              <div class="dlc-dice-buttons-row">
-                <button type="button" class="dlc-dice-btn" data-die="4" title="d4">
-                  <span class="dlc-die-icon">d4</span>
-                  <span class="dlc-die-count" style="display:none;">0</span>
-                </button>
-                <button type="button" class="dlc-dice-btn" data-die="6" title="d6">
-                  <span class="dlc-die-icon">d6</span>
-                  <span class="dlc-die-count" style="display:none;">0</span>
-                </button>
-                <button type="button" class="dlc-dice-btn" data-die="8" title="d8">
-                  <span class="dlc-die-icon">d8</span>
-                  <span class="dlc-die-count" style="display:none;">0</span>
-                </button>
-                <button type="button" class="dlc-dice-btn" data-die="10" title="d10">
-                  <span class="dlc-die-icon">d10</span>
-                  <span class="dlc-die-count" style="display:none;">0</span>
-                </button>
-                <button type="button" class="dlc-dice-btn" data-die="12" title="d12">
-                  <span class="dlc-die-icon">d12</span>
-                  <span class="dlc-die-count" style="display:none;">0</span>
-                </button>
-                <button type="button" class="dlc-dice-btn" data-die="20" title="d20">
-                  <span class="dlc-die-icon">d20</span>
-                  <span class="dlc-die-count" style="display:none;">0</span>
-                </button>
-                <button type="button" class="dlc-dice-btn" data-die="100" title="d100">
-                  <span class="dlc-die-icon">d100</span>
-                  <span class="dlc-die-count" style="display:none;">0</span>
-                </button>
-              </div>
-              <div class="dlc-dice-controls-row">
-                <button type="button" class="dlc-dice-mod-btn dlc-dice-minus" title="Decrease modifier">−</button>
-                <span class="dlc-dice-modifier">0</span>
-                <button type="button" class="dlc-dice-mod-btn dlc-dice-plus" title="Increase modifier">+</button>
-                <button type="button" class="dlc-dice-adv-btn" data-mode="normal" title="Toggle Advantage/Disadvantage">ADV/DIS</button>
-                <button type="button" class="dlc-dice-roll-btn dlc-btn-success" title="Roll dice">Roll</button>
-              </div>
-            </div>
-          </div>
-        </div>
-            `;
-          }
-          return '';
-        })()}
+        ${generateRollRequestSection(myMode, globalOverride)}
 
         <!-- Video Feed Placeholder -->
         <div class="dlc-section ${collapsedSections.videoFeed ? 'collapsed' : ''}">
@@ -1192,6 +1171,40 @@ function attachDiceTrayListeners(html) {
       ui.notifications.error("Invalid dice formula.");
     }
   });
+
+  // ============================================================================
+  // PENDING ROLL ACTION LISTENERS
+  // ============================================================================
+
+  // Advantage / Normal / Disadvantage buttons
+  html.find(".dlc-roll-action-btn").click(async function() {
+    if (!pendingRollRequest) return;
+    const rollMode = $(this).data("roll-mode");
+    const bonus = html.find(".dlc-situational-bonus").val()?.trim() || "";
+
+    try {
+      // Build the roll options to pass back to the dnd5e roll function
+      const opts = {};
+      if (rollMode === "advantage") opts.advantage = true;
+      if (rollMode === "disadvantage") opts.disadvantage = true;
+      if (bonus) opts.situationalBonus = bonus;
+
+      // Call the captured roll function with our chosen options
+      await pendingRollRequest.rollFn(opts);
+    } catch (e) {
+      ui.notifications.error("Roll failed. Please try again.");
+    } finally {
+      pendingRollRequest = null;
+      refreshPanel();
+    }
+  });
+
+  // Cancel roll button
+  html.find(".dlc-roll-cancel-btn").click(function() {
+    pendingRollRequest = null;
+    refreshPanel();
+    ui.notifications.info("Roll cancelled.");
+  });
 }
 
 // Helper to update the dice formula input
@@ -1300,6 +1313,7 @@ Hooks.once("ready", () => {
 
   setupSocketListeners();
   setupChatButtonHandlers();
+  setupRollInterception();
 
   const globalOverride = game.settings.get(MODULE_ID, "globalOverride");
   
@@ -1314,6 +1328,232 @@ Hooks.once("ready", () => {
     }
   }
 });
+
+// ============================================================================
+// ROLL INTERCEPTION
+// ============================================================================
+
+function isUserInManualMode() {
+  const globalOverride = game.settings.get(MODULE_ID, "globalOverride");
+  if (globalOverride === "forceAllManual") return true;
+  if (globalOverride === "forceAllDigital") return false;
+  const myMode = game.settings.get(MODULE_ID, `playerMode_${game.user.id}`) || "digital";
+  return myMode === "manual";
+}
+
+function interceptRoll(title, subtitle, formula, rollFn, options = {}) {
+  if (!isUserInManualMode()) return true; // Not in manual mode, let Foundry handle it normally
+
+  pendingRollRequest = {
+    title,
+    subtitle,
+    formula,
+    rollFn,
+    situationalBonus: "",
+    hasAdvantage: options.hasAdvantage !== false,
+    hasDisadvantage: options.hasDisadvantage !== false,
+    abilityOptions: options.abilityOptions || null,
+    ...options
+  };
+
+  // Auto-open panel if not already open
+  if (!currentPanelDialog || !currentPanelDialog.rendered) {
+    openPanel();
+  } else {
+    // Expand the roll request section if collapsed
+    collapsedSections.rollRequest = false;
+    refreshPanel();
+  }
+
+  return false; // Cancel the default Foundry/dnd5e dialog
+}
+
+function setupRollInterception() {
+  // Only set up dnd5e hooks if the system is dnd5e
+  if (game.system.id !== "dnd5e") {
+    console.log(`[v0] Dice Link Companion: Roll interception not available for system "${game.system.id}". Dice tray still available.`);
+    return;
+  }
+
+  console.log("[v0] Dice Link Companion: Setting up dnd5e roll interception hooks...");
+
+  // Helper to get actor name from various config structures across dnd5e versions
+  function getActorName(config, actor) {
+    return actor?.name || config?.subject?.name || config?.data?.name || config?.actor?.name || "Unknown";
+  }
+
+  // Helper to get formula from config
+  function getFormula(config) {
+    return config?.formula || config?.parts?.join(" + ") || "1d20";
+  }
+
+  // Register a hook with both V2 (dnd5e 3.x+) and legacy (dnd5e 2.x) names
+  function registerRollHook(hookNameV2, hookNameLegacy, handler) {
+    // Try V2 hook first (dnd5e 3.x, 4.x, 5.x)
+    Hooks.on(hookNameV2, handler);
+    // Also register legacy hook for older dnd5e versions
+    if (hookNameLegacy) {
+      Hooks.on(hookNameLegacy, handler);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // SKILL CHECKS
+  // -------------------------------------------------------------------------
+  registerRollHook("dnd5e.preRollSkillV2", "dnd5e.preRollSkill", (config, dialog, ...rest) => {
+    // Handle different argument patterns between versions
+    const actor = rest[0] || dialog?.actor || config?.actor;
+    const actorName = getActorName(config, actor);
+    const skill = config?.skill?.label || config?.skillId || dialog?.options?.skillId || "";
+    const ability = config?.ability?.label || config?.abilityId || "";
+    const formula = getFormula(config);
+    
+    return interceptRoll(
+      `${skill} Check`,
+      actorName,
+      formula,
+      (opts) => { if (dialog?.configure) dialog.configure(opts); },
+      { abilityOptions: ability, hasAdvantage: true, hasDisadvantage: true }
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // ABILITY CHECKS
+  // -------------------------------------------------------------------------
+  registerRollHook("dnd5e.preRollAbilityTestV2", "dnd5e.preRollAbilityTest", (config, dialog, ...rest) => {
+    const actor = rest[0] || dialog?.actor || config?.actor;
+    const actorName = getActorName(config, actor);
+    const ability = config?.ability?.label || config?.abilityId || "";
+    const formula = getFormula(config);
+    
+    return interceptRoll(
+      `${ability} Check`,
+      actorName,
+      formula,
+      (opts) => { if (dialog?.configure) dialog.configure(opts); },
+      { hasAdvantage: true, hasDisadvantage: true }
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // SAVING THROWS
+  // -------------------------------------------------------------------------
+  registerRollHook("dnd5e.preRollAbilitySaveV2", "dnd5e.preRollAbilitySave", (config, dialog, ...rest) => {
+    const actor = rest[0] || dialog?.actor || config?.actor;
+    const actorName = getActorName(config, actor);
+    const ability = config?.ability?.label || config?.abilityId || "";
+    const formula = getFormula(config);
+    
+    return interceptRoll(
+      `${ability} Saving Throw`,
+      actorName,
+      formula,
+      (opts) => { if (dialog?.configure) dialog.configure(opts); },
+      { hasAdvantage: true, hasDisadvantage: true }
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // DEATH SAVES
+  // -------------------------------------------------------------------------
+  registerRollHook("dnd5e.preRollDeathSaveV2", "dnd5e.preRollDeathSave", (config, dialog, ...rest) => {
+    const actor = rest[0] || dialog?.actor || config?.actor;
+    const actorName = getActorName(config, actor);
+    
+    return interceptRoll(
+      "Death Saving Throw",
+      actorName,
+      getFormula(config),
+      (opts) => { if (dialog?.configure) dialog.configure(opts); },
+      { hasAdvantage: true, hasDisadvantage: true }
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // ATTACK ROLLS
+  // -------------------------------------------------------------------------
+  registerRollHook("dnd5e.preRollAttackV2", "dnd5e.preRollAttack", (config, dialog, ...rest) => {
+    const actor = rest[0] || dialog?.actor || config?.actor;
+    const actorName = getActorName(config, actor);
+    const item = config?.item?.name || config?.subject?.name || "";
+    
+    return interceptRoll(
+      `${item} Attack Roll`,
+      actorName,
+      getFormula(config),
+      (opts) => { if (dialog?.configure) dialog.configure(opts); },
+      { hasAdvantage: true, hasDisadvantage: true }
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // DAMAGE ROLLS
+  // -------------------------------------------------------------------------
+  registerRollHook("dnd5e.preRollDamageV2", "dnd5e.preRollDamage", (config, dialog, ...rest) => {
+    const actor = rest[0] || dialog?.actor || config?.actor;
+    const actorName = getActorName(config, actor);
+    const item = config?.item?.name || config?.subject?.name || "";
+    
+    return interceptRoll(
+      `${item} Damage Roll`,
+      actorName,
+      getFormula(config) || "1d6",
+      (opts) => { if (dialog?.configure) dialog.configure(opts); },
+      { hasAdvantage: false, hasDisadvantage: false }
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // HIT DICE
+  // -------------------------------------------------------------------------
+  registerRollHook("dnd5e.preRollHitDieV2", "dnd5e.preRollHitDie", (config, dialog, ...rest) => {
+    const actor = rest[0] || dialog?.actor || config?.actor;
+    const actorName = getActorName(config, actor);
+    
+    return interceptRoll(
+      "Hit Die",
+      actorName,
+      getFormula(config) || "1d8",
+      (opts) => { if (dialog?.configure) dialog.configure(opts); },
+      { hasAdvantage: false, hasDisadvantage: false }
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // INITIATIVE (may not have a preRoll hook in all versions)
+  // -------------------------------------------------------------------------
+  registerRollHook("dnd5e.preRollInitiativeV2", "dnd5e.preRollInitiative", (config, dialog, ...rest) => {
+    const actor = rest[0] || dialog?.actor || config?.actor;
+    const actorName = getActorName(config, actor);
+    
+    return interceptRoll(
+      "Initiative",
+      actorName,
+      getFormula(config),
+      (opts) => { if (dialog?.configure) dialog.configure(opts); },
+      { hasAdvantage: true, hasDisadvantage: true }
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // TOOL CHECKS
+  // -------------------------------------------------------------------------
+  registerRollHook("dnd5e.preRollToolCheckV2", "dnd5e.preRollToolCheck", (config, dialog, ...rest) => {
+    const actor = rest[0] || dialog?.actor || config?.actor;
+    const actorName = getActorName(config, actor);
+    const tool = config?.item?.name || "";
+    
+    return interceptRoll(
+      `${tool} Tool Check`,
+      actorName,
+      getFormula(config),
+      (opts) => { if (dialog?.configure) dialog.configure(opts); },
+      { hasAdvantage: true, hasDisadvantage: true }
+    );
+  });
+
+  console.log("[v0] Dice Link Companion: Roll interception hooks registered for dnd5e.");
+}
 
 // ============================================================================
 // PUBLIC API
