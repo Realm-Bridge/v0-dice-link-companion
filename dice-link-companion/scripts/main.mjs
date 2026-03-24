@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.4.2
+ * Version 1.0.4.3
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -546,9 +546,10 @@ function generatePendingRollHTML(roll) {
       </div>
       ` : ''}
       <div class="dlc-pending-roll-actions">
-        ${roll.hasAdvantage !== false ? `<button type="button" class="dlc-roll-action-btn dlc-roll-advantage" data-roll-mode="advantage">Advantage</button>` : ''}
+        ${roll.hasAdvantage ? `<button type="button" class="dlc-roll-action-btn dlc-roll-advantage" data-roll-mode="advantage">Advantage</button>` : ''}
         <button type="button" class="dlc-roll-action-btn dlc-roll-normal" data-roll-mode="normal">Normal</button>
-        ${roll.hasDisadvantage !== false ? `<button type="button" class="dlc-roll-action-btn dlc-roll-disadvantage" data-roll-mode="disadvantage">Disadvantage</button>` : ''}
+        ${roll.hasDisadvantage ? `<button type="button" class="dlc-roll-action-btn dlc-roll-disadvantage" data-roll-mode="disadvantage">Disadvantage</button>` : ''}
+        ${roll.hasCritical ? `<button type="button" class="dlc-roll-action-btn dlc-roll-critical" data-roll-mode="critical">Critical</button>` : ''}
       </div>
       <div class="dlc-pending-roll-footer">
         <button type="button" class="dlc-roll-cancel-btn">Cancel Roll</button>
@@ -1187,6 +1188,7 @@ function attachDiceTrayListeners(html) {
       const opts = {};
       if (rollMode === "advantage") opts.advantage = true;
       if (rollMode === "disadvantage") opts.disadvantage = true;
+      if (rollMode === "critical") opts.critical = true;
       if (bonus) opts.situationalBonus = bonus;
 
       // Call the captured roll function with our chosen options
@@ -1499,7 +1501,7 @@ function setupRollInterception() {
       actorName,
       getFormula(config) || "1d6",
       (opts) => { if (dialog?.configure) dialog.configure(opts); },
-      { hasAdvantage: false, hasDisadvantage: false }
+      { hasAdvantage: false, hasDisadvantage: false, hasCritical: true }
     );
   });
 

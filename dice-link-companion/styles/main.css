@@ -1,5 +1,5 @@
 /* Dice Link Companion - Realm Bridge Branded Styles */
-/* Version 1.0.4.2 */
+/* Version 1.0.4.3 */
 
 /* ============================================================================
    CSS VARIABLES - Realm Bridge Brand Colors
@@ -1413,6 +1413,16 @@
 }
 
 .dlc-roll-disadvantage:hover {
+  filter: brightness(1.15);
+}
+
+.dlc-roll-critical {
+  background: var(--dlc-warning);
+  color: #1a1a1a;
+  border-color: var(--dlc-warning);
+}
+
+.dlc-roll-critical:hover {
   filter: brightness(1.15);
 }
 
