@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.3.15
+ * Version 1.0.3.16
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -427,26 +427,24 @@ async function setManualRollsPermission(role, enabled) {
 class DiceLinkCompanionApp extends Application {
   constructor(isGM, options = {}) {
     super(options);
-    this.isGM = isGM;
+    this._isGM = isGM;
   }
 
   static get defaultOptions() {
     return foundry.utils.mergeObject(super.defaultOptions, {
       id: "dice-link-companion-panel",
       title: "Dice Link Companion",
-      template: null,
       classes: ["dlc-dialog"],
       resizable: true,
       minimizable: true,
-      popOut: true
+      popOut: true,
+      width: 480,
+      height: "auto"
     });
   }
 
-  get options() {
-    const opts = super.options;
-    opts.width = this.isGM ? 480 : 390;
-    opts.height = "auto";
-    return opts;
+  get isGM() {
+    return this._isGM;
   }
 
   _getHeaderButtons() {
@@ -456,15 +454,19 @@ class DiceLinkCompanionApp extends Application {
     return buttons;
   }
 
+  async getData(options = {}) {
+    return {};
+  }
+
   async _renderInner(data) {
-    const content = this.isGM ? generateGMPanelContent() : generatePlayerPanelContent();
-    const html = $(content);
+    const content = this._isGM ? generateGMPanelContent() : generatePlayerPanelContent();
+    const html = $(`<div class="window-content">${content}</div>`);
     return html;
   }
 
   activateListeners(html) {
     super.activateListeners(html);
-    if (this.isGM) {
+    if (this._isGM) {
       attachGMPanelListeners(html);
     } else {
       attachPlayerPanelListeners(html);
@@ -474,6 +476,14 @@ class DiceLinkCompanionApp extends Application {
   close(options = {}) {
     currentPanelDialog = null;
     return super.close(options);
+  }
+
+  setPosition(options = {}) {
+    // Adjust width based on GM/player
+    if (!options.width) {
+      options.width = this._isGM ? 480 : 390;
+    }
+    return super.setPosition(options);
   }
 }
 
