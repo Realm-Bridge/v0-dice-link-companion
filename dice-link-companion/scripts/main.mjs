@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.4.8
+ * Version 1.0.4.9
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -17,6 +17,9 @@ let hasRequestedThisSession = false;
 // Track any pending intercepted roll request
 let pendingRollRequest = null;
 // { title, subtitle, formula, flavor, rollFn, rollOptions }
+
+// Flag to bypass interception when we're executing our own roll via dnd5e methods
+let bypassInterception = false;
 
 // Track collapsed sections state
 const collapsedSections = {
@@ -1411,6 +1414,9 @@ async function executeDirectRoll(actor, formula, flavor, opts = {}) {
 }
 
 function interceptRoll(title, subtitle, formula, rollFn, options = {}) {
+  // If we're executing our own roll, don't intercept again
+  if (bypassInterception) return true;
+  
   if (!isUserInManualMode()) return true; // Not in manual mode, let Foundry handle it normally
 
   pendingRollRequest = {
@@ -1589,12 +1595,34 @@ function setupRollInterception() {
     const attackBonus = item?.labels?.toHit || item?.system?.attack?.bonus || "";
     const formula = attackBonus ? `1d20 ${attackBonus}` : "1d20";
     
+    // Store the original config so we can modify and proceed
+    const originalConfig = config;
+    
     return interceptRoll(
       `${itemName} Attack`,
       actorName,
       formula,
       async (opts) => {
-        await executeDirectRoll(actor, formula, `${actorName} - ${itemName} Attack`, opts);
+        // Use item.rollAttack() which integrates with midi-qol
+        // Set bypass flag to prevent re-interception
+        try {
+          bypassInterception = true;
+          if (item?.rollAttack) {
+            await item.rollAttack({
+              advantage: opts.advantage,
+              disadvantage: opts.disadvantage,
+              fastForward: true,
+              event: null
+            });
+          } else {
+            await executeDirectRoll(actor, formula, `${actorName} - ${itemName} Attack`, opts);
+          }
+        } catch (e) {
+          console.error("[v0] Error executing attack roll:", e);
+          await executeDirectRoll(actor, formula, `${actorName} - ${itemName} Attack`, opts);
+        } finally {
+          bypassInterception = false;
+        }
       },
       { hasAdvantage: true, hasDisadvantage: true }
     );
@@ -1618,7 +1646,24 @@ function setupRollInterception() {
       actorName,
       damageFormula,
       async (opts) => {
-        await executeDirectRoll(actor, damageFormula, `${actorName} - ${itemName} Damage`, opts);
+        // Use item.rollDamage() which integrates with midi-qol
+        try {
+          bypassInterception = true;
+          if (item?.rollDamage) {
+            await item.rollDamage({
+              critical: opts.critical,
+              fastForward: true,
+              event: null
+            });
+          } else {
+            await executeDirectRoll(actor, damageFormula, `${actorName} - ${itemName} Damage`, opts);
+          }
+        } catch (e) {
+          console.error("[v0] Error executing damage roll:", e);
+          await executeDirectRoll(actor, damageFormula, `${actorName} - ${itemName} Damage`, opts);
+        } finally {
+          bypassInterception = false;
+        }
       },
       { hasAdvantage: false, hasDisadvantage: false, hasCritical: true }
     );
