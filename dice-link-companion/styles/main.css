@@ -1,5 +1,5 @@
 /* Dice Link Companion - Realm Bridge Branded Styles */
-/* Version 1.0.4.0 */
+/* Version 1.0.4.1 */
 
 /* ============================================================================
    CSS VARIABLES - Realm Bridge Brand Colors
@@ -1255,4 +1255,184 @@
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.2s ease;
+}
+
+/* ============================================================================
+   PENDING ROLL UI STYLES
+   ============================================================================ */
+
+/* Glow effect on section when a roll is pending */
+.dlc-roll-request-section.dlc-roll-request-pending {
+  border-color: var(--dlc-warning);
+  box-shadow: 0 0 10px rgba(255, 165, 0, 0.3), 0 0 20px rgba(255, 165, 0, 0.1);
+  animation: dlc-pending-glow 2s ease-in-out infinite;
+}
+
+@keyframes dlc-pending-glow {
+  0%, 100% { box-shadow: 0 0 8px rgba(255, 165, 0, 0.3); }
+  50% { box-shadow: 0 0 18px rgba(255, 165, 0, 0.6), 0 0 30px rgba(255, 165, 0, 0.2); }
+}
+
+.dlc-pending-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  background: var(--dlc-warning);
+  color: #1a1a1a;
+  font-size: 9px;
+  font-weight: 700;
+  border-radius: 3px;
+  vertical-align: middle;
+  margin-left: 6px;
+  letter-spacing: 0.5px;
+}
+
+.dlc-pending-roll {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px;
+}
+
+.dlc-pending-roll-header {
+  text-align: center;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--dlc-border);
+}
+
+.dlc-pending-roll-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--dlc-text-primary);
+  margin: 0 0 4px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.dlc-pending-roll-subtitle {
+  font-size: 12px;
+  color: var(--dlc-text-secondary);
+  margin: 0;
+}
+
+.dlc-pending-roll-formula {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--dlc-bg-dark);
+  border-radius: 4px;
+  border: 1px solid var(--dlc-border);
+}
+
+.dlc-pending-formula-text {
+  font-family: monospace;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--dlc-text-primary);
+}
+
+.dlc-pending-formula-label {
+  font-size: 11px;
+  color: var(--dlc-text-secondary);
+  font-style: italic;
+}
+
+.dlc-pending-roll-bonus input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.dlc-pending-roll-config {
+  padding: 6px 10px;
+  background: var(--dlc-bg-dark);
+  border-radius: 4px;
+  border: 1px solid var(--dlc-border);
+}
+
+.dlc-config-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dlc-config-row label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dlc-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.dlc-config-value {
+  font-size: 13px;
+  color: var(--dlc-text-primary);
+}
+
+.dlc-pending-roll-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.dlc-roll-action-btn {
+  flex: 1;
+  padding: 10px 6px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.dlc-roll-advantage {
+  background: var(--dlc-success);
+  color: #fff;
+  border-color: var(--dlc-success);
+}
+
+.dlc-roll-advantage:hover {
+  filter: brightness(1.15);
+}
+
+.dlc-roll-normal {
+  background: var(--dlc-accent);
+  color: #fff;
+  border-color: var(--dlc-accent);
+}
+
+.dlc-roll-normal:hover {
+  filter: brightness(1.15);
+}
+
+.dlc-roll-disadvantage {
+  background: var(--dlc-danger);
+  color: #fff;
+  border-color: var(--dlc-danger);
+}
+
+.dlc-roll-disadvantage:hover {
+  filter: brightness(1.15);
+}
+
+.dlc-pending-roll-footer {
+  display: flex;
+  justify-content: center;
+}
+
+.dlc-roll-cancel-btn {
+  padding: 6px 16px;
+  background: transparent;
+  border: 1px solid var(--dlc-border);
+  border-radius: 4px;
+  color: var(--dlc-text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dlc-roll-cancel-btn:hover {
+  border-color: var(--dlc-danger);
+  color: var(--dlc-danger);
 }
