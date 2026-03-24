@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.3.14
+ * Version 1.0.3.15
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -417,6 +417,63 @@ async function setManualRollsPermission(role, enabled) {
   } catch (e) {
     ui.notifications.error(`Failed to update permission for ${ROLE_NAMES[role]}.`);
     return false;
+  }
+}
+
+// ============================================================================
+// CUSTOM APPLICATION CLASS (for proper Foundry header buttons)
+// ============================================================================
+
+class DiceLinkCompanionApp extends Application {
+  constructor(isGM, options = {}) {
+    super(options);
+    this.isGM = isGM;
+  }
+
+  static get defaultOptions() {
+    return foundry.utils.mergeObject(super.defaultOptions, {
+      id: "dice-link-companion-panel",
+      title: "Dice Link Companion",
+      template: null,
+      classes: ["dlc-dialog"],
+      resizable: true,
+      minimizable: true,
+      popOut: true
+    });
+  }
+
+  get options() {
+    const opts = super.options;
+    opts.width = this.isGM ? 480 : 390;
+    opts.height = "auto";
+    return opts;
+  }
+
+  _getHeaderButtons() {
+    const buttons = super._getHeaderButtons();
+    // Foundry and other modules (PopOut!, Theme Settings, etc.) inject buttons here
+    // automatically via the getApplicationHeaderButtons hook
+    return buttons;
+  }
+
+  async _renderInner(data) {
+    const content = this.isGM ? generateGMPanelContent() : generatePlayerPanelContent();
+    const html = $(content);
+    return html;
+  }
+
+  activateListeners(html) {
+    super.activateListeners(html);
+    if (this.isGM) {
+      attachGMPanelListeners(html);
+    } else {
+      attachPlayerPanelListeners(html);
+    }
+  }
+
+  close(options = {}) {
+    currentPanelDialog = null;
+    return super.close(options);
   }
 }
 
@@ -930,9 +987,9 @@ function attachPlayerPanelListeners(html) {
 
 function refreshPanel() {
   if (currentPanelDialog && currentPanelDialog.rendered) {
-    const isGM = game.user.isGM;
+    const isGM = currentPanelDialog.isGM;
     const newContent = isGM ? generateGMPanelContent() : generatePlayerPanelContent();
-    const contentElement = currentPanelDialog.element.find(".dialog-content");
+    const contentElement = currentPanelDialog.element.find(".window-content");
     contentElement.html(newContent);
     
     if (isGM) {
@@ -952,32 +1009,7 @@ function openPanel() {
   }
 
   const isGM = game.user.isGM;
-  const content = isGM ? generateGMPanelContent() : generatePlayerPanelContent();
-
-  currentPanelDialog = new Dialog({
-    title: "Dice Link Companion",
-    content,
-    buttons: {},
-    default: "close",
-    render: (html) => {
-      // Add custom class to dialog for styling
-      html.closest(".app").addClass("dlc-dialog");
-      
-      if (isGM) {
-        attachGMPanelListeners(html);
-      } else {
-        attachPlayerPanelListeners(html);
-      }
-    },
-    close: () => {
-      currentPanelDialog = null;
-    }
-  }, {
-    width: isGM ? 480 : 390,
-    height: "auto",
-    resizable: true
-  });
-  
+  currentPanelDialog = new DiceLinkCompanionApp(isGM);
   currentPanelDialog.render(true);
 }
 
