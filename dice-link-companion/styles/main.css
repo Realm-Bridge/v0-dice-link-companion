@@ -1,5 +1,5 @@
 /* Dice Link Companion - Realm Bridge Branded Styles */
-/* Version 1.0.3.8 */
+/* Version 1.0.3.9 */
 
 /* ============================================================================
    CSS VARIABLES - Realm Bridge Brand Colors
@@ -114,7 +114,7 @@
 
 /* Override and Your Mode boxes can be narrower */
 .dlc-top-row .dlc-mini-section.dlc-mini-compact {
-  width: 110px;
+  width: 95px;
 }
 
 /* Inline row for toggle + refresh button */
@@ -440,11 +440,11 @@
    ============================================================================ */
 .dlc-players-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
   gap: 8px;
   /* stretch makes all cells in the same implicit row equal height */
   align-items: stretch;
-  grid-auto-rows: 44px;
+  grid-auto-rows: 52px;
 }
 
 .dlc-player-card {
@@ -480,9 +480,10 @@
   font-size: 12px;
   font-weight: 500;
   color: var(--dlc-text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+  min-width: 0;
 }
 
 /* Color dots for mode indication */
