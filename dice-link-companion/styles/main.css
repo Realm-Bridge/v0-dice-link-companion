@@ -1,5 +1,5 @@
 /* Dice Link Companion - Realm Bridge Branded Styles */
-/* Version 1.0.3.14 */
+/* Version 1.0.3.15 */
 
 /* ============================================================================
    CSS VARIABLES - Realm Bridge Brand Colors
@@ -26,6 +26,32 @@
   --dlc-individual: #6366f1;
   --dlc-force-manual: #10b981;
   --dlc-force-digital: #ef4444;
+}
+
+/* ============================================================================
+   FOUNDRY WINDOW HEADER OVERRIDE (for header buttons)
+   ============================================================================ */
+.dlc-dialog .window-header {
+  background: var(--dlc-bg-section);
+  border-bottom: 1px solid var(--dlc-border);
+}
+
+.dlc-dialog .window-header .window-title {
+  color: var(--dlc-text-primary);
+}
+
+.dlc-dialog .window-header .header-button {
+  color: var(--dlc-text-secondary);
+  transition: color 0.2s ease;
+}
+
+.dlc-dialog .window-header .header-button:hover {
+  color: var(--dlc-text-primary);
+}
+
+.dlc-dialog .window-content {
+  background: var(--dlc-bg-dark);
+  padding: 0;
 }
 
 /* ============================================================================
