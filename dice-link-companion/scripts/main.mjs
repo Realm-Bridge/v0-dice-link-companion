@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.4.6
+ * Version 1.0.4.7
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -17,6 +17,9 @@ let hasRequestedThisSession = false;
 // Track any pending intercepted roll request
 let pendingRollRequest = null;
 // { title, subtitle, formula, flavor, rollFn, rollOptions }
+
+// Flag to bypass interception when we're executing our own roll
+let bypassInterception = false;
 
 // Track collapsed sections state
 const collapsedSections = {
@@ -1354,6 +1357,9 @@ function isUserInManualMode() {
 }
 
 function interceptRoll(title, subtitle, formula, rollFn, options = {}) {
+  // If we're executing our own roll, don't intercept
+  if (bypassInterception) return true;
+  
   if (!isUserInManualMode()) return true; // Not in manual mode, let Foundry handle it normally
 
   pendingRollRequest = {
@@ -1442,6 +1448,7 @@ function setupRollInterception() {
       async (opts) => {
         // Roll directly on the actor using the proper method
         try {
+          bypassInterception = true; // Prevent our hooks from intercepting this roll
           if (actor?.rollSkill) {
             await actor.rollSkill(skillId, { 
               advantage: opts.advantage, 
@@ -1452,6 +1459,8 @@ function setupRollInterception() {
         } catch (e) {
           console.error("[v0] Error executing skill roll:", e);
           ui.notifications.error("Failed to execute roll.");
+        } finally {
+          bypassInterception = false;
         }
       },
       { 
@@ -1482,6 +1491,7 @@ function setupRollInterception() {
       formula,
       async (opts) => {
         try {
+          bypassInterception = true;
           if (actor?.rollAbilityTest) {
             await actor.rollAbilityTest(abilityId, { 
               advantage: opts.advantage, 
@@ -1491,6 +1501,8 @@ function setupRollInterception() {
           }
         } catch (e) {
           console.error("[v0] Error executing ability check:", e);
+        } finally {
+          bypassInterception = false;
         }
       },
       { hasAdvantage: true, hasDisadvantage: true }
@@ -1517,6 +1529,7 @@ function setupRollInterception() {
       formula,
       async (opts) => {
         try {
+          bypassInterception = true;
           if (actor?.rollAbilitySave) {
             await actor.rollAbilitySave(abilityId, { 
               advantage: opts.advantage, 
@@ -1526,6 +1539,8 @@ function setupRollInterception() {
           }
         } catch (e) {
           console.error("[v0] Error executing saving throw:", e);
+        } finally {
+          bypassInterception = false;
         }
       },
       { hasAdvantage: true, hasDisadvantage: true }
@@ -1545,6 +1560,7 @@ function setupRollInterception() {
       "1d20",
       async (opts) => {
         try {
+          bypassInterception = true;
           if (actor?.rollDeathSave) {
             await actor.rollDeathSave({ 
               advantage: opts.advantage, 
@@ -1554,6 +1570,8 @@ function setupRollInterception() {
           }
         } catch (e) {
           console.error("[v0] Error executing death save:", e);
+        } finally {
+          bypassInterception = false;
         }
       },
       { hasAdvantage: true, hasDisadvantage: true }
@@ -1580,6 +1598,7 @@ function setupRollInterception() {
       formula,
       async (opts) => {
         try {
+          bypassInterception = true;
           if (item?.rollAttack) {
             await item.rollAttack({ 
               advantage: opts.advantage, 
@@ -1589,6 +1608,8 @@ function setupRollInterception() {
           }
         } catch (e) {
           console.error("[v0] Error executing attack roll:", e);
+        } finally {
+          bypassInterception = false;
         }
       },
       { hasAdvantage: true, hasDisadvantage: true }
@@ -1614,6 +1635,7 @@ function setupRollInterception() {
       damageFormula,
       async (opts) => {
         try {
+          bypassInterception = true;
           if (item?.rollDamage) {
             await item.rollDamage({ 
               critical: opts.critical,
@@ -1622,6 +1644,8 @@ function setupRollInterception() {
           }
         } catch (e) {
           console.error("[v0] Error executing damage roll:", e);
+        } finally {
+          bypassInterception = false;
         }
       },
       { hasAdvantage: false, hasDisadvantage: false, hasCritical: true }
@@ -1648,11 +1672,14 @@ function setupRollInterception() {
       formula,
       async (opts) => {
         try {
+          bypassInterception = true;
           if (actor?.rollHitDie) {
             await actor.rollHitDie();
           }
         } catch (e) {
           console.error("[v0] Error executing hit die roll:", e);
+        } finally {
+          bypassInterception = false;
         }
       },
       { hasAdvantage: false, hasDisadvantage: false }
@@ -1676,6 +1703,7 @@ function setupRollInterception() {
       formula,
       async (opts) => {
         try {
+          bypassInterception = true;
           if (actor?.rollInitiative) {
             await actor.rollInitiative({ 
               createCombatants: true, 
@@ -1686,6 +1714,8 @@ function setupRollInterception() {
           }
         } catch (e) {
           console.error("[v0] Error executing initiative roll:", e);
+        } finally {
+          bypassInterception = false;
         }
       },
       { hasAdvantage: true, hasDisadvantage: true }
@@ -1716,6 +1746,7 @@ function setupRollInterception() {
       formula,
       async (opts) => {
         try {
+          bypassInterception = true;
           if (tool?.rollToolCheck) {
             await tool.rollToolCheck({ 
               advantage: opts.advantage, 
@@ -1725,6 +1756,8 @@ function setupRollInterception() {
           }
         } catch (e) {
           console.error("[v0] Error executing tool check:", e);
+        } finally {
+          bypassInterception = false;
         }
       },
       { hasAdvantage: true, hasDisadvantage: true }
