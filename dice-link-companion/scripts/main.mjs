@@ -265,6 +265,11 @@ function setupSocketListeners() {
         ui.notifications.info("Digital dice mode activated!");
       }
       refreshPanel();
+    } else if (data.action === "applyMode") {
+      // Another player's mode changed, refresh our panel to see the update
+      refreshPanel();
+    }
+      refreshPanel();
     }
 
     if (data.action === "globalOverride") {
