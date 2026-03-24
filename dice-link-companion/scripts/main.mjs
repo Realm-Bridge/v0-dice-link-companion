@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.3.11
+ * Version 1.0.3.12
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -265,6 +265,11 @@ function setupSocketListeners() {
         ui.notifications.info("Digital dice mode activated!");
       }
       refreshPanel();
+    } else if (data.action === "applyMode") {
+      // Another player's mode changed, refresh our panel to see the update
+      refreshPanel();
+    }
+      refreshPanel();
     }
 
     if (data.action === "globalOverride") {
@@ -274,6 +279,15 @@ function setupSocketListeners() {
       } else if (data.mode === "forceAllDigital") {
         applyDigitalDice();
         ui.notifications.info("GM has forced digital dice for everyone.");
+      } else if (data.mode === "individual") {
+        // Revert to player's own stored mode
+        const myMode = game.settings.get(MODULE_ID, `playerMode_${game.user.id}`) || "digital";
+        if (myMode === "manual") {
+          applyManualDice();
+        } else {
+          applyDigitalDice();
+        }
+        ui.notifications.info("GM has returned to individual control.");
       }
       refreshPanel();
     }
@@ -773,6 +787,7 @@ function attachGMPanelListeners(html) {
       ui.notifications.info("Forced all to manual dice.");
     } else {
       await game.settings.set(MODULE_ID, "globalOverride", "individual");
+      game.socket.emit(`module.${MODULE_ID}`, { action: "globalOverride", mode: "individual" });
       ui.notifications.info("Set to individual control.");
     }
     refreshPanel();
@@ -788,6 +803,7 @@ function attachGMPanelListeners(html) {
       ui.notifications.info("Forced all to digital dice.");
     } else {
       await game.settings.set(MODULE_ID, "globalOverride", "individual");
+      game.socket.emit(`module.${MODULE_ID}`, { action: "globalOverride", mode: "individual" });
       ui.notifications.info("Set to individual control.");
     }
     refreshPanel();
