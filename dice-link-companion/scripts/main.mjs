@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.4.7
+ * Version 1.0.4.8
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -17,9 +17,6 @@ let hasRequestedThisSession = false;
 // Track any pending intercepted roll request
 let pendingRollRequest = null;
 // { title, subtitle, formula, flavor, rollFn, rollOptions }
-
-// Flag to bypass interception when we're executing our own roll
-let bypassInterception = false;
 
 // Track collapsed sections state
 const collapsedSections = {
@@ -1356,10 +1353,64 @@ function isUserInManualMode() {
   return myMode === "manual";
 }
 
+/**
+ * Execute a roll directly using Foundry's Roll API.
+ * This bypasses dnd5e/midi-qol hooks that can cause issues.
+ */
+async function executeDirectRoll(actor, formula, flavor, opts = {}) {
+  try {
+    let rollFormula = formula;
+    let rollMode = "normal";
+    
+    // Handle advantage/disadvantage by modifying the d20 portion
+    if (opts.advantage && !opts.disadvantage) {
+      rollFormula = formula.replace("1d20", "2d20kh");
+      rollMode = "advantage";
+    } else if (opts.disadvantage && !opts.advantage) {
+      rollFormula = formula.replace("1d20", "2d20kl");
+      rollMode = "disadvantage";
+    }
+    
+    // Handle critical for damage rolls (double dice)
+    if (opts.critical) {
+      // Double all dice in the formula (e.g., 2d6 + 3 becomes 4d6 + 3)
+      rollFormula = rollFormula.replace(/(\d+)d(\d+)/g, (match, num, sides) => {
+        return `${parseInt(num) * 2}d${sides}`;
+      });
+      rollMode = "critical";
+    }
+    
+    // Add situational bonus if provided
+    if (opts.situationalBonus) {
+      rollFormula += ` + ${opts.situationalBonus}`;
+    }
+    
+    // Create and evaluate the roll
+    const roll = new Roll(rollFormula);
+    await roll.evaluate();
+    
+    // Build the flavor text with mode indicator
+    const modeText = rollMode === "advantage" ? " (Advantage)" : 
+                    rollMode === "disadvantage" ? " (Disadvantage)" :
+                    rollMode === "critical" ? " (Critical)" : "";
+    const fullFlavor = `${flavor}${modeText}`;
+    
+    // Send to chat
+    await roll.toMessage({
+      speaker: ChatMessage.getSpeaker({ actor: actor }),
+      flavor: fullFlavor,
+      rollMode: game.settings.get("core", "rollMode")
+    });
+    
+    return true;
+  } catch (e) {
+    console.error("[v0] Error executing direct roll:", e);
+    ui.notifications.error("Failed to execute roll.");
+    return false;
+  }
+}
+
 function interceptRoll(title, subtitle, formula, rollFn, options = {}) {
-  // If we're executing our own roll, don't intercept
-  if (bypassInterception) return true;
-  
   if (!isUserInManualMode()) return true; // Not in manual mode, let Foundry handle it normally
 
   pendingRollRequest = {
@@ -1446,22 +1497,7 @@ function setupRollInterception() {
       actorName,
       formula,
       async (opts) => {
-        // Roll directly on the actor using the proper method
-        try {
-          bypassInterception = true; // Prevent our hooks from intercepting this roll
-          if (actor?.rollSkill) {
-            await actor.rollSkill(skillId, { 
-              advantage: opts.advantage, 
-              disadvantage: opts.disadvantage,
-              fastForward: true // Skip the dialog since we're providing the choice
-            });
-          }
-        } catch (e) {
-          console.error("[v0] Error executing skill roll:", e);
-          ui.notifications.error("Failed to execute roll.");
-        } finally {
-          bypassInterception = false;
-        }
+        await executeDirectRoll(actor, formula, `${actorName} - ${skillLabel} Check`, opts);
       },
       { 
         abilityOptions: abilityLabel, 
@@ -1490,20 +1526,7 @@ function setupRollInterception() {
       actorName,
       formula,
       async (opts) => {
-        try {
-          bypassInterception = true;
-          if (actor?.rollAbilityTest) {
-            await actor.rollAbilityTest(abilityId, { 
-              advantage: opts.advantage, 
-              disadvantage: opts.disadvantage,
-              fastForward: true
-            });
-          }
-        } catch (e) {
-          console.error("[v0] Error executing ability check:", e);
-        } finally {
-          bypassInterception = false;
-        }
+        await executeDirectRoll(actor, formula, `${actorName} - ${abilityLabel} Check`, opts);
       },
       { hasAdvantage: true, hasDisadvantage: true }
     );
@@ -1528,20 +1551,7 @@ function setupRollInterception() {
       actorName,
       formula,
       async (opts) => {
-        try {
-          bypassInterception = true;
-          if (actor?.rollAbilitySave) {
-            await actor.rollAbilitySave(abilityId, { 
-              advantage: opts.advantage, 
-              disadvantage: opts.disadvantage,
-              fastForward: true
-            });
-          }
-        } catch (e) {
-          console.error("[v0] Error executing saving throw:", e);
-        } finally {
-          bypassInterception = false;
-        }
+        await executeDirectRoll(actor, formula, `${actorName} - ${abilityLabel} Saving Throw`, opts);
       },
       { hasAdvantage: true, hasDisadvantage: true }
     );
@@ -1559,20 +1569,7 @@ function setupRollInterception() {
       actorName,
       "1d20",
       async (opts) => {
-        try {
-          bypassInterception = true;
-          if (actor?.rollDeathSave) {
-            await actor.rollDeathSave({ 
-              advantage: opts.advantage, 
-              disadvantage: opts.disadvantage,
-              fastForward: true
-            });
-          }
-        } catch (e) {
-          console.error("[v0] Error executing death save:", e);
-        } finally {
-          bypassInterception = false;
-        }
+        await executeDirectRoll(actor, "1d20", `${actorName} - Death Saving Throw`, opts);
       },
       { hasAdvantage: true, hasDisadvantage: true }
     );
@@ -1597,20 +1594,7 @@ function setupRollInterception() {
       actorName,
       formula,
       async (opts) => {
-        try {
-          bypassInterception = true;
-          if (item?.rollAttack) {
-            await item.rollAttack({ 
-              advantage: opts.advantage, 
-              disadvantage: opts.disadvantage,
-              fastForward: true
-            });
-          }
-        } catch (e) {
-          console.error("[v0] Error executing attack roll:", e);
-        } finally {
-          bypassInterception = false;
-        }
+        await executeDirectRoll(actor, formula, `${actorName} - ${itemName} Attack`, opts);
       },
       { hasAdvantage: true, hasDisadvantage: true }
     );
@@ -1634,19 +1618,7 @@ function setupRollInterception() {
       actorName,
       damageFormula,
       async (opts) => {
-        try {
-          bypassInterception = true;
-          if (item?.rollDamage) {
-            await item.rollDamage({ 
-              critical: opts.critical,
-              fastForward: true
-            });
-          }
-        } catch (e) {
-          console.error("[v0] Error executing damage roll:", e);
-        } finally {
-          bypassInterception = false;
-        }
+        await executeDirectRoll(actor, damageFormula, `${actorName} - ${itemName} Damage`, opts);
       },
       { hasAdvantage: false, hasDisadvantage: false, hasCritical: true }
     );
@@ -1671,16 +1643,7 @@ function setupRollInterception() {
       actorName,
       formula,
       async (opts) => {
-        try {
-          bypassInterception = true;
-          if (actor?.rollHitDie) {
-            await actor.rollHitDie();
-          }
-        } catch (e) {
-          console.error("[v0] Error executing hit die roll:", e);
-        } finally {
-          bypassInterception = false;
-        }
+        await executeDirectRoll(actor, formula, `${actorName} - Hit Die`, opts);
       },
       { hasAdvantage: false, hasDisadvantage: false }
     );
@@ -1702,21 +1665,7 @@ function setupRollInterception() {
       actorName,
       formula,
       async (opts) => {
-        try {
-          bypassInterception = true;
-          if (actor?.rollInitiative) {
-            await actor.rollInitiative({ 
-              createCombatants: true, 
-              rerollInitiative: true,
-              advantage: opts.advantage,
-              disadvantage: opts.disadvantage
-            });
-          }
-        } catch (e) {
-          console.error("[v0] Error executing initiative roll:", e);
-        } finally {
-          bypassInterception = false;
-        }
+        await executeDirectRoll(actor, formula, `${actorName} - Initiative`, opts);
       },
       { hasAdvantage: true, hasDisadvantage: true }
     );
@@ -1745,20 +1694,7 @@ function setupRollInterception() {
       actorName,
       formula,
       async (opts) => {
-        try {
-          bypassInterception = true;
-          if (tool?.rollToolCheck) {
-            await tool.rollToolCheck({ 
-              advantage: opts.advantage, 
-              disadvantage: opts.disadvantage,
-              fastForward: true
-            });
-          }
-        } catch (e) {
-          console.error("[v0] Error executing tool check:", e);
-        } finally {
-          bypassInterception = false;
-        }
+        await executeDirectRoll(actor, formula, `${actorName} - ${toolName} Check`, opts);
       },
       { hasAdvantage: true, hasDisadvantage: true }
     );
