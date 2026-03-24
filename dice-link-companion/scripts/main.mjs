@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.4.15
+ * Version 1.0.4.16
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1258,8 +1258,19 @@ function refreshPanel() {
 }
 
 function openPanel() {
+  // If panel already exists and is rendered, just bring it to front - don't recreate
   if (currentPanelDialog && currentPanelDialog.rendered) {
-    currentPanelDialog.close();
+    currentPanelDialog.bringToTop();
+    return;
+  }
+  
+  // If panel exists but not rendered, close it first
+  if (currentPanelDialog) {
+    try {
+      currentPanelDialog.close();
+    } catch (e) {
+      // Ignore errors from closing
+    }
   }
 
   const isGM = game.user.isGM;
@@ -1407,89 +1418,93 @@ async function executeDirectRoll(actor, formula, flavor, opts = {}) {
   }
 }
 
+// Flag to track if we're executing a roll we triggered (to prevent re-interception)
+let bypassNextRoll = false;
+
 /**
- * Intercept a roll and show our UI. Returns a Promise that:
- * - Resolves with `true` after modifying the config (roll proceeds with our choices)
- * - Resolves with `false` if user cancels (roll is cancelled)
- * 
- * This approach lets the roll continue through normal dnd5e/midi-qol workflow
- * with our advantage/disadvantage/critical choices already applied.
+ * Intercept a roll and show our UI.
+ * Returns false to CANCEL the roll completely, then re-triggers it after user input.
+ * This ensures the roll doesn't proceed to dice fulfillment until user makes a choice.
  */
 function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
   if (!isUserInManualMode()) return true; // Not in manual mode, let Foundry handle it normally
 
-  // IMMEDIATELY disable the native dialog before showing our UI
-  // This must happen before returning the Promise to prevent the dialog from appearing
-  if (dialog) {
-    dialog.configure = false;
+  // If we triggered this roll ourselves, let it through
+  if (bypassNextRoll) {
+    bypassNextRoll = false;
+    return true;
   }
 
-  return new Promise((resolve) => {
-    pendingRollRequest = {
-      title,
-      subtitle,
-      formula,
-      config,       // Store the original config so we can modify it
-      dialog,       // Store the dialog config
-      situationalBonus: "",
-      hasAdvantage: options.hasAdvantage !== false,
-      hasDisadvantage: options.hasDisadvantage !== false,
-      hasCritical: options.hasCritical || false,
-      abilityOptions: options.abilityOptions || null,
-      // Callback to resolve the promise when user makes a choice
-      onComplete: (userChoice) => {
-        if (userChoice === "cancel") {
-          pendingRollRequest = null;
-          refreshPanel();
-          resolve(false); // Cancel the roll
-          return;
-        }
-        
-        // Apply user's choices to the original config
-        if (config) {
-          // Set advantage/disadvantage on the roll config
-          if (userChoice.advantage) {
-            config.advantage = true;
-            config.disadvantage = false;
-          } else if (userChoice.disadvantage) {
-            config.advantage = false;
-            config.disadvantage = true;
-          } else {
-            config.advantage = false;
-            config.disadvantage = false;
-          }
-          
-          // Set critical for damage rolls
-          if (userChoice.critical !== undefined) {
-            config.critical = userChoice.critical;
-          }
-          
-          // Add situational bonus if provided
-          if (userChoice.situationalBonus) {
-            config.parts = config.parts || [];
-            config.parts.push(userChoice.situationalBonus);
-          }
-        }
-        
+  // Store everything needed to re-trigger the roll later
+  pendingRollRequest = {
+    title,
+    subtitle,
+    formula,
+    config,
+    dialog,
+    rollMethod: options.rollMethod,  // Function to call to re-trigger the roll
+    rollArgs: options.rollArgs,      // Arguments for the roll method
+    situationalBonus: "",
+    hasAdvantage: options.hasAdvantage !== false,
+    hasDisadvantage: options.hasDisadvantage !== false,
+    hasCritical: options.hasCritical || false,
+    abilityOptions: options.abilityOptions || null,
+    // Callback when user makes a choice
+    onComplete: async (userChoice) => {
+      if (userChoice === "cancel") {
         pendingRollRequest = null;
         refreshPanel();
-        resolve(true); // Let the roll proceed with our modifications
-      },
-      ...options
-    };
-
-    // Auto-open panel and expand the roll request section
-    collapsedSections.rollRequest = false;
-    
-    // Check if panel is open and rendered
-    const panelIsOpen = currentPanelDialog && currentPanelDialog.rendered && currentPanelDialog._state === Application.RENDER_STATES.RENDERED;
-    
-    if (!panelIsOpen) {
-      openPanel();
-    } else {
+        ui.notifications.info("Roll cancelled.");
+        return;
+      }
+      
+      // Re-trigger the roll with user's choices
+      const rollMethod = pendingRollRequest.rollMethod;
+      const rollArgs = pendingRollRequest.rollArgs || {};
+      
+      pendingRollRequest = null;
       refreshPanel();
-    }
-  });
+      
+      if (rollMethod) {
+        // Set bypass flag so we don't intercept the re-triggered roll
+        bypassNextRoll = true;
+        
+        try {
+          // Call the roll method with user's choices
+          await rollMethod({
+            ...rollArgs,
+            advantage: userChoice.advantage,
+            disadvantage: userChoice.disadvantage,
+            critical: userChoice.critical,
+            fastForward: true,  // Skip the native dialog
+            // Add situational bonus to parts if provided
+            parts: userChoice.situationalBonus 
+              ? [...(rollArgs.parts || []), userChoice.situationalBonus]
+              : rollArgs.parts
+          });
+        } catch (e) {
+          console.error("[v0] Error re-triggering roll:", e);
+          bypassNextRoll = false;
+        }
+      }
+    },
+    ...options
+  };
+
+  // Auto-open panel and expand the roll request section
+  collapsedSections.rollRequest = false;
+  
+  // Check if panel is open and rendered
+  const panelIsOpen = currentPanelDialog && currentPanelDialog.rendered && currentPanelDialog._state === Application.RENDER_STATES.RENDERED;
+  
+  if (!panelIsOpen) {
+    openPanel();
+  } else {
+    refreshPanel();
+  }
+
+  // Return FALSE to completely cancel this roll - we'll re-trigger it ourselves
+  return false;
 }
 
 function setupRollInterception() {
@@ -1532,19 +1547,23 @@ function setupRollInterception() {
     const abilityId = config?.ability || "";
     const abilityLabel = CONFIG.DND5E?.abilities?.[abilityId]?.label || abilityId;
     
-    // Build formula for display
     const skillData = actor?.system?.skills?.[skillId];
     const modifier = skillData?.total ?? 0;
     const formula = modifier >= 0 ? `1d20 + ${modifier}` : `1d20 - ${Math.abs(modifier)}`;
     
-    // Pass config and dialog - interceptRoll will modify them and return Promise
     return interceptRoll(
       `${skillLabel} Check`,
       actorName,
       formula,
       config,
       dialog,
-      { abilityOptions: abilityLabel, hasAdvantage: true, hasDisadvantage: true }
+      { 
+        abilityOptions: abilityLabel, 
+        hasAdvantage: true, 
+        hasDisadvantage: true,
+        rollMethod: (opts) => actor.rollSkill(skillId, opts),
+        rollArgs: { ability: abilityId }
+      }
     );
   });
 
@@ -1566,7 +1585,12 @@ function setupRollInterception() {
       formula,
       config,
       dialog,
-      { hasAdvantage: true, hasDisadvantage: true }
+      { 
+        hasAdvantage: true, 
+        hasDisadvantage: true,
+        rollMethod: (opts) => actor.rollAbilityTest(abilityId, opts),
+        rollArgs: {}
+      }
     );
   });
 
@@ -1589,7 +1613,12 @@ function setupRollInterception() {
       formula,
       config,
       dialog,
-      { hasAdvantage: true, hasDisadvantage: true }
+      { 
+        hasAdvantage: true, 
+        hasDisadvantage: true,
+        rollMethod: (opts) => actor.rollAbilitySave(abilityId, opts),
+        rollArgs: {}
+      }
     );
   });
 
@@ -1606,7 +1635,12 @@ function setupRollInterception() {
       "1d20",
       config,
       dialog,
-      { hasAdvantage: true, hasDisadvantage: true }
+      { 
+        hasAdvantage: true, 
+        hasDisadvantage: true,
+        rollMethod: (opts) => actor.rollDeathSave(opts),
+        rollArgs: {}
+      }
     );
   });
 
@@ -1628,7 +1662,12 @@ function setupRollInterception() {
       formula,
       config,
       dialog,
-      { hasAdvantage: true, hasDisadvantage: true }
+      { 
+        hasAdvantage: true, 
+        hasDisadvantage: true,
+        rollMethod: (opts) => item.rollAttack(opts),
+        rollArgs: {}
+      }
     );
   });
 
@@ -1649,7 +1688,13 @@ function setupRollInterception() {
       damageFormula,
       config,
       dialog,
-      { hasAdvantage: false, hasDisadvantage: false, hasCritical: true }
+      { 
+        hasAdvantage: false, 
+        hasDisadvantage: false, 
+        hasCritical: true,
+        rollMethod: (opts) => item.rollDamage(opts),
+        rollArgs: {}
+      }
     );
   });
 
@@ -1672,7 +1717,12 @@ function setupRollInterception() {
       formula,
       config,
       dialog,
-      { hasAdvantage: false, hasDisadvantage: false }
+      { 
+        hasAdvantage: false, 
+        hasDisadvantage: false,
+        rollMethod: (opts) => actor.rollHitDie(opts),
+        rollArgs: {}
+      }
     );
   });
 
@@ -1692,7 +1742,12 @@ function setupRollInterception() {
       formula,
       config,
       dialog,
-      { hasAdvantage: true, hasDisadvantage: true }
+      { 
+        hasAdvantage: true, 
+        hasDisadvantage: true,
+        rollMethod: (opts) => actor.rollInitiative({ createCombatants: true, rerollInitiative: true, ...opts }),
+        rollArgs: {}
+      }
     );
   });
 
@@ -1718,7 +1773,12 @@ function setupRollInterception() {
       formula,
       config,
       dialog,
-      { hasAdvantage: true, hasDisadvantage: true }
+      { 
+        hasAdvantage: true, 
+        hasDisadvantage: true,
+        rollMethod: (opts) => tool.rollToolCheck ? tool.rollToolCheck(opts) : actor.rollToolCheck(tool.id, opts),
+        rollArgs: {}
+      }
     );
   });
 
