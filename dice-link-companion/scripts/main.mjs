@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.4.1
+ * Version 1.0.4.2
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1369,128 +1369,190 @@ function interceptRoll(title, subtitle, formula, rollFn, options = {}) {
 }
 
 function setupRollInterception() {
-  // Helper to get actor name from config object
-  function getActorName(config) {
-    return config?.subject?.name || config?.data?.name || config?.actor?.name || "";
+  // Only set up dnd5e hooks if the system is dnd5e
+  if (game.system.id !== "dnd5e") {
+    console.log(`[v0] Dice Link Companion: Roll interception not available for system "${game.system.id}". Dice tray still available.`);
+    return;
   }
 
-  // Skill checks
-  Hooks.on("dnd5e.preRollSkillV2", (config, dialog) => {
-    const actor = getActorName(config);
-    const skill = config?.skill?.label || config?.data?.skill || "";
-    const ability = config?.ability?.label || "";
-    const formula = config?.formula || "1d20";
+  console.log("[v0] Dice Link Companion: Setting up dnd5e roll interception hooks...");
+
+  // Helper to get actor name from various config structures across dnd5e versions
+  function getActorName(config, actor) {
+    return actor?.name || config?.subject?.name || config?.data?.name || config?.actor?.name || "Unknown";
+  }
+
+  // Helper to get formula from config
+  function getFormula(config) {
+    return config?.formula || config?.parts?.join(" + ") || "1d20";
+  }
+
+  // Register a hook with both V2 (dnd5e 3.x+) and legacy (dnd5e 2.x) names
+  function registerRollHook(hookNameV2, hookNameLegacy, handler) {
+    // Try V2 hook first (dnd5e 3.x, 4.x, 5.x)
+    Hooks.on(hookNameV2, handler);
+    // Also register legacy hook for older dnd5e versions
+    if (hookNameLegacy) {
+      Hooks.on(hookNameLegacy, handler);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // SKILL CHECKS
+  // -------------------------------------------------------------------------
+  registerRollHook("dnd5e.preRollSkillV2", "dnd5e.preRollSkill", (config, dialog, ...rest) => {
+    // Handle different argument patterns between versions
+    const actor = rest[0] || dialog?.actor || config?.actor;
+    const actorName = getActorName(config, actor);
+    const skill = config?.skill?.label || config?.skillId || dialog?.options?.skillId || "";
+    const ability = config?.ability?.label || config?.abilityId || "";
+    const formula = getFormula(config);
+    
     return interceptRoll(
       `${skill} Check`,
-      actor,
+      actorName,
       formula,
-      (opts) => { dialog.configure(opts); },
+      (opts) => { if (dialog?.configure) dialog.configure(opts); },
       { abilityOptions: ability, hasAdvantage: true, hasDisadvantage: true }
     );
   });
 
-  // Ability checks
-  Hooks.on("dnd5e.preRollAbilityTestV2", (config, dialog) => {
-    const actor = getActorName(config);
-    const ability = config?.ability?.label || "";
-    const formula = config?.formula || "1d20";
+  // -------------------------------------------------------------------------
+  // ABILITY CHECKS
+  // -------------------------------------------------------------------------
+  registerRollHook("dnd5e.preRollAbilityTestV2", "dnd5e.preRollAbilityTest", (config, dialog, ...rest) => {
+    const actor = rest[0] || dialog?.actor || config?.actor;
+    const actorName = getActorName(config, actor);
+    const ability = config?.ability?.label || config?.abilityId || "";
+    const formula = getFormula(config);
+    
     return interceptRoll(
       `${ability} Check`,
-      actor,
+      actorName,
       formula,
-      (opts) => { dialog.configure(opts); },
+      (opts) => { if (dialog?.configure) dialog.configure(opts); },
       { hasAdvantage: true, hasDisadvantage: true }
     );
   });
 
-  // Saving throws
-  Hooks.on("dnd5e.preRollAbilitySaveV2", (config, dialog) => {
-    const actor = getActorName(config);
-    const ability = config?.ability?.label || "";
-    const formula = config?.formula || "1d20";
+  // -------------------------------------------------------------------------
+  // SAVING THROWS
+  // -------------------------------------------------------------------------
+  registerRollHook("dnd5e.preRollAbilitySaveV2", "dnd5e.preRollAbilitySave", (config, dialog, ...rest) => {
+    const actor = rest[0] || dialog?.actor || config?.actor;
+    const actorName = getActorName(config, actor);
+    const ability = config?.ability?.label || config?.abilityId || "";
+    const formula = getFormula(config);
+    
     return interceptRoll(
       `${ability} Saving Throw`,
-      actor,
+      actorName,
       formula,
-      (opts) => { dialog.configure(opts); },
+      (opts) => { if (dialog?.configure) dialog.configure(opts); },
       { hasAdvantage: true, hasDisadvantage: true }
     );
   });
 
-  // Death saves
-  Hooks.on("dnd5e.preRollDeathSaveV2", (config, dialog) => {
-    const actor = getActorName(config);
+  // -------------------------------------------------------------------------
+  // DEATH SAVES
+  // -------------------------------------------------------------------------
+  registerRollHook("dnd5e.preRollDeathSaveV2", "dnd5e.preRollDeathSave", (config, dialog, ...rest) => {
+    const actor = rest[0] || dialog?.actor || config?.actor;
+    const actorName = getActorName(config, actor);
+    
     return interceptRoll(
       "Death Saving Throw",
-      actor,
-      config?.formula || "1d20",
-      (opts) => { dialog.configure(opts); },
+      actorName,
+      getFormula(config),
+      (opts) => { if (dialog?.configure) dialog.configure(opts); },
       { hasAdvantage: true, hasDisadvantage: true }
     );
   });
 
-  // Attack rolls
-  Hooks.on("dnd5e.preRollAttackV2", (config, dialog) => {
-    const actor = getActorName(config);
+  // -------------------------------------------------------------------------
+  // ATTACK ROLLS
+  // -------------------------------------------------------------------------
+  registerRollHook("dnd5e.preRollAttackV2", "dnd5e.preRollAttack", (config, dialog, ...rest) => {
+    const actor = rest[0] || dialog?.actor || config?.actor;
+    const actorName = getActorName(config, actor);
     const item = config?.item?.name || config?.subject?.name || "";
+    
     return interceptRoll(
       `${item} Attack Roll`,
-      actor,
-      config?.formula || "1d20",
-      (opts) => { dialog.configure(opts); },
+      actorName,
+      getFormula(config),
+      (opts) => { if (dialog?.configure) dialog.configure(opts); },
       { hasAdvantage: true, hasDisadvantage: true }
     );
   });
 
-  // Damage rolls
-  Hooks.on("dnd5e.preRollDamageV2", (config, dialog) => {
-    const actor = getActorName(config);
+  // -------------------------------------------------------------------------
+  // DAMAGE ROLLS
+  // -------------------------------------------------------------------------
+  registerRollHook("dnd5e.preRollDamageV2", "dnd5e.preRollDamage", (config, dialog, ...rest) => {
+    const actor = rest[0] || dialog?.actor || config?.actor;
+    const actorName = getActorName(config, actor);
     const item = config?.item?.name || config?.subject?.name || "";
+    
     return interceptRoll(
       `${item} Damage Roll`,
-      actor,
-      config?.formula || "1d6",
-      (opts) => { dialog.configure(opts); },
+      actorName,
+      getFormula(config) || "1d6",
+      (opts) => { if (dialog?.configure) dialog.configure(opts); },
       { hasAdvantage: false, hasDisadvantage: false }
     );
   });
 
-  // Hit dice
-  Hooks.on("dnd5e.preRollHitDieV2", (config, dialog) => {
-    const actor = getActorName(config);
+  // -------------------------------------------------------------------------
+  // HIT DICE
+  // -------------------------------------------------------------------------
+  registerRollHook("dnd5e.preRollHitDieV2", "dnd5e.preRollHitDie", (config, dialog, ...rest) => {
+    const actor = rest[0] || dialog?.actor || config?.actor;
+    const actorName = getActorName(config, actor);
+    
     return interceptRoll(
       "Hit Die",
-      actor,
-      config?.formula || "1d8",
-      (opts) => { dialog.configure(opts); },
+      actorName,
+      getFormula(config) || "1d8",
+      (opts) => { if (dialog?.configure) dialog.configure(opts); },
       { hasAdvantage: false, hasDisadvantage: false }
     );
   });
 
-  // Initiative
-  Hooks.on("dnd5e.preRollInitiativeV2", (config, dialog) => {
-    const actor = getActorName(config);
+  // -------------------------------------------------------------------------
+  // INITIATIVE (may not have a preRoll hook in all versions)
+  // -------------------------------------------------------------------------
+  registerRollHook("dnd5e.preRollInitiativeV2", "dnd5e.preRollInitiative", (config, dialog, ...rest) => {
+    const actor = rest[0] || dialog?.actor || config?.actor;
+    const actorName = getActorName(config, actor);
+    
     return interceptRoll(
       "Initiative",
-      actor,
-      config?.formula || "1d20",
-      (opts) => { dialog.configure(opts); },
+      actorName,
+      getFormula(config),
+      (opts) => { if (dialog?.configure) dialog.configure(opts); },
       { hasAdvantage: true, hasDisadvantage: true }
     );
   });
 
-  // Tool checks
-  Hooks.on("dnd5e.preRollToolCheckV2", (config, dialog) => {
-    const actor = getActorName(config);
+  // -------------------------------------------------------------------------
+  // TOOL CHECKS
+  // -------------------------------------------------------------------------
+  registerRollHook("dnd5e.preRollToolCheckV2", "dnd5e.preRollToolCheck", (config, dialog, ...rest) => {
+    const actor = rest[0] || dialog?.actor || config?.actor;
+    const actorName = getActorName(config, actor);
     const tool = config?.item?.name || "";
+    
     return interceptRoll(
       `${tool} Tool Check`,
-      actor,
-      config?.formula || "1d20",
-      (opts) => { dialog.configure(opts); },
+      actorName,
+      getFormula(config),
+      (opts) => { if (dialog?.configure) dialog.configure(opts); },
       { hasAdvantage: true, hasDisadvantage: true }
     );
   });
+
+  console.log("[v0] Dice Link Companion: Roll interception hooks registered for dnd5e.");
 }
 
 // ============================================================================
