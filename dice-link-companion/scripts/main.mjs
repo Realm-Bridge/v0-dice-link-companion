@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.3.16
+ * Version 1.0.4.0
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -19,6 +19,7 @@ const collapsedSections = {
   topRow: true, // Settings section (Permissions, Global Override, GM Mode)
   pending: true,
   playerModes: true,
+  rollRequest: false, // Roll Request section - starts expanded
   videoFeed: true // Start collapsed
 };
 
@@ -666,6 +667,60 @@ function generateGMPanelContent() {
           </div>
         </div>
 
+        ${gmMode === "manual" ? `
+        <!-- Roll Request Section (Manual Mode Only) -->
+        <div class="dlc-section dlc-roll-request-section ${collapsedSections.rollRequest ? 'collapsed' : ''}">
+          <div class="dlc-section-header" data-section="rollRequest">
+            <span class="dlc-collapse-btn">${collapsedSections.rollRequest ? '+' : '−'}</span>
+            <h3><i class="fas fa-dice-d20"></i> Roll Request</h3>
+          </div>
+          <div class="dlc-section-content">
+            <div class="dlc-dice-tray">
+              <div class="dlc-dice-formula-row">
+                <input type="text" class="dlc-dice-formula-input" placeholder="/r 1d20" value="/r ">
+              </div>
+              <div class="dlc-dice-buttons-row">
+                <button type="button" class="dlc-dice-btn" data-die="4" title="d4">
+                  <span class="dlc-die-icon">d4</span>
+                  <span class="dlc-die-count" style="display:none;">0</span>
+                </button>
+                <button type="button" class="dlc-dice-btn" data-die="6" title="d6">
+                  <span class="dlc-die-icon">d6</span>
+                  <span class="dlc-die-count" style="display:none;">0</span>
+                </button>
+                <button type="button" class="dlc-dice-btn" data-die="8" title="d8">
+                  <span class="dlc-die-icon">d8</span>
+                  <span class="dlc-die-count" style="display:none;">0</span>
+                </button>
+                <button type="button" class="dlc-dice-btn" data-die="10" title="d10">
+                  <span class="dlc-die-icon">d10</span>
+                  <span class="dlc-die-count" style="display:none;">0</span>
+                </button>
+                <button type="button" class="dlc-dice-btn" data-die="12" title="d12">
+                  <span class="dlc-die-icon">d12</span>
+                  <span class="dlc-die-count" style="display:none;">0</span>
+                </button>
+                <button type="button" class="dlc-dice-btn" data-die="20" title="d20">
+                  <span class="dlc-die-icon">d20</span>
+                  <span class="dlc-die-count" style="display:none;">0</span>
+                </button>
+                <button type="button" class="dlc-dice-btn" data-die="100" title="d100">
+                  <span class="dlc-die-icon">d100</span>
+                  <span class="dlc-die-count" style="display:none;">0</span>
+                </button>
+              </div>
+              <div class="dlc-dice-controls-row">
+                <button type="button" class="dlc-dice-mod-btn dlc-dice-minus" title="Decrease modifier">−</button>
+                <span class="dlc-dice-modifier">0</span>
+                <button type="button" class="dlc-dice-mod-btn dlc-dice-plus" title="Increase modifier">+</button>
+                <button type="button" class="dlc-dice-adv-btn" data-mode="normal" title="Toggle Advantage/Disadvantage">ADV/DIS</button>
+                <button type="button" class="dlc-dice-roll-btn dlc-btn-success" title="Roll dice">Roll</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        ` : ''}
+
         <!-- Video Feed Placeholder -->
         <div class="dlc-section ${collapsedSections.videoFeed ? 'collapsed' : ''}">
           <div class="dlc-section-header" data-section="videoFeed">
@@ -790,6 +845,70 @@ function generatePlayerPanelContent() {
             ` : ''}
           </div>
         </div>
+
+        ${(() => {
+          // Determine effective mode for current user
+          let effectiveMyMode = myMode;
+          if (globalOverride === "forceAllManual") effectiveMyMode = "manual";
+          else if (globalOverride === "forceAllDigital") effectiveMyMode = "digital";
+          
+          if (effectiveMyMode === "manual") {
+            return `
+        <!-- Roll Request Section (Manual Mode Only) -->
+        <div class="dlc-section dlc-roll-request-section ${collapsedSections.rollRequest ? 'collapsed' : ''}">
+          <div class="dlc-section-header" data-section="rollRequest">
+            <span class="dlc-collapse-btn">${collapsedSections.rollRequest ? '+' : '−'}</span>
+            <h3><i class="fas fa-dice-d20"></i> Roll Request</h3>
+          </div>
+          <div class="dlc-section-content">
+            <div class="dlc-dice-tray">
+              <div class="dlc-dice-formula-row">
+                <input type="text" class="dlc-dice-formula-input" placeholder="/r 1d20" value="/r ">
+              </div>
+              <div class="dlc-dice-buttons-row">
+                <button type="button" class="dlc-dice-btn" data-die="4" title="d4">
+                  <span class="dlc-die-icon">d4</span>
+                  <span class="dlc-die-count" style="display:none;">0</span>
+                </button>
+                <button type="button" class="dlc-dice-btn" data-die="6" title="d6">
+                  <span class="dlc-die-icon">d6</span>
+                  <span class="dlc-die-count" style="display:none;">0</span>
+                </button>
+                <button type="button" class="dlc-dice-btn" data-die="8" title="d8">
+                  <span class="dlc-die-icon">d8</span>
+                  <span class="dlc-die-count" style="display:none;">0</span>
+                </button>
+                <button type="button" class="dlc-dice-btn" data-die="10" title="d10">
+                  <span class="dlc-die-icon">d10</span>
+                  <span class="dlc-die-count" style="display:none;">0</span>
+                </button>
+                <button type="button" class="dlc-dice-btn" data-die="12" title="d12">
+                  <span class="dlc-die-icon">d12</span>
+                  <span class="dlc-die-count" style="display:none;">0</span>
+                </button>
+                <button type="button" class="dlc-dice-btn" data-die="20" title="d20">
+                  <span class="dlc-die-icon">d20</span>
+                  <span class="dlc-die-count" style="display:none;">0</span>
+                </button>
+                <button type="button" class="dlc-dice-btn" data-die="100" title="d100">
+                  <span class="dlc-die-icon">d100</span>
+                  <span class="dlc-die-count" style="display:none;">0</span>
+                </button>
+              </div>
+              <div class="dlc-dice-controls-row">
+                <button type="button" class="dlc-dice-mod-btn dlc-dice-minus" title="Decrease modifier">−</button>
+                <span class="dlc-dice-modifier">0</span>
+                <button type="button" class="dlc-dice-mod-btn dlc-dice-plus" title="Increase modifier">+</button>
+                <button type="button" class="dlc-dice-adv-btn" data-mode="normal" title="Toggle Advantage/Disadvantage">ADV/DIS</button>
+                <button type="button" class="dlc-dice-roll-btn dlc-btn-success" title="Roll dice">Roll</button>
+              </div>
+            </div>
+          </div>
+        </div>
+            `;
+          }
+          return '';
+        })()}
 
         <!-- Video Feed Placeholder -->
         <div class="dlc-section ${collapsedSections.videoFeed ? 'collapsed' : ''}">
@@ -966,6 +1085,9 @@ function attachGMPanelListeners(html) {
     ui.notifications.info(`Revoked manual dice for ${player.name}.`);
     refreshPanel();
   });
+
+  // Attach dice tray listeners (shared with player panel)
+  attachDiceTrayListeners(html);
 }
 
 function attachPlayerPanelListeners(html) {
@@ -989,6 +1111,106 @@ function attachPlayerPanelListeners(html) {
     playerSwitchToDigital();
     refreshPanel();
   });
+
+  // Attach dice tray listeners (shared with GM panel)
+  attachDiceTrayListeners(html);
+}
+
+// ============================================================================
+// DICE TRAY LISTENERS (shared between GM and Player panels)
+// ============================================================================
+
+function attachDiceTrayListeners(html) {
+  // Track dice counts for badges
+  const diceCounts = { 4: 0, 6: 0, 8: 0, 10: 0, 12: 0, 20: 0, 100: 0 };
+  let currentModifier = 0;
+  let advMode = "normal"; // "normal", "advantage", "disadvantage"
+
+  // Dice button clicks - add to formula
+  html.find(".dlc-dice-btn").click(function() {
+    const die = $(this).data("die");
+    diceCounts[die]++;
+    
+    // Update badge
+    const countEl = $(this).find(".dlc-die-count");
+    countEl.text(diceCounts[die]).show();
+    
+    // Rebuild formula
+    updateDiceFormula(html, diceCounts, currentModifier);
+  });
+
+  // Modifier buttons
+  html.find(".dlc-dice-minus").click(function() {
+    currentModifier--;
+    html.find(".dlc-dice-modifier").text(currentModifier >= 0 ? currentModifier : currentModifier);
+    updateDiceFormula(html, diceCounts, currentModifier);
+  });
+
+  html.find(".dlc-dice-plus").click(function() {
+    currentModifier++;
+    html.find(".dlc-dice-modifier").text(currentModifier >= 0 ? currentModifier : currentModifier);
+    updateDiceFormula(html, diceCounts, currentModifier);
+  });
+
+  // Advantage/Disadvantage toggle
+  html.find(".dlc-dice-adv-btn").click(function() {
+    if (advMode === "normal") {
+      advMode = "advantage";
+      $(this).text("ADV").addClass("dlc-adv-active");
+    } else if (advMode === "advantage") {
+      advMode = "disadvantage";
+      $(this).text("DIS").removeClass("dlc-adv-active").addClass("dlc-dis-active");
+    } else {
+      advMode = "normal";
+      $(this).text("ADV/DIS").removeClass("dlc-dis-active");
+    }
+  });
+
+  // Roll button
+  html.find(".dlc-dice-roll-btn").click(async function() {
+    const formula = html.find(".dlc-dice-formula-input").val().replace(/^\/r\s*/, "").trim();
+    if (!formula) {
+      ui.notifications.warn("Enter a dice formula first.");
+      return;
+    }
+    
+    try {
+      const roll = new Roll(formula);
+      await roll.evaluate();
+      await roll.toMessage({
+        speaker: ChatMessage.getSpeaker(),
+        flavor: "Manual Dice Roll"
+      });
+      
+      // Reset the dice tray
+      Object.keys(diceCounts).forEach(k => diceCounts[k] = 0);
+      currentModifier = 0;
+      html.find(".dlc-die-count").text("0").hide();
+      html.find(".dlc-dice-modifier").text("0");
+      html.find(".dlc-dice-formula-input").val("/r ");
+    } catch (e) {
+      ui.notifications.error("Invalid dice formula.");
+    }
+  });
+}
+
+// Helper to update the dice formula input
+function updateDiceFormula(html, diceCounts, modifier) {
+  const parts = [];
+  const dieOrder = [20, 12, 10, 8, 6, 4, 100]; // Common dice order
+  
+  for (const die of dieOrder) {
+    if (diceCounts[die] > 0) {
+      parts.push(`${diceCounts[die]}d${die}`);
+    }
+  }
+  
+  let formula = parts.join("+");
+  if (modifier !== 0) {
+    formula += modifier > 0 ? `+${modifier}` : `${modifier}`;
+  }
+  
+  html.find(".dlc-dice-formula-input").val(`/r ${formula}`);
 }
 
 // ============================================================================
