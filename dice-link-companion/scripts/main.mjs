@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.4.12
+ * Version 1.0.5.0
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -16,10 +16,7 @@ let hasRequestedThisSession = false;
 
 // Track any pending intercepted roll request
 let pendingRollRequest = null;
-// { title, subtitle, formula, flavor, rollFn, rollOptions }
-
-// Flag to bypass interception when we're executing our own roll
-let bypassInterception = false;
+// { title, subtitle, formula, config, dialog, onComplete }
 
 // Track collapsed sections state
 const collapsedSections = {
@@ -1354,71 +1351,8 @@ function isUserInManualMode() {
 }
 
 /**
- * Create a synthetic event that triggers fastForward behavior in dnd5e.
- * Based on dnd5e keybindings: Shift = skip dialog, Alt = advantage, Ctrl = disadvantage
- * Includes a mock DOM target to satisfy dnd5e/midi-qol's event.target.closest() calls.
- */
-function createFastForwardEvent(advantage = false, disadvantage = false) {
-  // Create a mock DOM element that satisfies closest() calls
-  const mockElement = {
-    closest: () => null,
-    dataset: {},
-    getAttribute: () => null,
-    querySelector: () => null,
-    querySelectorAll: () => []
-  };
-  
-  return {
-    shiftKey: true,  // This triggers fastForward in dnd5e
-    altKey: advantage,
-    ctrlKey: disadvantage,
-    target: mockElement,
-    currentTarget: mockElement,
-    preventDefault: () => {},
-    stopPropagation: () => {}
-  };
-}
-
-/**
- * Execute a roll using native dnd5e methods with fastForward.
- * This maintains proper integration with dnd5e/midi-qol workflows.
- */
-async function executeNativeRoll(rollMethod, rollArgs, opts = {}) {
-  try {
-    bypassInterception = true;
-    
-    // Create synthetic event for fastForward
-    const event = createFastForwardEvent(opts.advantage, opts.disadvantage);
-    
-    // Merge our options with the event
-    const rollOptions = {
-      ...rollArgs,
-      event: event,
-      fastForward: true,
-      advantage: opts.advantage || false,
-      disadvantage: opts.disadvantage || false,
-      critical: opts.critical || false
-    };
-    
-    // Add situational bonus if provided
-    if (opts.situationalBonus) {
-      rollOptions.parts = rollOptions.parts || [];
-      rollOptions.parts.push(opts.situationalBonus);
-    }
-    
-    await rollMethod(rollOptions);
-    return true;
-  } catch (e) {
-    console.error("[v0] Error executing native roll:", e);
-    return false;
-  } finally {
-    bypassInterception = false;
-  }
-}
-
-/**
  * Execute a roll directly using Foundry's Roll API.
- * This bypasses dnd5e/midi-qol hooks - used as fallback or for simple rolls.
+ * This bypasses dnd5e/midi-qol hooks and is used as a fallback.
  */
 async function executeDirectRoll(actor, formula, flavor, opts = {}) {
   try {
@@ -1622,27 +1556,170 @@ function setupRollInterception() {
     const abilityId = config?.ability || "";
     const abilityLabel = CONFIG.DND5E?.abilities?.[abilityId]?.label || abilityId;
     
-    // Build formula with modifier
-    const abilityData = actor?.system?.abilities?.[abilityId];
-    const modifier = abilityData?.mod ?? 0;
-    const formula = modifier >= 0 ? `1d20 + ${modifier}` : `1d20 - ${Math.abs(modifier)}`;
+    const abilityMod = actor?.system?.abilities?.[abilityId]?.mod || 0;
+    const formula = abilityMod >= 0 ? `1d20 + ${abilityMod}` : `1d20 - ${Math.abs(abilityMod)}`;
     
     return interceptRoll(
       `${abilityLabel} Check`,
       actorName,
       formula,
-      async (opts) => {
-        try {
-          bypassInterception = true;
-          
-          if (actor?.rollAbilityTest) {
-            const event = createFastForwardEvent(opts.advantage, opts.disadvantage);
-            await actor.rollAbilityTest(abilityId, {
-              event: event,
-              advantage: opts.advantage,
-              disadvantage: opts.disadvantage,
-              fastForward: true
-            });
+      config,
+      dialog,
+      { hasAdvantage: true, hasDisadvantage: true }
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // SAVING THROWS
+  // -------------------------------------------------------------------------
+  registerRollHook("dnd5e.preRollAbilitySaveV2", "dnd5e.preRollAbilitySave", (config, dialog, ...rest) => {
+    const actor = config?.subject;
+    const actorName = actor?.name || "Unknown";
+    const abilityId = config?.ability || "";
+    const abilityLabel = CONFIG.DND5E?.abilities?.[abilityId]?.label || abilityId;
+    
+    const saveData = actor?.system?.abilities?.[abilityId]?.save;
+    const modifier = saveData?.total ?? 0;
+    const formula = modifier >= 0 ? `1d20 + ${modifier}` : `1d20 - ${Math.abs(modifier)}`;
+    
+    return interceptRoll(
+      `${abilityLabel} Saving Throw`,
+      actorName,
+      formula,
+      config,
+      dialog,
+      { hasAdvantage: true, hasDisadvantage: true }
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // DEATH SAVES
+  // -------------------------------------------------------------------------
+  registerRollHook("dnd5e.preRollDeathSaveV2", "dnd5e.preRollDeathSave", (config, dialog, ...rest) => {
+    const actor = config?.subject;
+    const actorName = actor?.name || "Unknown";
+    
+    return interceptRoll(
+      "Death Saving Throw",
+      actorName,
+      "1d20",
+      config,
+      dialog,
+      { hasAdvantage: true, hasDisadvantage: true }
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // ATTACK ROLLS
+  // -------------------------------------------------------------------------
+  registerRollHook("dnd5e.preRollAttackV2", "dnd5e.preRollAttack", (config, dialog, ...rest) => {
+    const item = config?.subject;
+    const actor = item?.parent;
+    const actorName = actor?.name || "Unknown";
+    const itemName = item?.name || "Attack";
+    
+    const attackBonus = item?.labels?.toHit || "";
+    const formula = attackBonus ? `1d20 ${attackBonus}` : "1d20";
+    
+    return interceptRoll(
+      `${itemName} Attack`,
+      actorName,
+      formula,
+      config,
+      dialog,
+      { hasAdvantage: true, hasDisadvantage: true }
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // DAMAGE ROLLS
+  // -------------------------------------------------------------------------
+  registerRollHook("dnd5e.preRollDamageV2", "dnd5e.preRollDamage", (config, dialog, ...rest) => {
+    const item = config?.subject;
+    const actor = item?.parent;
+    const actorName = actor?.name || "Unknown";
+    const itemName = item?.name || "Damage";
+    
+    const damageFormula = item?.labels?.damage || item?.system?.damage?.parts?.[0]?.[0] || "1d6";
+    
+    return interceptRoll(
+      `${itemName} Damage`,
+      actorName,
+      damageFormula,
+      config,
+      dialog,
+      { hasAdvantage: false, hasDisadvantage: false, hasCritical: true }
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // HIT DICE
+  // -------------------------------------------------------------------------
+  registerRollHook("dnd5e.preRollHitDieV2", "dnd5e.preRollHitDie", (config, dialog, ...rest) => {
+    const actor = config?.subject;
+    const actorName = actor?.name || "Unknown";
+    
+    const classes = actor?.classes || {};
+    const firstClass = Object.values(classes)[0];
+    const hitDie = firstClass?.system?.hitDice || "d8";
+    const conMod = actor?.system?.abilities?.con?.mod || 0;
+    const formula = conMod >= 0 ? `1${hitDie} + ${conMod}` : `1${hitDie} - ${Math.abs(conMod)}`;
+    
+    return interceptRoll(
+      "Hit Die",
+      actorName,
+      formula,
+      config,
+      dialog,
+      { hasAdvantage: false, hasDisadvantage: false }
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // INITIATIVE
+  // -------------------------------------------------------------------------
+  registerRollHook("dnd5e.preRollInitiativeV2", "dnd5e.preRollInitiative", (config, dialog, ...rest) => {
+    const actor = config?.subject;
+    const actorName = actor?.name || "Unknown";
+    
+    const initMod = actor?.system?.attributes?.init?.total ?? actor?.system?.abilities?.dex?.mod ?? 0;
+    const formula = initMod >= 0 ? `1d20 + ${initMod}` : `1d20 - ${Math.abs(initMod)}`;
+    
+    return interceptRoll(
+      "Initiative",
+      actorName,
+      formula,
+      config,
+      dialog,
+      { hasAdvantage: true, hasDisadvantage: true }
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // TOOL CHECKS
+  // -------------------------------------------------------------------------
+  registerRollHook("dnd5e.preRollToolCheckV2", "dnd5e.preRollToolCheck", (config, dialog, ...rest) => {
+    const tool = config?.subject;
+    const actor = tool?.parent;
+    const actorName = actor?.name || "Unknown";
+    const toolName = tool?.name || "Tool";
+    
+    const prof = tool?.system?.proficient || 0;
+    const abilityId = tool?.system?.ability || "int";
+    const abilityMod = actor?.system?.abilities?.[abilityId]?.mod || 0;
+    const profBonus = actor?.system?.attributes?.prof || 0;
+    const modifier = abilityMod + (prof * profBonus);
+    const formula = modifier >= 0 ? `1d20 + ${modifier}` : `1d20 - ${Math.abs(modifier)}`;
+    
+    return interceptRoll(
+      `${toolName} Check`,
+      actorName,
+      formula,
+      config,
+      dialog,
+      { hasAdvantage: true, hasDisadvantage: true }
+    );
+  });
           } else {
             await executeDirectRoll(actor, formula, `${actorName} - ${abilityLabel} Check`, opts);
           }
