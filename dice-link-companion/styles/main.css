@@ -1,5 +1,5 @@
 /* Dice Link Companion - Realm Bridge Branded Styles */
-/* Version 1.0.3.16 */
+/* Version 1.0.3.17 */
 
 /* ============================================================================
    CSS VARIABLES - Realm Bridge Brand Colors
@@ -1091,4 +1091,168 @@
 /* Hide the button container entirely since we have no buttons */
 .dlc-dialog .dialog-buttons {
   display: none !important;
+}
+
+/* ============================================================================
+   DICE TRAY STYLES
+   ============================================================================ */
+
+.dlc-roll-request-section {
+  border-color: var(--dlc-accent);
+}
+
+.dlc-dice-tray {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px;
+  background: var(--dlc-bg-input);
+  border-radius: 6px;
+}
+
+.dlc-dice-formula-row {
+  width: 100%;
+}
+
+.dlc-dice-formula-input {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--dlc-bg-dark);
+  border: 1px solid var(--dlc-border);
+  border-radius: 4px;
+  color: var(--dlc-text-primary);
+  font-family: monospace;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.dlc-dice-formula-input:focus {
+  outline: none;
+  border-color: var(--dlc-accent);
+}
+
+.dlc-dice-buttons-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.dlc-dice-btn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  background: var(--dlc-bg-section);
+  border: 1px solid var(--dlc-border);
+  border-radius: 6px;
+  color: var(--dlc-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dlc-dice-btn:hover {
+  background: var(--dlc-bg-input);
+  border-color: var(--dlc-accent);
+  color: var(--dlc-text-primary);
+}
+
+.dlc-die-icon {
+  font-size: 12px;
+}
+
+.dlc-die-count {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  background: var(--dlc-warning);
+  color: #1a1a1a;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dlc-dice-controls-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+}
+
+.dlc-dice-mod-btn {
+  width: 32px;
+  height: 32px;
+  background: var(--dlc-bg-section);
+  border: 1px solid var(--dlc-border);
+  border-radius: 4px;
+  color: var(--dlc-text-primary);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dlc-dice-mod-btn:hover {
+  background: var(--dlc-bg-input);
+  border-color: var(--dlc-accent);
+}
+
+.dlc-dice-modifier {
+  min-width: 30px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--dlc-text-primary);
+}
+
+.dlc-dice-adv-btn {
+  padding: 6px 12px;
+  background: var(--dlc-bg-section);
+  border: 1px solid var(--dlc-border);
+  border-radius: 4px;
+  color: var(--dlc-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dlc-dice-adv-btn:hover {
+  background: var(--dlc-bg-input);
+  border-color: var(--dlc-accent);
+}
+
+.dlc-dice-adv-btn.dlc-adv-active {
+  background: var(--dlc-success);
+  border-color: var(--dlc-success);
+  color: #fff;
+}
+
+.dlc-dice-adv-btn.dlc-dis-active {
+  background: var(--dlc-danger);
+  border-color: var(--dlc-danger);
+  color: #fff;
+}
+
+.dlc-dice-roll-btn {
+  padding: 8px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
