@@ -269,8 +269,6 @@ function setupSocketListeners() {
       // Another player's mode changed, refresh our panel to see the update
       refreshPanel();
     }
-      refreshPanel();
-    }
 
     if (data.action === "globalOverride") {
       if (data.mode === "forceAllManual") {
