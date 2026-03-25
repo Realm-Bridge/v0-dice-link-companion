@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.4.16
+ * Version 1.0.4.17
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1561,8 +1561,9 @@ function setupRollInterception() {
         abilityOptions: abilityLabel, 
         hasAdvantage: true, 
         hasDisadvantage: true,
-        rollMethod: (opts) => actor.rollSkill(skillId, opts),
-        rollArgs: { ability: abilityId }
+        // dnd5e 5.x: rollSkill takes options object with skill ID inside
+        rollMethod: (opts) => actor.rollSkill({ skill: skillId, ability: abilityId, ...opts }),
+        rollArgs: {}
       }
     );
   });
@@ -1588,7 +1589,8 @@ function setupRollInterception() {
       { 
         hasAdvantage: true, 
         hasDisadvantage: true,
-        rollMethod: (opts) => actor.rollAbilityTest(abilityId, opts),
+        // dnd5e 5.x: rollAbilityTest takes options object with ability ID inside
+        rollMethod: (opts) => actor.rollAbilityTest({ ability: abilityId, ...opts }),
         rollArgs: {}
       }
     );
@@ -1616,7 +1618,8 @@ function setupRollInterception() {
       { 
         hasAdvantage: true, 
         hasDisadvantage: true,
-        rollMethod: (opts) => actor.rollAbilitySave(abilityId, opts),
+        // dnd5e 5.x: rollAbilitySave takes options object with ability ID inside
+        rollMethod: (opts) => actor.rollAbilitySave({ ability: abilityId, ...opts }),
         rollArgs: {}
       }
     );
@@ -1776,7 +1779,8 @@ function setupRollInterception() {
       { 
         hasAdvantage: true, 
         hasDisadvantage: true,
-        rollMethod: (opts) => tool.rollToolCheck ? tool.rollToolCheck(opts) : actor.rollToolCheck(tool.id, opts),
+        // dnd5e 5.x: tool checks use item.rollToolCheck with options object
+        rollMethod: (opts) => tool.rollToolCheck ? tool.rollToolCheck(opts) : actor.rollToolCheck({ tool: tool.id, ...opts }),
         rollArgs: {}
       }
     );
