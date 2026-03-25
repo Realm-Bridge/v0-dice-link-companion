@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.4.20
+ * Version 1.0.4.21
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1157,7 +1157,7 @@ function attachDiceTrayListeners(html) {
     try {
       const roll = new Roll(formula);
       await roll.evaluate();
-      await roll.toMessage({
+      await roll.toChat({
         speaker: ChatMessage.getSpeaker(),
         flavor: "Manual Dice Roll"
       });
@@ -1399,7 +1399,7 @@ async function executeDirectRoll(actor, formula, flavor, opts = {}) {
     const fullFlavor = `${flavor}${modeText}`;
     
     // Send to chat
-    await roll.toMessage({
+    await roll.toChat({
       speaker: ChatMessage.getSpeaker({ actor: actor }),
       flavor: fullFlavor,
       rollMode: game.settings.get("core", "rollMode")
