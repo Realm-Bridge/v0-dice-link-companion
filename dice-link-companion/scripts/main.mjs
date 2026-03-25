@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.4.25
+ * Version 1.0.4.26
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1444,10 +1444,16 @@ function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
     return true;
   }
 
-  // If we triggered this roll ourselves, let it through
+  // If we triggered this roll ourselves, let it through but skip the native dialog
   if (bypassNextRoll) {
-    console.log("[v0] Bypass flag set - letting roll through");
+    console.log("[v0] Bypass flag set - letting roll through, disabling native dialog");
     bypassNextRoll = false;
+    
+    // Disable the native configuration dialog since we already collected user input
+    if (dialog) {
+      dialog.configure = false;
+    }
+    
     return true;
   }
   
