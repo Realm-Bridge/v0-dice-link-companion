@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.3
+ * Version 1.0.6.4
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1483,6 +1483,13 @@ function handleDialogRender(app, html, data) {
   
   // Check if this is a roll dialog we should mirror
   if (isRollDialog(app)) {
+    // Skip Roll Resolution dialogs - those are handled by our DiceLinkResolver separately
+    const title = (app.title || "").toLowerCase();
+    if (title.includes("roll resolution") || title.includes("resolver")) {
+      console.log("[Dice Link] Skipping Roll Resolution dialog - handled by resolver");
+      return;
+    }
+    
     console.log("[Dice Link] Detected roll dialog:", app.title);
     
     // Hide the native dialog
@@ -2036,7 +2043,9 @@ function isUserInManualMode() {
   if (globalOverride === "forceAllManual") return true;
   if (globalOverride === "forceAllDigital") return false;
   const myMode = game.settings.get(MODULE_ID, `playerMode_${game.user.id}`) || "digital";
-  return myMode === "manual";
+  const result = myMode === "manual";
+  console.log("[Dice Link] isUserInManualMode check - myMode:", myMode, "result:", result);
+  return result;
 }
 
 /**
