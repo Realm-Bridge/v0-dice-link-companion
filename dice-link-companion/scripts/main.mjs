@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.4.30
+ * Version 1.0.4.32
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1169,7 +1169,7 @@ function attachDiceTrayListeners(html) {
     try {
       const roll = new Roll(formula);
       await roll.evaluate();
-      await roll.toChat({
+      await roll.toMessage({
         speaker: ChatMessage.getSpeaker(),
         flavor: "Manual Dice Roll"
       });
@@ -1415,7 +1415,7 @@ async function executeDirectRoll(actor, formula, flavor, opts = {}) {
     const fullFlavor = `${flavor}${modeText}`;
     
     // Send to chat
-    await roll.toChat({
+    await roll.toMessage({
       speaker: ChatMessage.getSpeaker({ actor: actor }),
       flavor: fullFlavor,
       rollMode: game.settings.get("core", "rollMode")
@@ -1466,6 +1466,10 @@ function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
       // Instead of re-triggering through actor methods (which causes hook loops),
       // directly create and execute the roll, then send to chat
       try {
+        console.log("[v0] onComplete called with userChoice:", userChoice);
+        console.log("[v0] Original formula:", formula);
+        console.log("[v0] Config:", config);
+        
         // Build the roll formula
         let rollFormula = formula;
         
@@ -1500,12 +1504,17 @@ function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
           flavor += " (Disadvantage)";
         }
         
+        console.log("[v0] Final rollFormula:", rollFormula);
+        console.log("[v0] Actor for speaker:", actor);
+        
         // Create and evaluate the roll
         const roll = new Roll(rollFormula);
+        console.log("[v0] Roll created:", roll);
         await roll.evaluate();
+        console.log("[v0] Roll evaluated, total:", roll.total);
         
         // Send to chat
-        await roll.toChat({
+        await roll.toMessage({
           speaker: ChatMessage.getSpeaker({ actor }),
           flavor: flavor,
           rollMode: game.settings.get("core", "rollMode")
@@ -1513,7 +1522,9 @@ function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
         
       } catch (e) {
         console.error("[v0] Error executing roll:", e);
-        ui.notifications.error("Failed to execute roll");
+        console.error("[v0] Error stack:", e.stack);
+        console.error("[v0] Formula was:", formula);
+        ui.notifications.error("Failed to execute roll: " + e.message);
       }
     },
     ...options
@@ -1661,11 +1672,6 @@ function setupRollInterception() {
   // ATTACK ROLLS
   // -------------------------------------------------------------------------
   registerRollHook("dnd5e.preRollAttackV2", "dnd5e.preRollAttack", (config, dialog, ...rest) => {
-    // Skip if midi-qol is active - it has its own hooks that preserve workflow
-    if (game.modules.get("midi-qol")?.active) {
-      return true;
-    }
-    
     const item = config?.subject;
     const actor = item?.parent;
     const actorName = actor?.name || "Unknown";
@@ -1693,11 +1699,6 @@ function setupRollInterception() {
   // DAMAGE ROLLS
   // -------------------------------------------------------------------------
   registerRollHook("dnd5e.preRollDamageV2", "dnd5e.preRollDamage", (config, dialog, ...rest) => {
-    // Skip if midi-qol is active - it has its own hooks that preserve workflow
-    if (game.modules.get("midi-qol")?.active) {
-      return true;
-    }
-    
     const item = config?.subject;
     const actor = item?.parent;
     const actorName = actor?.name || "Unknown";
