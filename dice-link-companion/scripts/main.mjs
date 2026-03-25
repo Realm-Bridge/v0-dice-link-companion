@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.4.32
+ * Version 1.0.4.33
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1343,6 +1343,7 @@ Hooks.once("ready", () => {
 
   setupSocketListeners();
   setupChatButtonHandlers();
+  setupDiceFulfillment();  // Register as a dice fulfillment method
   setupRollInterception();
   setupMidiQolInterception();  // Add midi-qol specific hooks if available
 
@@ -1359,6 +1360,118 @@ Hooks.once("ready", () => {
     }
   }
 });
+
+// ============================================================================
+// DICE FULFILLMENT API INTEGRATION
+// ============================================================================
+
+/**
+ * Custom RollResolver for Dice Link
+ * This handles the actual dice fulfillment when users have configured
+ * dice to use the "dicelink" fulfillment method.
+ */
+class DiceLinkRollResolver extends foundry.dice.RollResolver {
+  
+  /** @override */
+  async resolveResult() {
+    // Get the terms that need fulfillment
+    const termsToFulfill = this.roll.terms.filter(t => 
+      t instanceof foundry.dice.terms.DiceTerm && !t._evaluated
+    );
+    
+    if (termsToFulfill.length === 0) {
+      return super.resolveResult();
+    }
+    
+    // Build info about dice needed
+    const diceNeeded = [];
+    for (const term of termsToFulfill) {
+      for (let i = 0; i < term.number; i++) {
+        diceNeeded.push({
+          faces: term.faces,
+          term: term,
+          index: i
+        });
+      }
+    }
+    
+    // Show the Dice Link panel with the dice request
+    return new Promise((resolve) => {
+      const formula = this.roll.formula;
+      
+      pendingRollRequest = {
+        title: "Dice Roll",
+        subtitle: "",
+        formula: formula,
+        diceNeeded: diceNeeded,
+        isFulfillment: true,
+        situationalBonus: "",
+        hasAdvantage: false,
+        hasDisadvantage: false,
+        hasCritical: false,
+        onComplete: (userChoice) => {
+          if (userChoice === "cancel") {
+            pendingRollRequest = null;
+            refreshPanel();
+            resolve(null);
+            return;
+          }
+          
+          // userChoice.diceResults should be an array of results
+          // matching the diceNeeded array
+          const results = userChoice.diceResults || [];
+          
+          let resultIndex = 0;
+          for (const term of termsToFulfill) {
+            term.results = [];
+            for (let i = 0; i < term.number; i++) {
+              const value = results[resultIndex] || Math.ceil(Math.random() * term.faces);
+              term.results.push({ result: value, active: true });
+              resultIndex++;
+            }
+            term._evaluated = true;
+          }
+          
+          pendingRollRequest = null;
+          refreshPanel();
+          resolve(this.roll);
+        }
+      };
+      
+      // Open/refresh the panel
+      collapsedSections.rollRequest = false;
+      const panelIsOpen = currentPanelDialog && currentPanelDialog.rendered;
+      if (!panelIsOpen) {
+        openPanel();
+      } else {
+        refreshPanel();
+      }
+    });
+  }
+}
+
+/**
+ * Register Dice Link as a dice fulfillment method in Foundry's core system.
+ * This allows users to configure dice to be fulfilled by Dice Link via
+ * Configure Settings > Configure Dice.
+ */
+function setupDiceFulfillment() {
+  // Check if the fulfillment API exists (Foundry V12+)
+  if (!CONFIG.Dice?.fulfillment?.methods) {
+    console.log("[Dice Link] Dice fulfillment API not available (requires Foundry V12+)");
+    return;
+  }
+  
+  // Register Dice Link as a fulfillment method
+  CONFIG.Dice.fulfillment.methods.dicelink = {
+    label: "Dice Link (Manual/Physical)",
+    icon: "fa-dice-d20",
+    interactive: true,
+    resolver: DiceLinkRollResolver
+  };
+  
+  console.log("[Dice Link] Registered as dice fulfillment method");
+}
 
 // ============================================================================
 // ROLL INTERCEPTION
