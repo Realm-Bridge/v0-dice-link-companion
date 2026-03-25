@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.13
+ * Version 1.0.6.14
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -2054,39 +2054,26 @@ function setupDiceFulfillment() {
 
 /**
  * Handler function for dice-link fulfillment.
- * This is called for each die that needs to be fulfilled.
- * We collect all dice, show our UI, then return results.
+ * According to Foundry's API, this is called ONCE PER DIE, not once per term.
+ * For 2d20kh, it will be called twice - once for each d20.
+ * We return a single number each time.
  */
-async function diceLinkFulfillmentHandler(term) {
-  console.log("[Dice Link] Handler called for term:", term.expression);
-  
+async function diceLinkFulfillmentHandler(term, index) {
   // Get the denomination (d4, d6, d8, d10, d12, d20, d100)
   const faces = term.faces;
   const denomination = `d${faces}`;
   const count = term.number || 1;
   
-  console.log("[Dice Link] Need", count, denomination, "dice");
+  // Index tells us which die in the term we're fulfilling (0-based)
+  const dieNumber = (index !== undefined ? index : 0) + 1;
   
-  // Collect all dice results from user
-  const userResults = [];
-  for (let i = 0; i < count; i++) {
-    // Wait for user to enter the die result via our panel
-    const result = await waitForDiceResult(denomination, faces, i + 1, count);
-    userResults.push(result);
-  }
+  console.log("[Dice Link] Handler called for", denomination, "- die", dieNumber, "of", count);
   
-  console.log("[Dice Link] User entered results:", userResults);
+  // Wait for user to enter this single die result
+  const result = await waitForDiceResult(denomination, faces, dieNumber, count);
   
-  // For non-interactive handlers, we return the numeric results directly
-  // Foundry will handle creating the result objects on the term
-  // Return a single number for single die, or array for multiple dice
-  if (userResults.length === 1) {
-    console.log("[Dice Link] Returning single result:", userResults[0]);
-    return userResults[0];
-  }
-  
-  console.log("[Dice Link] Returning multiple results:", userResults);
-  return userResults;
+  console.log("[Dice Link] Returning result:", result);
+  return result;
 }
 
 // Store for pending dice entry
