@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.4.31
+ * Version 1.0.4.32
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1169,7 +1169,7 @@ function attachDiceTrayListeners(html) {
     try {
       const roll = new Roll(formula);
       await roll.evaluate();
-      await roll.toChat({
+      await roll.toMessage({
         speaker: ChatMessage.getSpeaker(),
         flavor: "Manual Dice Roll"
       });
@@ -1415,7 +1415,7 @@ async function executeDirectRoll(actor, formula, flavor, opts = {}) {
     const fullFlavor = `${flavor}${modeText}`;
     
     // Send to chat
-    await roll.toChat({
+    await roll.toMessage({
       speaker: ChatMessage.getSpeaker({ actor: actor }),
       flavor: fullFlavor,
       rollMode: game.settings.get("core", "rollMode")
@@ -1514,7 +1514,7 @@ function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
         console.log("[v0] Roll evaluated, total:", roll.total);
         
         // Send to chat
-        await roll.toChat({
+        await roll.toMessage({
           speaker: ChatMessage.getSpeaker({ actor }),
           flavor: flavor,
           rollMode: game.settings.get("core", "rollMode")
@@ -1672,11 +1672,6 @@ function setupRollInterception() {
   // ATTACK ROLLS
   // -------------------------------------------------------------------------
   registerRollHook("dnd5e.preRollAttackV2", "dnd5e.preRollAttack", (config, dialog, ...rest) => {
-    // Skip if midi-qol is active - it has its own hooks that preserve workflow
-    if (game.modules.get("midi-qol")?.active) {
-      return true;
-    }
-    
     const item = config?.subject;
     const actor = item?.parent;
     const actorName = actor?.name || "Unknown";
@@ -1704,11 +1699,6 @@ function setupRollInterception() {
   // DAMAGE ROLLS
   // -------------------------------------------------------------------------
   registerRollHook("dnd5e.preRollDamageV2", "dnd5e.preRollDamage", (config, dialog, ...rest) => {
-    // Skip if midi-qol is active - it has its own hooks that preserve workflow
-    if (game.modules.get("midi-qol")?.active) {
-      return true;
-    }
-    
     const item = config?.subject;
     const actor = item?.parent;
     const actorName = actor?.name || "Unknown";
