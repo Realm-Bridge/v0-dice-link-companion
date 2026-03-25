@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.4.19
+ * Version 1.0.4.20
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1422,13 +1422,21 @@ let bypassNextRoll = false;
  * This ensures the roll doesn't proceed to dice fulfillment until user makes a choice.
  */
 function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
-  if (!isUserInManualMode()) return true; // Not in manual mode, let Foundry handle it normally
+  console.log("[v0] interceptRoll called for:", title, "bypassNextRoll:", bypassNextRoll);
+  
+  if (!isUserInManualMode()) {
+    console.log("[v0] Not in manual mode, passing through");
+    return true;
+  }
 
   // If we triggered this roll ourselves, let it through
   if (bypassNextRoll) {
+    console.log("[v0] Bypass flag set - letting roll through");
     bypassNextRoll = false;
     return true;
   }
+  
+  console.log("[v0] Intercepting roll, returning false to cancel");
 
   // Store everything needed to re-trigger the roll later
   pendingRollRequest = {
@@ -1462,6 +1470,7 @@ function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
       
       if (rollMethod) {
         // Set bypass flag so we don't intercept the re-triggered roll
+        console.log("[v0] Setting bypassNextRoll = true");
         bypassNextRoll = true;
         
         const rollOpts = {
@@ -1477,12 +1486,18 @@ function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
           rollOpts.parts = [...(rollArgs.parts || []), userChoice.situationalBonus];
         }
         
+        console.log("[v0] About to call rollMethod with:", rollOpts);
+        
         try {
-          await rollMethod(rollOpts);
+          const result = await rollMethod(rollOpts);
+          console.log("[v0] rollMethod returned:", result);
+          console.log("[v0] bypassNextRoll after call:", bypassNextRoll);
         } catch (e) {
           console.error("[v0] Error re-triggering roll:", e);
           bypassNextRoll = false;
         }
+      } else {
+        console.error("[v0] No rollMethod available!");
       }
     },
     ...options
