@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.4
+ * Version 1.0.6.5
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -63,6 +63,30 @@ async function applyDigitalDice() {
       CONFIG.Dice.fulfillment.dice.d20 = "";
       CONFIG.Dice.fulfillment.dice.d100 = "";
     }
+  }
+  
+  // Also try to reset the user's core dice configuration setting
+  // This is what Foundry's Configure Dice menu sets
+  try {
+    const diceConfig = game.settings.get("core", "diceConfiguration");
+    if (diceConfig && typeof diceConfig === "object") {
+      // Check if any dice are set to manual or dice-link
+      let needsUpdate = false;
+      const newConfig = {...diceConfig};
+      for (const key of Object.keys(newConfig)) {
+        if (newConfig[key] === "manual" || newConfig[key] === "dice-link") {
+          newConfig[key] = "";
+          needsUpdate = true;
+        }
+      }
+      if (needsUpdate) {
+        await game.settings.set("core", "diceConfiguration", newConfig);
+        console.log("[Dice Link] Reset core diceConfiguration to digital");
+      }
+    }
+  } catch (e) {
+    // Setting may not exist or be inaccessible - that's OK
+    console.log("[Dice Link] Could not reset core diceConfiguration:", e.message);
   }
   
   console.log("[Dice Link] Removed dice-link fulfillment, restored digital dice");
@@ -2043,9 +2067,7 @@ function isUserInManualMode() {
   if (globalOverride === "forceAllManual") return true;
   if (globalOverride === "forceAllDigital") return false;
   const myMode = game.settings.get(MODULE_ID, `playerMode_${game.user.id}`) || "digital";
-  const result = myMode === "manual";
-  console.log("[Dice Link] isUserInManualMode check - myMode:", myMode, "result:", result);
-  return result;
+  return myMode === "manual";
 }
 
 /**
