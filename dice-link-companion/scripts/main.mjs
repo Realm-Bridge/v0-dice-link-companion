@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.1
+ * Version 1.0.6.2
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1442,27 +1442,33 @@ function setupDialogMirroring() {
   console.log("[Dice Link] Setting up dialog mirroring...");
   
   // Hook into ApplicationV2 renders (dnd5e 4.x+ uses these)
-  // The hook pattern for ApplicationV2 is "renderApplication" for all apps
+  // Only log when it's actually a roll dialog to reduce console spam
   Hooks.on("renderApplication", (app, html, data) => {
-    console.log("[Dice Link] renderApplication fired:", app.constructor.name, app.title);
+    if (isRollDialog(app)) {
+      console.log("[Dice Link] Roll dialog detected via renderApplication:", app.title);
+    }
     handleDialogRender(app, html, data);
   });
   
   // Also try the legacy Dialog hook for backwards compatibility
   Hooks.on("renderDialog", (app, html, data) => {
-    console.log("[Dice Link] renderDialog fired:", app.constructor.name, app.title);
+    if (isRollDialog(app)) {
+      console.log("[Dice Link] Roll dialog detected via renderDialog:", app.title);
+    }
     handleDialogRender(app, html, data);
   });
   
   // Try specific dnd5e roll configuration dialog hooks
   Hooks.on("renderRollConfigurationDialog", (app, html, data) => {
-    console.log("[Dice Link] renderRollConfigurationDialog fired:", app.title);
+    console.log("[Dice Link] Roll dialog via renderRollConfigurationDialog:", app.title);
     handleDialogRender(app, html, data);
   });
   
   // Generic hook for any application render - cast wide net
   Hooks.on("renderApplicationV2", (app, html, data) => {
-    console.log("[Dice Link] renderApplicationV2 fired:", app.constructor.name);
+    if (isRollDialog(app)) {
+      console.log("[Dice Link] Roll dialog detected via renderApplicationV2:", app.title);
+    }
     handleDialogRender(app, html, data);
   });
 }
@@ -1522,7 +1528,7 @@ function mirrorDialogToPanel(app, html, data) {
       return;
     }
     
-    console.log("[Dice Link] Mirroring dialog data:", formData);
+    console.log("[Dice Link] Mirroring dialog:", formData.title);
     
     // Store the dialog reference and data
     mirroredDialog = {
@@ -1611,7 +1617,8 @@ function extractDialogFormData(app, html) {
     data.formula = formulaElement.textContent.trim();
   }
   
-  console.log("[Dice Link] Extracted form data:", data);
+  // Only log button count to avoid console spam
+  console.log("[Dice Link] Extracted form data with", data.buttons.length, "buttons for:", data.title);
   
   return data;
 }
@@ -1673,11 +1680,28 @@ async function submitMirroredDialog(userChoice) {
   
   const { app, html, data: formData } = mirroredDialog;
   
+  // Normalize html to a DOM element
+  let element;
+  if (html instanceof jQuery) {
+    element = html[0];
+  } else if (html?.element) {
+    element = html.element;
+  } else if (html instanceof HTMLElement) {
+    element = html;
+  } else {
+    element = formData.element;
+  }
+  
+  if (!element) {
+    console.error("[Dice Link] Could not find dialog element to submit");
+    return;
+  }
+  
   try {
     // Apply user choices to form inputs in the hidden dialog
     if (userChoice.formValues) {
       for (const [name, value] of Object.entries(userChoice.formValues)) {
-        const input = html.querySelector(`input[name="${name}"], select[name="${name}"], textarea[name="${name}"]`);
+        const input = element.querySelector(`input[name="${name}"], select[name="${name}"], textarea[name="${name}"]`);
         if (input) {
           if (input.type === "checkbox") {
             input.checked = value;
@@ -1690,27 +1714,47 @@ async function submitMirroredDialog(userChoice) {
       }
     }
     
-    // Find and click the submit button
-    const submitButton = formData.buttons.find(btn => 
-      btn.label.toLowerCase().includes("ok") || 
-      btn.label.toLowerCase().includes("roll") ||
-      btn.label.toLowerCase().includes("submit")
-    );
+    // Find the button that matches the user's choice
+    // userChoice.buttonLabel contains the label they clicked (e.g., "Advantage", "Normal", "Disadvantage")
+    let targetButton = null;
     
-    if (submitButton?.element) {
-      console.log("[Dice Link] Submitting mirrored dialog with button:", submitButton.label);
+    if (userChoice.buttonLabel) {
+      // Find button with matching label
+      targetButton = formData.buttons.find(btn => 
+        btn.label.toLowerCase().trim() === userChoice.buttonLabel.toLowerCase().trim()
+      );
+    }
+    
+    // Fallback: try to find any submit-like button
+    if (!targetButton) {
+      targetButton = formData.buttons.find(btn => 
+        btn.label.toLowerCase().includes("ok") || 
+        btn.label.toLowerCase().includes("roll") ||
+        btn.label.toLowerCase().includes("submit") ||
+        btn.label.toLowerCase().includes("normal")
+      );
+    }
+    
+    if (targetButton?.element) {
+      console.log("[Dice Link] Clicking button in hidden dialog:", targetButton.label);
       
-      // Make dialog visible temporarily, click button, then hide again
-      html.style.display = "block";
-      submitButton.element.click();
+      // Make dialog visible temporarily so click works
+      element.style.display = "block";
+      
+      // Click the button
+      targetButton.element.click();
       
       // Small delay to let the click process
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      // Hide again if still rendered
-      if (html.style.display !== "none") {
-        html.style.display = "none";
+      // The dialog should close itself after the button click
+      // But hide it just in case
+      if (element.style.display !== "none") {
+        element.style.display = "none";
       }
+    } else {
+      console.error("[Dice Link] Could not find target button:", userChoice.buttonLabel);
+      console.log("[Dice Link] Available buttons:", formData.buttons.map(b => b.label));
     }
   } catch (e) {
     console.error("[Dice Link] Error submitting mirrored dialog:", e);
