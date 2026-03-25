@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.4.21
+ * Version 1.0.4.22
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -426,59 +426,71 @@ async function setManualRollsPermission(role, enabled) {
 }
 
 // ============================================================================
-// CUSTOM APPLICATION CLASS (for proper Foundry header buttons)
+// CUSTOM APPLICATION CLASS (ApplicationV2 for Foundry V13+)
 // ============================================================================
 
-class DiceLinkCompanionApp extends Application {
+const { ApplicationV2 } = foundry.applications.api;
+
+class DiceLinkCompanionApp extends ApplicationV2 {
   constructor(isGM, options = {}) {
     super(options);
     this._isGM = isGM;
   }
 
-  static get defaultOptions() {
-    return foundry.utils.mergeObject(super.defaultOptions, {
-      id: "dice-link-companion-panel",
-      title: "Dice Link Companion",
-      classes: ["dlc-dialog"],
-      resizable: true,
-      minimizable: true,
-      popOut: true,
+  static DEFAULT_OPTIONS = {
+    id: "dice-link-companion-panel",
+    classes: ["dlc-dialog"],
+    position: {
       width: 480,
       height: "auto"
-    });
+    },
+    window: {
+      title: "Dice Link Companion",
+      resizable: true,
+      minimizable: true
+    }
+  };
+
+  get title() {
+    return "Dice Link Companion";
   }
 
   get isGM() {
     return this._isGM;
   }
 
-  _getHeaderButtons() {
-    const buttons = super._getHeaderButtons();
-    // Foundry and other modules (PopOut!, Theme Settings, etc.) inject buttons here
-    // automatically via the getApplicationHeaderButtons hook
-    return buttons;
-  }
-
-  async getData(options = {}) {
+  async _prepareContext(options) {
     return {};
   }
 
-  async _renderInner(data) {
+  async _renderHTML(context, options) {
     const content = this._isGM ? generateGMPanelContent() : generatePlayerPanelContent();
-    const html = $(`<div class="window-content">${content}</div>`);
-    return html;
+    const wrapper = document.createElement("div");
+    wrapper.classList.add("window-content");
+    wrapper.innerHTML = content;
+    return wrapper;
   }
 
-  activateListeners(html) {
-    super.activateListeners(html);
+  _replaceHTML(result, content, options) {
+    // Clear and replace the content
+    content.replaceChildren(result);
+  }
+
+  _onRender(context, options) {
+    // Get the HTML element (not jQuery in V2)
+    const html = this.element;
+    
+    // Wrap in jQuery for compatibility with existing listener code
+    const $html = $(html);
+    
     if (this._isGM) {
-      attachGMPanelListeners(html);
+      attachGMPanelListeners($html);
     } else {
-      attachPlayerPanelListeners(html);
+      attachPlayerPanelListeners($html);
     }
   }
 
-  close(options = {}) {
+  async close(options = {}) {
     currentPanelDialog = null;
     return super.close(options);
   }
@@ -1507,7 +1519,7 @@ function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
   collapsedSections.rollRequest = false;
   
   // Check if panel is open and rendered
-  const panelIsOpen = currentPanelDialog && currentPanelDialog.rendered && currentPanelDialog._state === Application.RENDER_STATES.RENDERED;
+    const panelIsOpen = currentPanelDialog && currentPanelDialog.rendered;
   
   if (!panelIsOpen) {
     openPanel();
