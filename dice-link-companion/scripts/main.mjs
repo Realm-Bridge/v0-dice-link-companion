@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.9
+ * Version 1.0.6.10
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -534,30 +534,35 @@ function generatePendingRollHTML(roll) {
   
   // STEP 2: Dice Entry (isFulfillment = true)
   if (roll.isFulfillment && roll.diceNeeded) {
-    const diceInputs = roll.diceNeeded.map((die, index) => `
-      <div class="dlc-dice-input-row">
-        <label class="dlc-dice-label">d${die.faces}</label>
-        <input type="number" 
-               class="dlc-dice-value-input" 
-               data-die-index="${index}" 
-               data-die-faces="${die.faces}"
-               min="1" 
-               max="${die.faces}" 
-               placeholder="1-${die.faces}">
-      </div>
-    `).join('');
+    const diceInputs = roll.diceNeeded.map((die, index) => {
+      // die.type is e.g. "d20", die.faces is the number of faces
+      const faces = die.faces || parseInt((die.type || "d20").replace("d", "")) || 20;
+      const dieLabel = die.type || `d${faces}`;
+      return `
+        <div class="dlc-dice-input-row">
+          <label class="dlc-dice-label">${dieLabel}</label>
+          <input type="number" 
+                 class="dlc-dice-value-input" 
+                 data-die-index="${index}" 
+                 data-die-faces="${faces}"
+                 min="1" 
+                 max="${faces}" 
+                 placeholder="1-${faces}">
+        </div>
+      `;
+    }).join('');
     
     return `
       <div class="dlc-pending-roll dlc-dice-entry-step">
         <div class="dlc-pending-roll-header">
-          <h4 class="dlc-pending-roll-title">Enter Dice Results</h4>
-          <p class="dlc-pending-roll-subtitle">${roll.formula}</p>
+          <h4 class="dlc-pending-roll-title">${roll.title || "Enter Dice Results"}</h4>
+          ${roll.subtitle ? `<p class="dlc-pending-roll-subtitle">${roll.subtitle}</p>` : ''}
         </div>
         <div class="dlc-dice-inputs">
           ${diceInputs}
         </div>
         <div class="dlc-pending-roll-actions">
-          <button type="button" class="dlc-roll-action-btn dlc-submit-dice-btn dlc-btn-success">Submit Results</button>
+          <button type="button" class="dlc-roll-action-btn dlc-submit-dice-btn dlc-btn-success">SUBMIT RESULTS</button>
         </div>
         <div class="dlc-pending-roll-footer">
           <button type="button" class="dlc-roll-cancel-btn">Cancel Roll</button>
@@ -1293,9 +1298,9 @@ function attachDiceTrayListeners(html) {
       diceResults.push(clampedValue);
     });
     
-    // Call the onComplete callback with the dice results
+    // Call the onComplete callback with the dice results array directly
     if (pendingRollRequest.onComplete) {
-      pendingRollRequest.onComplete({ diceResults });
+      pendingRollRequest.onComplete(diceResults);
     }
   });
 
@@ -2060,11 +2065,8 @@ async function diceLinkFulfillmentHandler(term) {
   
   for (let i = 0; i < count; i++) {
     // Wait for user to enter the die result via our panel
-    const result = await waitForDiceResult(denomination, i + 1, count);
+    const result = await waitForDiceResult(denomination, faces, i + 1, count);
     results.push(result);
-    
-    // Register this result with Foundry
-    Roll.registerResult("dice-link", denomination, result);
   }
   
   console.log("[Dice Link] Handler returning results:", results);
@@ -2077,27 +2079,28 @@ let pendingDiceEntry = null;
 /**
  * Wait for user to enter a die result via our panel UI.
  */
-async function waitForDiceResult(denomination, dieNumber, totalDice) {
+async function waitForDiceResult(denomination, faces, dieNumber, totalDice) {
   console.log("[Dice Link] Waiting for", denomination, "result (die", dieNumber, "of", totalDice, ")");
   
   return new Promise((resolve) => {
     // Store the resolver so our panel can call it when user enters a value
     pendingDiceEntry = {
       denomination,
+      faces,
       dieNumber,
       totalDice,
       resolve
     };
     
     // Update our panel to show dice entry UI
-    showDiceEntryUI(denomination, dieNumber, totalDice);
+    showDiceEntryUI(denomination, faces, dieNumber, totalDice);
   });
 }
 
 /**
  * Show the dice entry UI in our panel
  */
-function showDiceEntryUI(denomination, dieNumber, totalDice) {
+function showDiceEntryUI(denomination, faces, dieNumber, totalDice) {
   // Set up a pending roll request for dice entry
   pendingRollRequest = {
     title: `Enter ${denomination} Result`,
@@ -2106,14 +2109,18 @@ function showDiceEntryUI(denomination, dieNumber, totalDice) {
     step: "diceEntry",
     diceNeeded: [{
       type: denomination,
+      faces: faces,
       index: dieNumber - 1,
       count: 1
     }],
     onComplete: (values) => {
-      if (pendingDiceEntry && values && values.length > 0) {
-        console.log("[Dice Link] Dice entry completed with value:", values[0]);
-        pendingDiceEntry.resolve(values[0]);
+      if (pendingDiceEntry && Array.isArray(values) && values.length > 0) {
+        const numericValue = parseInt(values[0]);
+        console.log("[Dice Link] Dice entry completed with value:", numericValue);
+        pendingDiceEntry.resolve(numericValue);
         pendingDiceEntry = null;
+        pendingRollRequest = null;
+        refreshPanel();
       }
     }
   };
