@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.14
+ * Version 1.0.6.15
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1447,6 +1447,7 @@ Hooks.once("ready", () => {
   setupDialogMirroring(); // Mirror native dialogs to our panel (v1.0.6.0)
   setupRollInterception();
   setupMidiQolInterception();  // Add midi-qol specific hooks if available
+  setupInitiativeInterception();  // Special handling for initiative (bypasses fulfillment)
 
   const globalOverride = game.settings.get(MODULE_ID, "globalOverride");
   
@@ -1509,6 +1510,24 @@ function setupDialogMirroring() {
       console.log("[Dice Link] Roll dialog detected via renderApplicationV2:", app.title);
     }
     handleDialogRender(app, html, data);
+  });
+  
+  // Hook into dnd5e initiative configuration
+  // Initiative bypasses the fulfillment system, so we need special handling
+  Hooks.on("dnd5e.preConfigureInitiative", (config, dialog, message) => {
+    console.log("[Dice Link] Initiative pre-configure hook triggered");
+    if (isUserInManualMode()) {
+      // Mark this roll to use our fulfillment
+      console.log("[Dice Link] Setting initiative to use manual fulfillment");
+    }
+  });
+  
+  // Also hook into the roll itself to intercept initiative
+  Hooks.on("dnd5e.preRollInitiative", (actor, roll) => {
+    console.log("[Dice Link] Initiative pre-roll hook triggered for:", actor?.name);
+    if (isUserInManualMode()) {
+      console.log("[Dice Link] Manual mode active for initiative");
+    }
   });
 }
 
@@ -2559,6 +2578,97 @@ function setupMidiQolInterception() {
     }
     
     return false;
+  });
+}
+
+// ============================================================================
+// INITIATIVE INTERCEPTION
+// Initiative rolls bypass the fulfillment system, so we need special handling
+// ============================================================================
+
+function setupInitiativeInterception() {
+  console.log("[Dice Link] Setting up initiative interception...");
+  
+  // Hook into dnd5e's pre-roll initiative hook
+  // This fires before the initiative roll is made
+  Hooks.on("dnd5e.preRollInitiative", async (actor, roll) => {
+    console.log("[Dice Link] preRollInitiative hook for:", actor?.name);
+    
+    if (!isUserInManualMode()) {
+      console.log("[Dice Link] Digital mode - allowing normal initiative");
+      return true; // Let normal roll proceed
+    }
+    
+    console.log("[Dice Link] Manual mode - intercepting initiative roll");
+    // For now, we log this - full implementation would prompt for manual entry
+    // The challenge is that this hook can't easily be made async to wait for user input
+    return true;
+  });
+  
+  // For manual initiative, we can use the combatant update hook
+  // After initiative is rolled, we can detect it and prompt for correction
+  Hooks.on("updateCombatant", (combatant, changes, options, userId) => {
+    if (changes.initiative !== undefined && userId === game.user.id) {
+      console.log("[Dice Link] Combatant initiative updated:", combatant.name, "to", changes.initiative);
+      
+      if (isUserInManualMode() && !combatant._manualInitiativeSet) {
+        console.log("[Dice Link] Manual mode - initiative was auto-rolled, prompting for manual entry");
+        // Show a prompt to allow manual override
+        promptManualInitiative(combatant, changes.initiative);
+      }
+    }
+  });
+}
+
+/**
+ * Prompt user to enter manual initiative value
+ */
+async function promptManualInitiative(combatant, autoRolledValue) {
+  // Show our dice entry UI for initiative
+  return new Promise((resolve) => {
+    pendingRollRequest = {
+      title: `Initiative: ${combatant.name}`,
+      subtitle: `Auto-rolled: ${autoRolledValue} - Enter your d20 result`,
+      isFulfillment: true,
+      step: "diceEntry",
+      diceNeeded: [{
+        type: "d20",
+        faces: 20,
+        index: 0,
+        count: 1
+      }],
+      onComplete: async (values) => {
+        if (Array.isArray(values) && values.length > 0) {
+          const manualD20 = parseInt(values[0]);
+          console.log("[Dice Link] Manual initiative d20:", manualD20);
+          
+          // Calculate the new initiative with the manual roll
+          // Initiative = d20 + dex mod + any bonuses
+          // We need to extract the modifier from the auto-rolled value
+          const actor = combatant.actor;
+          const initBonus = actor?.system?.attributes?.init?.total || 0;
+          const newInitiative = manualD20 + initBonus;
+          
+          console.log("[Dice Link] Setting initiative to:", newInitiative, "(d20:", manualD20, "+ bonus:", initBonus, ")");
+          
+          // Mark this combatant so we don't re-prompt
+          combatant._manualInitiativeSet = true;
+          
+          // Update the combatant's initiative
+          await combatant.update({ initiative: newInitiative });
+          
+          combatant._manualInitiativeSet = false;
+          ui.notifications.info(`${combatant.name} initiative set to ${newInitiative}`);
+        }
+        
+        pendingRollRequest = null;
+        refreshPanel();
+        resolve();
+      }
+    };
+    
+    collapsedSections.rollRequest = false;
+    refreshPanel();
   });
 }
 
