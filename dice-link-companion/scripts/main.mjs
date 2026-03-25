@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.17
+ * Version 1.0.6.19
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1219,26 +1219,63 @@ function attachDiceTrayListeners(html) {
 
   // Roll button
   html.find(".dlc-dice-roll-btn").click(async function() {
-    const formula = html.find(".dlc-dice-formula-input").val().replace(/^\/r\s*/, "").trim();
+    let formula = html.find(".dlc-dice-formula-input").val().replace(/^\/r\s*/, "").trim();
     if (!formula) {
       ui.notifications.warn("Enter a dice formula first.");
       return;
     }
     
+    // Apply advantage/disadvantage to d20 rolls
+    if (advMode === "advantage") {
+      // Replace 1d20 with 2d20kh (keep highest)
+      formula = formula.replace(/(\d*)d20/gi, (match, count) => {
+        const num = parseInt(count) || 1;
+        return `${num * 2}d20kh${num}`;
+      });
+    } else if (advMode === "disadvantage") {
+      // Replace 1d20 with 2d20kl (keep lowest)
+      formula = formula.replace(/(\d*)d20/gi, (match, count) => {
+        const num = parseInt(count) || 1;
+        return `${num * 2}d20kl${num}`;
+      });
+    }
+    
+    // Add flavor text for advantage/disadvantage
+    const flavorText = advMode !== "normal" 
+      ? `Manual Dice Roll (${advMode === "advantage" ? "Advantage" : "Disadvantage"})` 
+      : "Manual Dice Roll";
+    
+    // In manual mode, we need to collect dice values BEFORE rolling
+    // so that cancel actually prevents the roll
+    if (isUserInManualMode()) {
+      try {
+        const result = await executeDiceTrayRollManually(formula, flavorText, html);
+        if (result === "cancelled") {
+          return; // Don't reset, let user try again or modify
+        }
+        // Reset the dice tray on success
+        resetDiceTray(html, diceCounts);
+        advMode = "normal";
+      } catch (e) {
+        console.error("[Dice Link] Manual roll error:", e);
+        ui.notifications.error("Invalid dice formula.");
+      }
+      return;
+    }
+    
+    // Digital mode - normal roll
     try {
       const roll = new Roll(formula);
       await roll.evaluate();
+      
       await roll.toMessage({
         speaker: ChatMessage.getSpeaker(),
-        flavor: "Manual Dice Roll"
+        flavor: flavorText
       });
       
       // Reset the dice tray
-      Object.keys(diceCounts).forEach(k => diceCounts[k] = 0);
-      currentModifier = 0;
-      html.find(".dlc-die-count").text("0").hide();
-      html.find(".dlc-dice-modifier").text("0");
-      html.find(".dlc-dice-formula-input").val("/r ");
+      resetDiceTray(html, diceCounts);
+      advMode = "normal";
     } catch (e) {
       ui.notifications.error("Invalid dice formula.");
     }
@@ -2165,6 +2202,161 @@ async function waitForDiceResult(denomination, faces, dieNumber, totalDice) {
     
     // Update our panel to show dice entry UI
     showDiceEntryUI(denomination, faces, dieNumber, totalDice);
+  });
+}
+
+/**
+ * Reset the dice tray UI
+ */
+function resetDiceTray(html, diceCounts) {
+  Object.keys(diceCounts).forEach(k => diceCounts[k] = 0);
+  html.find(".dlc-die-count").text("0").hide();
+  html.find(".dlc-dice-modifier").text("0");
+  html.find(".dlc-dice-formula-input").val("/r ");
+  html.find(".dlc-dice-adv-btn").text("ADV/DIS").removeClass("dlc-adv-active dlc-dis-active");
+}
+
+/**
+ * Execute a dice tray roll manually - collect values BEFORE rolling
+ * Returns "cancelled" if user cancels, otherwise completes the roll
+ */
+async function executeDiceTrayRollManually(formula, flavorText, html) {
+  // Parse the formula to find dice terms
+  const roll = new Roll(formula);
+  
+  // We need to identify all dice in the formula and collect manual values
+  // Parse dice patterns like 2d20kh, 1d6, 3d8, etc.
+  const dicePattern = /(\d*)d(\d+)(kh\d*|kl\d*)?/gi;
+  const diceTerms = [];
+  let match;
+  
+  while ((match = dicePattern.exec(formula)) !== null) {
+    const count = parseInt(match[1]) || 1;
+    const faces = parseInt(match[2]);
+    const modifier = match[3] || ""; // kh, kl, etc.
+    diceTerms.push({ count, faces, modifier, fullMatch: match[0] });
+  }
+  
+  if (diceTerms.length === 0) {
+    // No dice in formula, just evaluate as-is (probably just modifiers)
+    await roll.evaluate();
+    await roll.toMessage({ speaker: ChatMessage.getSpeaker(), flavor: flavorText });
+    return "success";
+  }
+  
+  // Collect values for all dice
+  const collectedValues = [];
+  let totalDice = diceTerms.reduce((sum, t) => sum + t.count, 0);
+  let currentDie = 0;
+  
+  // Reset cancellation flag
+  diceEntryCancelled = false;
+  
+  for (const term of diceTerms) {
+    const termValues = [];
+    for (let i = 0; i < term.count; i++) {
+      currentDie++;
+      
+      if (diceEntryCancelled) {
+        return "cancelled";
+      }
+      
+      const value = await waitForDiceTrayEntry(`d${term.faces}`, term.faces, currentDie, totalDice);
+      
+      if (value === null || diceEntryCancelled) {
+        return "cancelled";
+      }
+      
+      termValues.push(value);
+    }
+    collectedValues.push({ term, values: termValues });
+  }
+  
+  // Now build a deterministic formula with the collected values
+  let deterministicFormula = formula;
+  
+  for (const { term, values } of collectedValues) {
+    // Replace the dice term with the actual values
+    // For kh/kl modifiers, we need to handle them specially
+    let replacement;
+    if (term.modifier.startsWith("kh")) {
+      // Keep highest - sort descending and take the first N
+      const keepCount = parseInt(term.modifier.slice(2)) || 1;
+      const sorted = [...values].sort((a, b) => b - a);
+      const kept = sorted.slice(0, keepCount);
+      replacement = `(${kept.join(" + ")})`;
+    } else if (term.modifier.startsWith("kl")) {
+      // Keep lowest - sort ascending and take the first N
+      const keepCount = parseInt(term.modifier.slice(2)) || 1;
+      const sorted = [...values].sort((a, b) => a - b);
+      const kept = sorted.slice(0, keepCount);
+      replacement = `(${kept.join(" + ")})`;
+    } else {
+      // No modifier, sum all values
+      replacement = `(${values.join(" + ")})`;
+    }
+    
+    deterministicFormula = deterministicFormula.replace(term.fullMatch, replacement);
+  }
+  
+  // Now evaluate and send the deterministic formula
+  const finalRoll = new Roll(deterministicFormula);
+  await finalRoll.evaluate();
+  await finalRoll.toMessage({ 
+    speaker: ChatMessage.getSpeaker(), 
+    flavor: flavorText 
+  });
+  
+  return "success";
+}
+
+/**
+ * Wait for dice tray manual entry (similar to waitForDiceResult but for dice tray)
+ */
+async function waitForDiceTrayEntry(denomination, faces, dieNumber, totalDice) {
+  if (diceEntryCancelled) {
+    return null;
+  }
+  
+  console.log("[Dice Link] Dice tray waiting for", denomination, "result (die", dieNumber, "of", totalDice, ")");
+  
+  return new Promise((resolve) => {
+    pendingDiceEntry = {
+      denomination,
+      faces,
+      dieNumber,
+      totalDice,
+      resolve,
+      isDiceTray: true
+    };
+    
+    // Show dice entry UI
+    pendingRollRequest = {
+      title: `Enter ${denomination} Result`,
+      subtitle: `Die ${dieNumber} of ${totalDice}`,
+      isFulfillment: true,
+      isDiceTray: true,
+      step: "diceEntry",
+      diceNeeded: [{
+        type: denomination,
+        faces: faces,
+        index: dieNumber - 1,
+        count: 1
+      }],
+      onComplete: (values) => {
+        if (Array.isArray(values) && values.length > 0) {
+          const numericValue = parseInt(values[0]);
+          console.log("[Dice Link] Dice tray entry completed with value:", numericValue);
+          pendingDiceEntry = null;
+          pendingRollRequest = null;
+          refreshPanel();
+          resolve(numericValue);
+        }
+      }
+    };
+    
+    collapsedSections.rollRequest = false;
+    refreshPanel();
   });
 }
 
