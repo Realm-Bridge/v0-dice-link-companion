@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.4.33
+ * Version 1.0.4.34
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1362,115 +1362,128 @@ Hooks.once("ready", () => {
 });
 
 // ============================================================================
-// DICE FULFILLMENT API INTEGRATION
+// DICE FULFILLMENT - AUTOMATIC FOR MANUAL MODE USERS
 // ============================================================================
 
+// Store for pending dice fulfillment
+let pendingDiceFulfillment = null;
+
 /**
- * Custom RollResolver for Dice Link
- * This handles the actual dice fulfillment when users have configured
- * dice to use the "dicelink" fulfillment method.
+ * Setup automatic dice fulfillment for users in manual mode.
+ * This hooks into Foundry's Roll system to intercept dice evaluation
+ * when the current user is set to manual mode by the GM.
+ * No user configuration required - controlled entirely by our GM panel.
  */
-class DiceLinkRollResolver extends foundry.dice.RollResolver {
+function setupDiceFulfillment() {
+  // Store the original Roll.prototype.evaluate
+  const originalEvaluate = Roll.prototype.evaluate;
   
-  /** @override */
-  async resolveResult() {
-    // Get the terms that need fulfillment
-    const termsToFulfill = this.roll.terms.filter(t => 
-      t instanceof foundry.dice.terms.DiceTerm && !t._evaluated
-    );
-    
-    if (termsToFulfill.length === 0) {
-      return super.resolveResult();
+  // Override Roll.prototype.evaluate to intercept for manual mode users
+  Roll.prototype.evaluate = async function(options = {}) {
+    // Check if user is in manual mode
+    if (!isUserInManualMode()) {
+      // Not in manual mode - use normal evaluation
+      return originalEvaluate.call(this, options);
     }
     
-    // Build info about dice needed
+    // User is in manual mode - we need to fulfill dice manually
+    // Get the dice terms that need to be rolled
+    const diceTerms = this.terms.filter(t => 
+      t instanceof foundry.dice.terms.DiceTerm
+    );
+    
+    if (diceTerms.length === 0) {
+      // No dice to roll - evaluate normally
+      return originalEvaluate.call(this, options);
+    }
+    
+    // Build list of dice needed
     const diceNeeded = [];
-    for (const term of termsToFulfill) {
+    for (const term of diceTerms) {
       for (let i = 0; i < term.number; i++) {
         diceNeeded.push({
           faces: term.faces,
-          term: term,
-          index: i
+          termIndex: this.terms.indexOf(term),
+          dieIndex: i
         });
       }
     }
     
-    // Show the Dice Link panel with the dice request
-    return new Promise((resolve) => {
-      const formula = this.roll.formula;
-      
-      pendingRollRequest = {
-        title: "Dice Roll",
-        subtitle: "",
-        formula: formula,
-        diceNeeded: diceNeeded,
-        isFulfillment: true,
-        situationalBonus: "",
-        hasAdvantage: false,
-        hasDisadvantage: false,
-        hasCritical: false,
-        onComplete: (userChoice) => {
-          if (userChoice === "cancel") {
-            pendingRollRequest = null;
-            refreshPanel();
-            resolve(null);
-            return;
-          }
-          
-          // userChoice.diceResults should be an array of results
-          // matching the diceNeeded array
-          const results = userChoice.diceResults || [];
-          
-          let resultIndex = 0;
-          for (const term of termsToFulfill) {
-            term.results = [];
-            for (let i = 0; i < term.number; i++) {
-              const value = results[resultIndex] || Math.ceil(Math.random() * term.faces);
-              term.results.push({ result: value, active: true });
-              resultIndex++;
-            }
-            term._evaluated = true;
-          }
-          
-          pendingRollRequest = null;
-          refreshPanel();
-          resolve(this.roll);
-        }
-      };
-      
-      // Open/refresh the panel
-      collapsedSections.rollRequest = false;
-      const panelIsOpen = currentPanelDialog && currentPanelDialog.rendered;
-      if (!panelIsOpen) {
-        openPanel();
-      } else {
-        refreshPanel();
+    // Wait for user to provide dice results
+    const results = await requestDiceFulfillment(this.formula, diceNeeded);
+    
+    if (results === null) {
+      // User cancelled - throw to abort the roll
+      throw new Error("Roll cancelled by user");
+    }
+    
+    // Inject the user-provided results into the dice terms
+    let resultIndex = 0;
+    for (const term of diceTerms) {
+      term.results = [];
+      for (let i = 0; i < term.number; i++) {
+        const value = results[resultIndex] ?? Math.ceil(Math.random() * term.faces);
+        term.results.push({ result: value, active: true });
+        resultIndex++;
       }
-    });
-  }
+      term._evaluated = true;
+    }
+    
+    // Mark the roll as evaluated and compute the total
+    this._evaluated = true;
+    this._total = this._evaluateTotal();
+    
+    return this;
+  };
 }
 
 /**
- * Register Dice Link as a dice fulfillment method in Foundry's core system.
- * This allows users to configure dice to be fulfilled by Dice Link via
- * Configure Settings > Configure Dice.
+ * Request dice fulfillment from the user via the Dice Link panel.
+ * Returns a Promise that resolves with an array of dice results.
  */
-function setupDiceFulfillment() {
-  // Check if the fulfillment API exists (Foundry V12+)
-  if (!CONFIG.Dice?.fulfillment?.methods) {
-    console.log("[Dice Link] Dice fulfillment API not available (requires Foundry V12+)");
-    return;
-  }
-  
-  // Register Dice Link as a fulfillment method
-  CONFIG.Dice.fulfillment.methods.dicelink = {
-    label: "Dice Link (Manual/Physical)",
-    icon: "fa-dice-d20",
-    interactive: true,
-    resolver: DiceLinkRollResolver
-  };
-  
-  console.log("[Dice Link] Registered as dice fulfillment method");
+function requestDiceFulfillment(formula, diceNeeded) {
+  return new Promise((resolve) => {
+    pendingDiceFulfillment = {
+      formula,
+      diceNeeded,
+      resolve
+    };
+    
+    // Update the pending roll request to show dice input UI
+    pendingRollRequest = {
+      title: "Roll Dice",
+      subtitle: formula,
+      formula: formula,
+      diceNeeded: diceNeeded,
+      isFulfillment: true,
+      situationalBonus: "",
+      hasAdvantage: false,
+      hasDisadvantage: false,
+      hasCritical: false,
+      onComplete: (userChoice) => {
+        pendingDiceFulfillment = null;
+        pendingRollRequest = null;
+        refreshPanel();
+        
+        if (userChoice === "cancel") {
+          resolve(null);
+          return;
+        }
+        
+        // userChoice.diceResults should be array of values
+        resolve(userChoice.diceResults || []);
+      }
+    };
+    
+    // Open/refresh the panel
+    collapsedSections.rollRequest = false;
+    const panelIsOpen = currentPanelDialog && currentPanelDialog.rendered;
+    if (!panelIsOpen) {
+      openPanel();
+    } else {
+      refreshPanel();
+    }
+  });
 }
 
 // ============================================================================
