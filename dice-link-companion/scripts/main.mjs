@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.22
+ * Version 1.0.6.23
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1631,33 +1631,65 @@ function handleDialogRender(app, html, data) {
 
 /**
  * Check if an application is a roll dialog we should mirror
+ * Be SPECIFIC - only target dnd5e roll configuration dialogs, not other modules
  */
 function isRollDialog(app) {
   if (!app) return false;
   
-  // Check app constructor name for known roll dialog classes
+  // Get identifiers for this dialog
   const className = app.constructor?.name?.toLowerCase() || "";
+  const appId = (app.id || "").toLowerCase();
+  const dialogTitle = (app.title || "").toLowerCase();
+  
+  // EXCLUDE known third-party module dialogs
+  const excludedPatterns = [
+    "monks-tokenbar",      // Monk's Token Bar
+    "tokenbar",            // Generic token bar references
+    "contested",           // Contested rolls from Monk's
+    "request-roll",        // Monk's request roll dialog
+    "lmrtfy",              // Let Me Roll That For You module
+    "gm-screen",           // GM Screen module
+    "popout",              // Popout module windows
+    "compendium",          // Compendium browsers
+    "settings",            // Settings windows
+    "filepicker",          // File pickers
+    "journal",             // Journal entries
+    "actor-sheet",         // Actor sheets
+    "item-sheet"           // Item sheets
+  ];
+  
+  // Check if this is an excluded dialog
+  const fullId = `${className} ${appId} ${dialogTitle}`;
+  if (excludedPatterns.some(pattern => fullId.includes(pattern))) {
+    return false;
+  }
+  
+  // Check app constructor name for SPECIFIC dnd5e roll dialog classes
   const rollDialogClasses = [
-    "rollconfigurationdialog",
-    "d20roll",
-    "damageroll",
-    "rollresolver",
-    "baseconfigurationdialog"
+    "rollconfigurationdialog",    // dnd5e roll configuration
+    "d20roll",                     // D20 roll dialogs
+    "damageroll",                  // Damage roll dialogs
+    "rollresolver",               // Foundry roll resolver
+    "baseconfigurationdialog"     // dnd5e base config
   ];
   
   if (rollDialogClasses.some(cls => className.includes(cls))) {
     return true;
   }
   
-  // Check app title for roll-related keywords
-  const dialogTitle = (app.title || "").toLowerCase();
-  const rollDialogKeywords = [
-    "attack", "damage", "skill", "ability", "save", "saving", "death",
-    "initiative", "hit die", "hit dice", "tool", "check", "roll",
-    "concentration", "throw", "test"
-  ];
+  // For title-based matching, be MORE specific
+  // Only match if it looks like a dnd5e roll dialog (contains both a roll type AND "check"/"roll"/"throw")
+  const rollTypes = ["attack", "damage", "skill", "ability", "death", "initiative", "hit die", "hit dice", "tool", "concentration"];
+  const rollIndicators = ["check", "throw", "roll"];
   
-  return rollDialogKeywords.some(keyword => dialogTitle.includes(keyword));
+  const hasRollType = rollTypes.some(type => dialogTitle.includes(type));
+  const hasRollIndicator = rollIndicators.some(ind => dialogTitle.includes(ind));
+  
+  // Also check for specific dnd5e dialog patterns in the app ID
+  const isDnd5eDialog = appId.includes("dnd5e") || className.includes("dnd5e");
+  
+  // Match if: (has roll type AND roll indicator) OR is explicitly a dnd5e dialog with roll keywords
+  return (hasRollType && hasRollIndicator) || (isDnd5eDialog && (hasRollType || hasRollIndicator));
 }
 
 /**
