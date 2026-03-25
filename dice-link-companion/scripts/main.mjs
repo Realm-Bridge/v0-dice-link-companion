@@ -1667,6 +1667,9 @@ function updatePanelWithMirroredDialog(formData) {
   } else {
     refreshPanel();
   }
+  
+  // Log to confirm dialog is showing
+  console.log("[Dice Link] Panel updated with mirrored dialog:", formData.title);
 }
 
 /**
