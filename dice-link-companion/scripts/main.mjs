@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.12
+ * Version 1.0.6.13
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -2077,21 +2077,16 @@ async function diceLinkFulfillmentHandler(term) {
   
   console.log("[Dice Link] User entered results:", userResults);
   
-  // IMPORTANT: For non-interactive handlers, term.results is EMPTY
-  // We must CREATE the result objects ourselves
-  // Each result should be an object with { result: number, active: boolean }
-  term.results = [];
-  for (let i = 0; i < userResults.length; i++) {
-    term.results.push({
-      result: userResults[i],
-      active: true
-    });
+  // For non-interactive handlers, we return the numeric results directly
+  // Foundry will handle creating the result objects on the term
+  // Return a single number for single die, or array for multiple dice
+  if (userResults.length === 1) {
+    console.log("[Dice Link] Returning single result:", userResults[0]);
+    return userResults[0];
   }
   
-  console.log("[Dice Link] Created term.results:", term.results);
-  
-  // Return true to indicate fulfillment was successful
-  return true;
+  console.log("[Dice Link] Returning multiple results:", userResults);
+  return userResults;
 }
 
 // Store for pending dice entry
