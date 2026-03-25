@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.4.32
+ * Version 1.0.4.34
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1343,6 +1343,7 @@ Hooks.once("ready", () => {
 
   setupSocketListeners();
   setupChatButtonHandlers();
+  setupDiceFulfillment();  // Register as a dice fulfillment method
   setupRollInterception();
   setupMidiQolInterception();  // Add midi-qol specific hooks if available
 
@@ -1359,6 +1360,131 @@ Hooks.once("ready", () => {
     }
   }
 });
+
+// ============================================================================
+// DICE FULFILLMENT - AUTOMATIC FOR MANUAL MODE USERS
+// ============================================================================
+
+// Store for pending dice fulfillment
+let pendingDiceFulfillment = null;
+
+/**
+ * Setup automatic dice fulfillment for users in manual mode.
+ * This hooks into Foundry's Roll system to intercept dice evaluation
+ * when the current user is set to manual mode by the GM.
+ * No user configuration required - controlled entirely by our GM panel.
+ */
+function setupDiceFulfillment() {
+  // Store the original Roll.prototype.evaluate
+  const originalEvaluate = Roll.prototype.evaluate;
+  
+  // Override Roll.prototype.evaluate to intercept for manual mode users
+  Roll.prototype.evaluate = async function(options = {}) {
+    // Check if user is in manual mode
+    if (!isUserInManualMode()) {
+      // Not in manual mode - use normal evaluation
+      return originalEvaluate.call(this, options);
+    }
+    
+    // User is in manual mode - we need to fulfill dice manually
+    // Get the dice terms that need to be rolled
+    const diceTerms = this.terms.filter(t => 
+      t instanceof foundry.dice.terms.DiceTerm
+    );
+    
+    if (diceTerms.length === 0) {
+      // No dice to roll - evaluate normally
+      return originalEvaluate.call(this, options);
+    }
+    
+    // Build list of dice needed
+    const diceNeeded = [];
+    for (const term of diceTerms) {
+      for (let i = 0; i < term.number; i++) {
+        diceNeeded.push({
+          faces: term.faces,
+          termIndex: this.terms.indexOf(term),
+          dieIndex: i
+        });
+      }
+    }
+    
+    // Wait for user to provide dice results
+    const results = await requestDiceFulfillment(this.formula, diceNeeded);
+    
+    if (results === null) {
+      // User cancelled - throw to abort the roll
+      throw new Error("Roll cancelled by user");
+    }
+    
+    // Inject the user-provided results into the dice terms
+    let resultIndex = 0;
+    for (const term of diceTerms) {
+      term.results = [];
+      for (let i = 0; i < term.number; i++) {
+        const value = results[resultIndex] ?? Math.ceil(Math.random() * term.faces);
+        term.results.push({ result: value, active: true });
+        resultIndex++;
+      }
+      term._evaluated = true;
+    }
+    
+    // Mark the roll as evaluated and compute the total
+    this._evaluated = true;
+    this._total = this._evaluateTotal();
+    
+    return this;
+  };
+}
+
+/**
+ * Request dice fulfillment from the user via the Dice Link panel.
+ * Returns a Promise that resolves with an array of dice results.
+ */
+function requestDiceFulfillment(formula, diceNeeded) {
+  return new Promise((resolve) => {
+    pendingDiceFulfillment = {
+      formula,
+      diceNeeded,
+      resolve
+    };
+    
+    // Update the pending roll request to show dice input UI
+    pendingRollRequest = {
+      title: "Roll Dice",
+      subtitle: formula,
+      formula: formula,
+      diceNeeded: diceNeeded,
+      isFulfillment: true,
+      situationalBonus: "",
+      hasAdvantage: false,
+      hasDisadvantage: false,
+      hasCritical: false,
+      onComplete: (userChoice) => {
+        pendingDiceFulfillment = null;
+        pendingRollRequest = null;
+        refreshPanel();
+        
+        if (userChoice === "cancel") {
+          resolve(null);
+          return;
+        }
+        
+        // userChoice.diceResults should be array of values
+        resolve(userChoice.diceResults || []);
+      }
+    };
+    
+    // Open/refresh the panel
+    collapsedSections.rollRequest = false;
+    const panelIsOpen = currentPanelDialog && currentPanelDialog.rendered;
+    if (!panelIsOpen) {
+      openPanel();
+    } else {
+      refreshPanel();
+    }
+  });
+}
 
 // ============================================================================
 // ROLL INTERCEPTION
