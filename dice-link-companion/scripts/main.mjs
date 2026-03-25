@@ -1,8 +1,8 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.5.0
+ * Version 1.0.6.0
  * 
- * A player-GM dice mode management system with approval workflow.
+ * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  */
 
@@ -503,6 +503,11 @@ function generateDiceTrayHTML() {
 }
 
 function generatePendingRollHTML(roll) {
+  // MIRRORED DIALOG - Replicate native dialog UI
+  if (roll.isMirroredDialog && roll.mirrorData) {
+    return generateMirroredDialogHTML(roll.mirrorData);
+  }
+  
   // STEP 2: Dice Entry (isFulfillment = true)
   if (roll.isFulfillment && roll.diceNeeded) {
     const diceInputs = roll.diceNeeded.map((die, index) => `
@@ -1193,6 +1198,39 @@ function attachDiceTrayListeners(html) {
   // PENDING ROLL ACTION LISTENERS
   // ============================================================================
 
+  // Mirrored Dialog Button Clicks (v1.0.6.0)
+  html.find(".dlc-dialog-btn").click(async function() {
+    if (!pendingRollRequest || !pendingRollRequest.isMirroredDialog) {
+      return;
+    }
+    
+    const buttonLabel = $(this).data("button");
+    
+    // Gather form values from mirrored dialog
+    const formValues = {};
+    html.find(".dlc-mirrored-dialog input, .dlc-mirrored-dialog select").each(function() {
+      const $input = $(this);
+      const name = $input.attr("name");
+      if (name) {
+        if ($input.attr("type") === "checkbox") {
+          formValues[name] = $input.is(":checked");
+        } else {
+          formValues[name] = $input.val();
+        }
+      }
+    });
+    
+    console.log("[Dice Link] Mirrored dialog button clicked:", buttonLabel, formValues);
+    
+    // Call onComplete with the form values and button label
+    if (pendingRollRequest.onComplete) {
+      pendingRollRequest.onComplete({
+        buttonLabel,
+        formValues
+      });
+    }
+  });
+
   // Advantage / Normal / Disadvantage buttons (Step 1: Configuration)
   html.find(".dlc-roll-action-btn[data-roll-mode]").click(async function() {
     if (!pendingRollRequest) {
@@ -1370,6 +1408,7 @@ Hooks.once("ready", () => {
   setupSocketListeners();
   setupChatButtonHandlers();
   setupDiceFulfillment();  // Register as a dice fulfillment method
+  setupDialogMirroring(); // Mirror native dialogs to our panel (v1.0.6.0)
   setupRollInterception();
   setupMidiQolInterception();  // Add midi-qol specific hooks if available
 
@@ -1388,11 +1427,310 @@ Hooks.once("ready", () => {
 });
 
 // ============================================================================
-// DICE FULFILLMENT - CUSTOM RESOLVER FOR DICE LINK
+// DIALOG MIRRORING SYSTEM - v1.0.6.0 Architecture
+// Hide native dialogs and replicate them in our panel for system-agnostic control
 // ============================================================================
 
-// Store for pending dice fulfillment - shared between resolver and panel
-let pendingDiceFulfillment = null;
+// Store currently mirrored dialog data
+let mirroredDialog = null;
+
+/**
+ * Detect when a dialog is about to render and mirror it to our panel.
+ * Works with any system that uses dnd5e roll dialogs.
+ */
+function setupDialogMirroring() {
+  // Hook into ApplicationV2 render for dialog detection
+  Hooks.on("renderDialog", (app, html, data) => {
+    if (!isUserInManualMode()) {
+      return;
+    }
+    
+    // Check if this is a roll dialog we should mirror
+    if (isRollDialog(app)) {
+      console.log("[Dice Link] Detected roll dialog:", app.title);
+      
+      // Hide the native dialog
+      html.style.display = "none";
+      
+      // Extract dialog data and mirror it to our panel
+      mirrorDialogToPanel(app, html, data);
+    }
+  });
+}
+
+/**
+ * Check if an application is a roll dialog we should mirror
+ */
+function isRollDialog(app) {
+  if (!app?.title) return false;
+  
+  // Match common roll dialog titles
+  const dialogTitle = app.title.toLowerCase();
+  const rollDialogKeywords = [
+    "attack", "damage", "skill", "ability", "save", "death save",
+    "initiative", "hit die", "tool", "check"
+  ];
+  
+  return rollDialogKeywords.some(keyword => dialogTitle.includes(keyword));
+}
+
+/**
+ * Extract data from native dialog and mirror to our panel
+ */
+function mirrorDialogToPanel(app, html, data) {
+  try {
+    // Extract form data from the hidden dialog
+    const formData = extractDialogFormData(app, html);
+    
+    if (!formData) {
+      return;
+    }
+    
+    console.log("[Dice Link] Mirroring dialog data:", formData);
+    
+    // Store the dialog reference and data
+    mirroredDialog = {
+      app,
+      html,
+      data: formData,
+      timestamp: Date.now()
+    };
+    
+    // Update our panel to show the mirrored dialog UI
+    updatePanelWithMirroredDialog(formData);
+    
+  } catch (e) {
+    console.error("[Dice Link] Error mirroring dialog:", e);
+  }
+}
+
+/**
+ * Extract relevant form data from the native dialog
+ */
+function extractDialogFormData(app, html) {
+  const data = {
+    title: app.title,
+    buttons: [], // Buttons in the dialog (OK, Cancel, etc)
+    inputs: {},  // Form inputs (checkboxes, selects, etc)
+    formula: ""  // Dice formula if visible
+  };
+  
+  // Extract buttons
+  const buttonElements = html.querySelectorAll("button");
+  for (const btn of buttonElements) {
+    if (btn.type === "button" && !btn.classList.contains("close")) {
+      data.buttons.push({
+        label: btn.textContent.trim(),
+        element: btn,
+        dataset: btn.dataset
+      });
+    }
+  }
+  
+  // Extract form inputs
+  const inputs = html.querySelectorAll("input, select, textarea");
+  for (const input of inputs) {
+    const name = input.name || input.id;
+    if (name) {
+      data.inputs[name] = {
+        type: input.type,
+        value: input.value,
+        checked: input.checked,
+        element: input,
+        options: input.tagName === "SELECT" 
+          ? Array.from(input.options).map(opt => ({ value: opt.value, label: opt.text }))
+          : null
+      };
+    }
+  }
+  
+  // Try to extract formula
+  const formulaElement = html.querySelector("[data-formula], .formula, .dice-formula");
+  if (formulaElement) {
+    data.formula = formulaElement.textContent.trim();
+  }
+  
+  return data;
+}
+
+/**
+ * Update our panel to display the mirrored dialog UI
+ */
+function updatePanelWithMirroredDialog(formData) {
+  // Clear previous pending roll request
+  pendingRollRequest = null;
+  
+  // Create new pending roll request with mirrored dialog data
+  pendingRollRequest = {
+    title: formData.title,
+    subtitle: formData.formula,
+    formula: formData.formula,
+    isMirroredDialog: true,
+    mirrorData: formData,
+    onComplete: async (userChoice) => {
+      if (userChoice === "cancel") {
+        // Close the native dialog
+        if (mirroredDialog?.app) {
+          mirroredDialog.app.close();
+        }
+        mirroredDialog = null;
+        pendingRollRequest = null;
+        refreshPanel();
+        return;
+      }
+      
+      // Apply user choices to the hidden dialog and submit it
+      await submitMirroredDialog(userChoice);
+      
+      mirroredDialog = null;
+      pendingRollRequest = null;
+      refreshPanel();
+    }
+  };
+  
+  // Expand the roll request section and refresh panel
+  collapsedSections.rollRequest = false;
+  
+  const panelIsOpen = currentPanelDialog && currentPanelDialog.rendered;
+  if (!panelIsOpen) {
+    openPanel();
+  } else {
+    refreshPanel();
+  }
+}
+
+/**
+ * Apply user choices to the mirrored dialog and submit it
+ */
+async function submitMirroredDialog(userChoice) {
+  if (!mirroredDialog) {
+    console.error("[Dice Link] No mirrored dialog to submit");
+    return;
+  }
+  
+  const { app, html, data: formData } = mirroredDialog;
+  
+  try {
+    // Apply user choices to form inputs in the hidden dialog
+    if (userChoice.formValues) {
+      for (const [name, value] of Object.entries(userChoice.formValues)) {
+        const input = html.querySelector(`input[name="${name}"], select[name="${name}"], textarea[name="${name}"]`);
+        if (input) {
+          if (input.type === "checkbox") {
+            input.checked = value;
+          } else {
+            input.value = value;
+          }
+          // Trigger change event for form validation
+          input.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+      }
+    }
+    
+    // Find and click the submit button
+    const submitButton = formData.buttons.find(btn => 
+      btn.label.toLowerCase().includes("ok") || 
+      btn.label.toLowerCase().includes("roll") ||
+      btn.label.toLowerCase().includes("submit")
+    );
+    
+    if (submitButton?.element) {
+      console.log("[Dice Link] Submitting mirrored dialog with button:", submitButton.label);
+      
+      // Make dialog visible temporarily, click button, then hide again
+      html.style.display = "block";
+      submitButton.element.click();
+      
+      // Small delay to let the click process
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Hide again if still rendered
+      if (html.style.display !== "none") {
+        html.style.display = "none";
+      }
+    }
+  } catch (e) {
+    console.error("[Dice Link] Error submitting mirrored dialog:", e);
+  }
+}
+
+/**
+ * Generate HTML for mirrored dialog UI in our panel
+ */
+function generateMirroredDialogHTML(mirrorData) {
+  if (!mirrorData) {
+    return "";
+  }
+  
+  let html = `
+    <div class="dlc-mirrored-dialog">
+      <div class="dlc-dialog-title">${mirrorData.title}</div>
+      <div class="dlc-dialog-content">
+  `;
+  
+  // Show formula if available
+  if (mirrorData.formula) {
+    html += `
+      <div class="dlc-dialog-formula">
+        <span class="dlc-label">Formula</span>
+        <span class="dlc-value">${mirrorData.formula}</span>
+      </div>
+    `;
+  }
+  
+  // Generate input fields for form inputs
+  html += `<div class="dlc-dialog-inputs">`;
+  
+  for (const [name, input] of Object.entries(mirrorData.inputs)) {
+    if (input.type === "checkbox") {
+      html += `
+        <div class="dlc-input-row">
+          <label class="dlc-checkbox-label">
+            <input type="checkbox" name="${name}" ${input.checked ? "checked" : ""}>
+            <span>${name}</span>
+          </label>
+        </div>
+      `;
+    } else if (input.type === "select" || input.options) {
+      html += `
+        <div class="dlc-input-row">
+          <label class="dlc-label">${name}</label>
+          <select name="${name}" class="dlc-select-input">
+      `;
+      if (input.options) {
+        for (const opt of input.options) {
+          html += `<option value="${opt.value}" ${opt.value === input.value ? "selected" : ""}>${opt.label}</option>`;
+        }
+      }
+      html += `</select></div>`;
+    } else {
+      html += `
+        <div class="dlc-input-row">
+          <label class="dlc-label">${name}</label>
+          <input type="text" name="${name}" class="dlc-text-input" value="${input.value}">
+        </div>
+      `;
+    }
+  }
+  
+  html += `</div>`;
+  
+  // Generate buttons
+  html += `<div class="dlc-dialog-buttons">`;
+  for (const btn of mirrorData.buttons) {
+    html += `
+      <button type="button" class="dlc-dialog-btn" data-button="${btn.label}">
+        ${btn.label}
+      </button>
+    `;
+  }
+  html += `</div>`;
+  
+  html += `</div></div>`;
+  
+  return html;
+}
+
 
 /**
  * Custom RollResolver that integrates with our Dice Link panel.
@@ -1722,131 +2060,14 @@ async function executeRollWithValues(formula, diceResults, title, subtitle, roll
  * After user makes their choice, we apply it to the config and re-trigger the roll.
  * The dice fulfillment (Step 2) will then handle getting the actual dice values.
  */
+/**
+ * LEGACY - Kept for reference but no longer used in v1.0.6.0
+ * This was the old approach that cancelled and re-triggered rolls.
+ * Now replaced by setupDialogMirroring() which is system-agnostic.
+ */
 function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
-  console.log("[Dice Link] interceptRoll called:", title, formula);
-  
-  if (!isUserInManualMode()) {
-    console.log("[Dice Link] Not in manual mode, passing through");
-    return true;
-  }
-  
-  console.log("[Dice Link] Manual mode - showing configuration UI");
-  
-  // Disable native dialog - we provide our own
-  if (dialog) {
-    dialog.configure = false;
-  }
-  
-  // Store the roll info for Step 1 UI (configuration)
-  pendingRollRequest = {
-    title,
-    subtitle,
-    formula,
-    config,
-    dialog,
-    step: "configuration",  // Mark this as configuration step
-    situationalBonus: "",
-    hasAdvantage: options.hasAdvantage !== false,
-    hasDisadvantage: options.hasDisadvantage !== false,
-    hasCritical: options.hasCritical || false,
-    abilityOptions: options.abilityOptions || null,
-    rollMethod: options.rollMethod,
-    // Callback when user makes configuration choice
-    onComplete: async (userChoice) => {
-      if (userChoice === "cancel") {
-        pendingRollRequest = null;
-        pendingRollConfig = null;
-        refreshPanel();
-        ui.notifications.info("Roll cancelled.");
-        return;
-      }
-      
-      // Store the configuration for dice fulfillment to use
-      pendingRollConfig = {
-        advantage: userChoice.advantage || false,
-        disadvantage: userChoice.disadvantage || false,
-        critical: userChoice.critical || false,
-        situationalBonus: userChoice.situationalBonus || ""
-      };
-      
-      // Apply configuration to the original config object
-      if (config) {
-        config.advantage = pendingRollConfig.advantage;
-        config.disadvantage = pendingRollConfig.disadvantage;
-        if (pendingRollConfig.critical) {
-          config.critical = true;
-        }
-      }
-      
-      // Build the final formula with advantage/disadvantage
-      let finalFormula = formula;
-      if (pendingRollConfig.advantage && finalFormula.includes("1d20")) {
-        finalFormula = finalFormula.replace("1d20", "2d20kh");
-      } else if (pendingRollConfig.disadvantage && finalFormula.includes("1d20")) {
-        finalFormula = finalFormula.replace("1d20", "2d20kl");
-      }
-      
-      // Add situational bonus
-      if (pendingRollConfig.situationalBonus) {
-        finalFormula += ` + ${pendingRollConfig.situationalBonus}`;
-      }
-      
-      // Parse the formula to get dice needed
-      const diceNeeded = parseDiceFromFormula(finalFormula);
-      
-      // Move to Step 2: Dice Entry
-      pendingRollRequest = {
-        title: title,
-        subtitle: subtitle,
-        formula: finalFormula,
-        originalFormula: formula,
-        config: config,
-        rollConfig: pendingRollConfig,
-        diceNeeded: diceNeeded,
-        isFulfillment: true,  // This triggers dice entry UI
-        step: "diceEntry",
-        onComplete: async (diceChoice) => {
-          if (diceChoice === "cancel") {
-            pendingRollRequest = null;
-            pendingRollConfig = null;
-            refreshPanel();
-            ui.notifications.info("Roll cancelled.");
-            return;
-          }
-          
-          // Execute the roll with user-provided dice values
-          await executeRollWithValues(
-            finalFormula, 
-            diceChoice.diceResults, 
-            title, 
-            subtitle, 
-            pendingRollConfig,
-            config
-          );
-          
-          pendingRollRequest = null;
-          pendingRollConfig = null;
-          refreshPanel();
-        }
-      };
-      
-      refreshPanel();
-    },
-    ...options
-  };
-
-  // Auto-open panel and expand the roll request section
-  collapsedSections.rollRequest = false;
-  
-  const panelIsOpen = currentPanelDialog && currentPanelDialog.rendered;
-  if (!panelIsOpen) {
-    openPanel();
-  } else {
-    refreshPanel();
-  }
-
-  // Return FALSE to cancel - we'll re-trigger after user configures
-  return false;
+  // DEPRECATED - See setupDialogMirroring() instead
+  return true;
 }
 
 /**
@@ -1860,240 +2081,58 @@ function registerRollHook(v2HookName, v1HookName, callback) {
 }
 
 function setupRollInterception() {
-  // Always register hooks - the interceptRoll function checks isUserInManualMode() dynamically
-  // This allows mode changes at runtime without reloading
-
+  // v1.0.6.0: With dialog mirroring, we don't need complex roll hooks.
+  // The setupDialogMirroring() function automatically detects and mirrors all roll dialogs.
+  // These hooks are now just pass-through to let the system proceed normally.
+  
   registerRollHook("dnd5e.preRollSkillV2", "dnd5e.preRollSkill", (config, dialog, ...rest) => {
-    const actor = config?.subject;
-    const actorName = actor?.name || "Unknown";
-    const skillId = config?.skill || "";
-    const skillLabel = CONFIG.DND5E?.skills?.[skillId]?.label || skillId;
-    const abilityId = config?.ability || "";
-    const abilityLabel = CONFIG.DND5E?.abilities?.[abilityId]?.label || abilityId;
-    
-    const skillData = actor?.system?.skills?.[skillId];
-    const modifier = skillData?.total ?? 0;
-    const formula = modifier >= 0 ? `1d20 + ${modifier}` : `1d20 - ${Math.abs(modifier)}`;
-    
-    return interceptRoll(
-      `${skillLabel} Check`,
-      actorName,
-      formula,
-      config,
-      dialog,
-      { 
-        abilityOptions: abilityLabel, 
-        hasAdvantage: true, 
-        hasDisadvantage: true,
-        // dnd5e 5.x: rollSkill takes options object with skill ID inside
-        rollMethod: (opts) => actor.rollSkill({ skill: skillId, ability: abilityId, ...opts }),
-        rollArgs: {}
-      }
-    );
+    // Dialog mirroring handles this - just pass through
+    return true;
   });
 
-  // -------------------------------------------------------------------------
-  // ABILITY CHECKS
-  // -------------------------------------------------------------------------
   registerRollHook("dnd5e.preRollAbilityTestV2", "dnd5e.preRollAbilityTest", (config, dialog, ...rest) => {
-    const actor = config?.subject;
-    const actorName = actor?.name || "Unknown";
-    const abilityId = config?.ability || "";
-    const abilityLabel = CONFIG.DND5E?.abilities?.[abilityId]?.label || abilityId;
-    
-    const abilityMod = actor?.system?.abilities?.[abilityId]?.mod || 0;
-    const formula = abilityMod >= 0 ? `1d20 + ${abilityMod}` : `1d20 - ${Math.abs(abilityMod)}`;
-    
-    return interceptRoll(
-      `${abilityLabel} Check`,
-      actorName,
-      formula,
-      config,
-      dialog,
-      { 
-        hasAdvantage: true, 
-        hasDisadvantage: true,
-        // dnd5e 5.x: rollAbilityTest takes options object with ability ID inside
-        rollMethod: (opts) => actor.rollAbilityTest({ ability: abilityId, ...opts }),
-        rollArgs: {}
-      }
-    );
+    // Dialog mirroring handles this - just pass through
+    return true;
   });
 
-  // -------------------------------------------------------------------------
-  // SAVING THROWS
-  // -------------------------------------------------------------------------
   registerRollHook("dnd5e.preRollAbilitySaveV2", "dnd5e.preRollAbilitySave", (config, dialog, ...rest) => {
-    const actor = config?.subject;
-    const actorName = actor?.name || "Unknown";
-    const abilityId = config?.ability || "";
-    const abilityLabel = CONFIG.DND5E?.abilities?.[abilityId]?.label || abilityId;
-    
-    const saveData = actor?.system?.abilities?.[abilityId]?.save;
-    const modifier = saveData?.total ?? 0;
-    const formula = modifier >= 0 ? `1d20 + ${modifier}` : `1d20 - ${Math.abs(modifier)}`;
-    
-    return interceptRoll(
-      `${abilityLabel} Saving Throw`,
-      actorName,
-      formula,
-      config,
-      dialog,
-      { 
-        hasAdvantage: true, 
-        hasDisadvantage: true,
-        // dnd5e 5.x: rollAbilitySave takes options object with ability ID inside
-        rollMethod: (opts) => actor.rollAbilitySave({ ability: abilityId, ...opts }),
-        rollArgs: {}
-      }
-    );
+    // Dialog mirroring handles this - just pass through
+    return true;
   });
 
-  // -------------------------------------------------------------------------
-  // DEATH SAVES
-  // -------------------------------------------------------------------------
   registerRollHook("dnd5e.preRollDeathSaveV2", "dnd5e.preRollDeathSave", (config, dialog, ...rest) => {
-    const actor = config?.subject;
-    const actorName = actor?.name || "Unknown";
-    
-    return interceptRoll(
-      "Death Saving Throw",
-      actorName,
-      "1d20",
-      config,
-      dialog,
-      { 
-        hasAdvantage: true, 
-        hasDisadvantage: true,
-        rollMethod: (opts) => actor.rollDeathSave(opts),
-        rollArgs: {}
-      }
-    );
+    // Dialog mirroring handles this - just pass through
+    return true;
   });
 
-  // -------------------------------------------------------------------------
-  // ATTACK ROLLS
-  // For attack rolls, we DON'T cancel the roll. Instead:
-  // 1. Let dnd5e/midi-qol handle advantage/disadvantage configuration (native dialog)
-  // 2. Our DiceLinkResolver will prompt for dice entry when the roll evaluates
-  // 3. This keeps the roll within the workflow for proper hit/miss detection
-  // -------------------------------------------------------------------------
   registerRollHook("dnd5e.preRollAttackV2", "dnd5e.preRollAttack", (config, dialog, ...rest) => {
-    console.log("[Dice Link] ATTACK HOOK FIRED", config);
-    
-    if (!isUserInManualMode()) {
-      return true; // Let roll proceed normally
-    }
-    
-    // In manual mode, let the roll proceed but our DiceLinkResolver will handle dice entry
-    // We DON'T cancel - this keeps the roll in the workflow
-    console.log("[Dice Link] Attack roll - letting proceed, resolver will handle dice");
+    // Dialog mirroring handles this - just pass through
     return true;
   });
 
-  // -------------------------------------------------------------------------
-  // DAMAGE ROLLS
-  // Same approach as attack rolls - don't cancel, let resolver handle dice
-  // -------------------------------------------------------------------------
   registerRollHook("dnd5e.preRollDamageV2", "dnd5e.preRollDamage", (config, dialog, ...rest) => {
-    console.log("[Dice Link] DAMAGE HOOK FIRED", config);
-    
-    if (!isUserInManualMode()) {
-      return true; // Let roll proceed normally
-    }
-    
-    // In manual mode, let the roll proceed but our DiceLinkResolver will handle dice entry
-    console.log("[Dice Link] Damage roll - letting proceed, resolver will handle dice");
+    // Dialog mirroring handles this - just pass through
     return true;
   });
 
-  // -------------------------------------------------------------------------
-  // HIT DICE
-  // -------------------------------------------------------------------------
   registerRollHook("dnd5e.preRollHitDieV2", "dnd5e.preRollHitDie", (config, dialog, ...rest) => {
-    const actor = config?.subject;
-    const actorName = actor?.name || "Unknown";
-    
-    const classes = actor?.classes || {};
-    const firstClass = Object.values(classes)[0];
-    const hitDie = firstClass?.system?.hitDice || "d8";
-    const conMod = actor?.system?.abilities?.con?.mod || 0;
-    const formula = conMod >= 0 ? `1${hitDie} + ${conMod}` : `1${hitDie} - ${Math.abs(conMod)}`;
-    
-    return interceptRoll(
-      "Hit Die",
-      actorName,
-      formula,
-      config,
-      dialog,
-      { 
-        hasAdvantage: false, 
-        hasDisadvantage: false,
-        rollMethod: (opts) => actor.rollHitDie(opts),
-        rollArgs: {}
-      }
-    );
+    // Dialog mirroring handles this - just pass through
+    return true;
   });
 
-  // -------------------------------------------------------------------------
-  // INITIATIVE
-  // -------------------------------------------------------------------------
   registerRollHook("dnd5e.preRollInitiativeV2", "dnd5e.preRollInitiative", (config, dialog, ...rest) => {
-    const actor = config?.subject;
-    const actorName = actor?.name || "Unknown";
-    
-    const initMod = actor?.system?.attributes?.init?.total ?? actor?.system?.abilities?.dex?.mod ?? 0;
-    const formula = initMod >= 0 ? `1d20 + ${initMod}` : `1d20 - ${Math.abs(initMod)}`;
-    
-    return interceptRoll(
-      "Initiative",
-      actorName,
-      formula,
-      config,
-      dialog,
-      { 
-        hasAdvantage: true, 
-        hasDisadvantage: true,
-        rollMethod: (opts) => actor.rollInitiative({ createCombatants: true, rerollInitiative: true, ...opts }),
-        rollArgs: {}
-      }
-    );
+    // Dialog mirroring handles this - just pass through
+    return true;
   });
 
-  // -------------------------------------------------------------------------
-  // TOOL CHECKS
-  // -------------------------------------------------------------------------
   registerRollHook("dnd5e.preRollToolCheckV2", "dnd5e.preRollToolCheck", (config, dialog, ...rest) => {
-    const tool = config?.subject;
-    const actor = tool?.parent;
-    const actorName = actor?.name || "Unknown";
-    const toolName = tool?.name || "Tool";
-    
-    const prof = tool?.system?.proficient || 0;
-    const abilityId = tool?.system?.ability || "int";
-    const abilityMod = actor?.system?.abilities?.[abilityId]?.mod || 0;
-    const profBonus = actor?.system?.attributes?.prof || 0;
-    const modifier = abilityMod + (prof * profBonus);
-    const formula = modifier >= 0 ? `1d20 + ${modifier}` : `1d20 - ${Math.abs(modifier)}`;
-    
-    return interceptRoll(
-      `${toolName} Check`,
-      actorName,
-      formula,
-      config,
-      dialog,
-      { 
-        hasAdvantage: true, 
-        hasDisadvantage: true,
-        // dnd5e 5.x: tool checks use item.rollToolCheck with options object
-        rollMethod: (opts) => tool.rollToolCheck ? tool.rollToolCheck(opts) : actor.rollToolCheck({ tool: tool.id, ...opts }),
-        rollArgs: {}
-      }
-    );
+    // Dialog mirroring handles this - just pass through
+    return true;
   });
-
 }
 
+// ============================================================================
+// MIDI-QOL SPECIFIC INTERCEPTION
 // ============================================================================
 // MIDI-QOL SPECIFIC INTERCEPTION
 // ============================================================================
