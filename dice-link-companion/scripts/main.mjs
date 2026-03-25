@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.6
+ * Version 1.0.6.7
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1510,23 +1510,26 @@ function handleDialogRender(app, html, data) {
   
   // Check if this is a roll dialog we should mirror
   if (isRollDialog(app)) {
-    // Skip Roll Resolution dialogs - those are handled by our DiceLinkResolver separately
     const title = (app.title || "").toLowerCase();
+    
+    // Hide the native dialog element
+    const htmlElement = html instanceof jQuery ? html[0] : html;
+    const elementToHide = htmlElement?.style ? htmlElement : html?.element;
+    
+    // Roll Resolution dialogs are handled by our DiceLinkResolver - just hide them
     if (title.includes("roll resolution") || title.includes("resolver")) {
-      console.log("[Dice Link] Skipping Roll Resolution dialog - handled by resolver");
+      console.log("[Dice Link] Hiding Roll Resolution dialog - handled by our resolver");
+      if (elementToHide?.style) {
+        elementToHide.style.display = "none";
+      }
       return;
     }
     
     console.log("[Dice Link] Detected roll dialog:", app.title);
     
     // Hide the native dialog
-    // html can be jQuery or HTMLElement depending on the hook
-    const htmlElement = html instanceof jQuery ? html[0] : html;
-    if (htmlElement?.style) {
-      htmlElement.style.display = "none";
-    } else if (html?.element) {
-      // ApplicationV2 uses html.element
-      html.element.style.display = "none";
+    if (elementToHide?.style) {
+      elementToHide.style.display = "none";
     }
     
     // Extract dialog data and mirror it to our panel
