@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.10
+ * Version 1.0.6.11
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1306,12 +1306,19 @@ function attachDiceTrayListeners(html) {
 
   // Cancel roll button
   html.find(".dlc-roll-cancel-btn").click(function() {
+    // Handle dice entry cancellation
+    if (pendingDiceEntry) {
+      // Resolve with 0 to abort the handler (it will return early)
+      pendingDiceEntry.resolve(0);
+      pendingDiceEntry = null;
+    }
+    
     if (pendingRollRequest?.onComplete) {
       pendingRollRequest.onComplete("cancel");
-    } else {
-      pendingRollRequest = null;
-      refreshPanel();
     }
+    
+    pendingRollRequest = null;
+    refreshPanel();
     ui.notifications.info("Roll cancelled.");
   });
 }
@@ -2060,17 +2067,28 @@ async function diceLinkFulfillmentHandler(term) {
   
   console.log("[Dice Link] Need", count, denomination, "dice");
   
-  // Create array to hold results for each die
-  const results = [];
-  
+  // Collect all dice results from user
+  const userResults = [];
   for (let i = 0; i < count; i++) {
     // Wait for user to enter the die result via our panel
     const result = await waitForDiceResult(denomination, faces, i + 1, count);
-    results.push(result);
+    userResults.push(result);
   }
   
-  console.log("[Dice Link] Handler returning results:", results);
-  return results;
+  console.log("[Dice Link] User entered results:", userResults);
+  
+  // IMPORTANT: Set the results directly on the term
+  // Foundry expects us to modify term.results, not return values
+  // Each result in term.results is an object with { result: number, active: boolean }
+  for (let i = 0; i < term.results.length && i < userResults.length; i++) {
+    term.results[i].result = userResults[i];
+    term.results[i].active = true;
+  }
+  
+  console.log("[Dice Link] Set term.results to:", term.results.map(r => r.result));
+  
+  // Return true to indicate fulfillment was successful
+  return true;
 }
 
 // Store for pending dice entry
