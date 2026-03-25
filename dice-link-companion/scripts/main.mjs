@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.4.24
+ * Version 1.0.4.25
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1250,13 +1250,16 @@ function refreshPanel() {
   if (currentPanelDialog && currentPanelDialog.rendered) {
     const isGM = currentPanelDialog.isGM;
     const newContent = isGM ? generateGMPanelContent() : generatePlayerPanelContent();
-    const contentElement = currentPanelDialog.element.find(".window-content");
+    
+    // ApplicationV2 returns HTMLElement, not jQuery - wrap in jQuery for compatibility
+    const $element = $(currentPanelDialog.element);
+    const contentElement = $element.find(".window-content");
     contentElement.html(newContent);
     
     if (isGM) {
-      attachGMPanelListeners(currentPanelDialog.element);
+      attachGMPanelListeners($element);
     } else {
-      attachPlayerPanelListeners(currentPanelDialog.element);
+      attachPlayerPanelListeners($element);
     }
 
     // Recalculate dialog height to fit content after collapse/expand
