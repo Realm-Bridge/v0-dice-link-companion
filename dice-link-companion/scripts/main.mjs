@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.4.17
+ * Version 1.0.4.18
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1451,6 +1451,8 @@ function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
     abilityOptions: options.abilityOptions || null,
     // Callback when user makes a choice
     onComplete: async (userChoice) => {
+      console.log("[v0] onComplete called with:", userChoice);
+      
       if (userChoice === "cancel") {
         pendingRollRequest = null;
         refreshPanel();
@@ -1461,6 +1463,11 @@ function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
       // Re-trigger the roll with user's choices
       const rollMethod = pendingRollRequest.rollMethod;
       const rollArgs = pendingRollRequest.rollArgs || {};
+      const rollTitle = pendingRollRequest.title;
+      
+      console.log("[v0] Re-triggering roll:", rollTitle);
+      console.log("[v0] rollMethod exists:", !!rollMethod);
+      console.log("[v0] rollArgs:", rollArgs);
       
       pendingRollRequest = null;
       refreshPanel();
@@ -1469,23 +1476,30 @@ function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
         // Set bypass flag so we don't intercept the re-triggered roll
         bypassNextRoll = true;
         
+        const rollOpts = {
+          ...rollArgs,
+          advantage: userChoice.advantage || false,
+          disadvantage: userChoice.disadvantage || false,
+          critical: userChoice.critical || false,
+          fastForward: true  // Skip the native dialog
+        };
+        
+        // Add situational bonus if provided
+        if (userChoice.situationalBonus) {
+          rollOpts.parts = [...(rollArgs.parts || []), userChoice.situationalBonus];
+        }
+        
+        console.log("[v0] Calling rollMethod with opts:", rollOpts);
+        
         try {
-          // Call the roll method with user's choices
-          await rollMethod({
-            ...rollArgs,
-            advantage: userChoice.advantage,
-            disadvantage: userChoice.disadvantage,
-            critical: userChoice.critical,
-            fastForward: true,  // Skip the native dialog
-            // Add situational bonus to parts if provided
-            parts: userChoice.situationalBonus 
-              ? [...(rollArgs.parts || []), userChoice.situationalBonus]
-              : rollArgs.parts
-          });
+          await rollMethod(rollOpts);
+          console.log("[v0] Roll completed successfully");
         } catch (e) {
           console.error("[v0] Error re-triggering roll:", e);
           bypassNextRoll = false;
         }
+      } else {
+        console.error("[v0] No rollMethod found!");
       }
     },
     ...options
