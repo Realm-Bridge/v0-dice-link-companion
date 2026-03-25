@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.19
+ * Version 1.0.6.20
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -2272,36 +2272,50 @@ async function executeDiceTrayRollManually(formula, flavorText, html) {
     collectedValues.push({ term, values: termValues });
   }
   
-  // Now build a deterministic formula with the collected values
-  let deterministicFormula = formula;
+  // Create the roll with the original formula, then inject our values
+  const finalRoll = new Roll(formula);
   
-  for (const { term, values } of collectedValues) {
-    // Replace the dice term with the actual values
-    // For kh/kl modifiers, we need to handle them specially
-    let replacement;
-    if (term.modifier.startsWith("kh")) {
-      // Keep highest - sort descending and take the first N
-      const keepCount = parseInt(term.modifier.slice(2)) || 1;
-      const sorted = [...values].sort((a, b) => b - a);
-      const kept = sorted.slice(0, keepCount);
-      replacement = `(${kept.join(" + ")})`;
-    } else if (term.modifier.startsWith("kl")) {
-      // Keep lowest - sort ascending and take the first N
-      const keepCount = parseInt(term.modifier.slice(2)) || 1;
-      const sorted = [...values].sort((a, b) => a - b);
-      const kept = sorted.slice(0, keepCount);
-      replacement = `(${kept.join(" + ")})`;
-    } else {
-      // No modifier, sum all values
-      replacement = `(${values.join(" + ")})`;
+  // Parse the roll to get the terms
+  finalRoll.terms; // This triggers term parsing
+  
+  // Now inject our collected values into the dice terms
+  let valueIndex = 0;
+  for (const term of finalRoll.terms) {
+    if (term.faces) { // It's a dice term
+      // Find the matching collected values
+      const collected = collectedValues[valueIndex];
+      if (collected) {
+        // Set the results on this term
+        term.results = collected.values.map((val, idx) => ({
+          result: val,
+          active: true
+        }));
+        
+        // Handle kh/kl modifiers - mark inactive dice
+        if (term.modifiers?.length > 0) {
+          const modifier = term.modifiers.find(m => m.startsWith("kh") || m.startsWith("kl"));
+          if (modifier) {
+            const keepCount = parseInt(modifier.slice(2)) || 1;
+            const sorted = [...term.results].sort((a, b) => 
+              modifier.startsWith("kh") ? b.result - a.result : a.result - b.result
+            );
+            // Mark dice that should be dropped as inactive
+            const keptResults = sorted.slice(0, keepCount);
+            for (const r of term.results) {
+              r.active = keptResults.includes(r);
+            }
+          }
+        }
+        
+        valueIndex++;
+      }
     }
-    
-    deterministicFormula = deterministicFormula.replace(term.fullMatch, replacement);
   }
   
-  // Now evaluate and send the deterministic formula
-  const finalRoll = new Roll(deterministicFormula);
-  await finalRoll.evaluate();
+  // Mark as evaluated
+  finalRoll._evaluated = true;
+  
+  // Send to chat
   await finalRoll.toMessage({ 
     speaker: ChatMessage.getSpeaker(), 
     flavor: flavorText 
