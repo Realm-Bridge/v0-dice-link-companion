@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.0
+ * Version 1.0.6.1
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1436,26 +1436,62 @@ let mirroredDialog = null;
 
 /**
  * Detect when a dialog is about to render and mirror it to our panel.
- * Works with any system that uses dnd5e roll dialogs.
+ * Works with any system that uses Foundry dialogs (both legacy Dialog and ApplicationV2).
  */
 function setupDialogMirroring() {
-  // Hook into ApplicationV2 render for dialog detection
+  console.log("[Dice Link] Setting up dialog mirroring...");
+  
+  // Hook into ApplicationV2 renders (dnd5e 4.x+ uses these)
+  // The hook pattern for ApplicationV2 is "renderApplication" for all apps
+  Hooks.on("renderApplication", (app, html, data) => {
+    console.log("[Dice Link] renderApplication fired:", app.constructor.name, app.title);
+    handleDialogRender(app, html, data);
+  });
+  
+  // Also try the legacy Dialog hook for backwards compatibility
   Hooks.on("renderDialog", (app, html, data) => {
-    if (!isUserInManualMode()) {
-      return;
+    console.log("[Dice Link] renderDialog fired:", app.constructor.name, app.title);
+    handleDialogRender(app, html, data);
+  });
+  
+  // Try specific dnd5e roll configuration dialog hooks
+  Hooks.on("renderRollConfigurationDialog", (app, html, data) => {
+    console.log("[Dice Link] renderRollConfigurationDialog fired:", app.title);
+    handleDialogRender(app, html, data);
+  });
+  
+  // Generic hook for any application render - cast wide net
+  Hooks.on("renderApplicationV2", (app, html, data) => {
+    console.log("[Dice Link] renderApplicationV2 fired:", app.constructor.name);
+    handleDialogRender(app, html, data);
+  });
+}
+
+/**
+ * Handle dialog render - check if it's a roll dialog and mirror it
+ */
+function handleDialogRender(app, html, data) {
+  if (!isUserInManualMode()) {
+    return;
+  }
+  
+  // Check if this is a roll dialog we should mirror
+  if (isRollDialog(app)) {
+    console.log("[Dice Link] Detected roll dialog:", app.title);
+    
+    // Hide the native dialog
+    // html can be jQuery or HTMLElement depending on the hook
+    const htmlElement = html instanceof jQuery ? html[0] : html;
+    if (htmlElement?.style) {
+      htmlElement.style.display = "none";
+    } else if (html?.element) {
+      // ApplicationV2 uses html.element
+      html.element.style.display = "none";
     }
     
-    // Check if this is a roll dialog we should mirror
-    if (isRollDialog(app)) {
-      console.log("[Dice Link] Detected roll dialog:", app.title);
-      
-      // Hide the native dialog
-      html.style.display = "none";
-      
-      // Extract dialog data and mirror it to our panel
-      mirrorDialogToPanel(app, html, data);
-    }
-  });
+    // Extract dialog data and mirror it to our panel
+    mirrorDialogToPanel(app, html, data);
+  }
 }
 
 /**
@@ -1508,27 +1544,51 @@ function mirrorDialogToPanel(app, html, data) {
  * Extract relevant form data from the native dialog
  */
 function extractDialogFormData(app, html) {
+  // Normalize html to a DOM element (could be jQuery, HTMLElement, or ApplicationV2 structure)
+  let element;
+  if (html instanceof jQuery) {
+    element = html[0];
+  } else if (html?.element) {
+    // ApplicationV2 structure
+    element = html.element;
+  } else if (html instanceof HTMLElement) {
+    element = html;
+  } else {
+    // Try to get from app
+    element = app?.element?.[0] || app?.element || document.querySelector(`[data-appid="${app?.appId}"]`);
+  }
+  
+  if (!element) {
+    console.log("[Dice Link] Could not find dialog element");
+    return null;
+  }
+  
+  console.log("[Dice Link] Extracting form data from element:", element);
+  
   const data = {
-    title: app.title,
+    title: app.title || app.options?.title || "Roll",
     buttons: [], // Buttons in the dialog (OK, Cancel, etc)
     inputs: {},  // Form inputs (checkboxes, selects, etc)
-    formula: ""  // Dice formula if visible
+    formula: "", // Dice formula if visible
+    element: element // Keep reference to the element
   };
   
-  // Extract buttons
-  const buttonElements = html.querySelectorAll("button");
+  // Extract buttons - look for all button types
+  const buttonElements = element.querySelectorAll("button, [data-action]");
   for (const btn of buttonElements) {
-    if (btn.type === "button" && !btn.classList.contains("close")) {
+    const label = btn.textContent?.trim() || btn.dataset?.action || "";
+    if (label && !btn.classList.contains("close") && !btn.classList.contains("header-control")) {
       data.buttons.push({
-        label: btn.textContent.trim(),
+        label: label,
         element: btn,
-        dataset: btn.dataset
+        dataset: btn.dataset,
+        action: btn.dataset?.action
       });
     }
   }
   
   // Extract form inputs
-  const inputs = html.querySelectorAll("input, select, textarea");
+  const inputs = element.querySelectorAll("input, select, textarea");
   for (const input of inputs) {
     const name = input.name || input.id;
     if (name) {
@@ -1544,11 +1604,14 @@ function extractDialogFormData(app, html) {
     }
   }
   
-  // Try to extract formula
-  const formulaElement = html.querySelector("[data-formula], .formula, .dice-formula");
+  // Try to extract formula from various possible locations
+  const formulaSelectors = "[data-formula], .formula, .dice-formula, .roll-formula, .dice-result";
+  const formulaElement = element.querySelector(formulaSelectors);
   if (formulaElement) {
     data.formula = formulaElement.textContent.trim();
   }
+  
+  console.log("[Dice Link] Extracted form data:", data);
   
   return data;
 }
