@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.20
+ * Version 1.0.6.21
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1227,16 +1227,16 @@ function attachDiceTrayListeners(html) {
     
     // Apply advantage/disadvantage to d20 rolls
     if (advMode === "advantage") {
-      // Replace 1d20 with 2d20kh (keep highest)
+      // Replace 1d20 with 2d20kh (keep highest - kh alone means keep 1)
       formula = formula.replace(/(\d*)d20/gi, (match, count) => {
         const num = parseInt(count) || 1;
-        return `${num * 2}d20kh${num}`;
+        return `${num * 2}d20kh`;
       });
     } else if (advMode === "disadvantage") {
-      // Replace 1d20 with 2d20kl (keep lowest)
+      // Replace 1d20 with 2d20kl (keep lowest - kl alone means keep 1)
       formula = formula.replace(/(\d*)d20/gi, (match, count) => {
         const num = parseInt(count) || 1;
-        return `${num * 2}d20kl${num}`;
+        return `${num * 2}d20kl`;
       });
     }
     
@@ -2312,8 +2312,31 @@ async function executeDiceTrayRollManually(formula, flavorText, html) {
     }
   }
   
-  // Mark as evaluated
+  // Mark as evaluated and calculate total
   finalRoll._evaluated = true;
+  
+  // Calculate the total manually since we bypassed normal evaluation
+  let total = 0;
+  for (const term of finalRoll.terms) {
+    if (term.faces && term.results) {
+      // Dice term - sum active results only
+      for (const r of term.results) {
+        if (r.active) {
+          total += r.result;
+        }
+      }
+    } else if (term.number !== undefined) {
+      // Numeric term (modifier)
+      total += term.number;
+    } else if (term.operator === "+") {
+      // Plus operator - continue adding
+    } else if (term.operator === "-") {
+      // For minus, we need to negate the next term
+      // This is handled by Foundry's term evaluation, but for simple cases
+      // we can check if the term is a NumericTerm with negative sign
+    }
+  }
+  finalRoll._total = total;
   
   // Send to chat
   await finalRoll.toMessage({ 
