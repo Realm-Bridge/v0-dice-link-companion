@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.15
+ * Version 1.0.6.16
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -2589,32 +2589,35 @@ function setupMidiQolInterception() {
 function setupInitiativeInterception() {
   console.log("[Dice Link] Setting up initiative interception...");
   
-  // Hook into dnd5e's pre-roll initiative hook
-  // This fires before the initiative roll is made
-  Hooks.on("dnd5e.preRollInitiative", async (actor, roll) => {
-    console.log("[Dice Link] preRollInitiative hook for:", actor?.name);
+  // Hook into dnd5e's POST-roll initiative hook
+  // This fires AFTER the initiative roll is made with random values
+  // If in manual mode, we replace the roll results with user-entered values
+  Hooks.on("dnd5e.rollInitiative", (roll, combatants) => {
+    console.log("[Dice Link] dnd5e.rollInitiative hook fired");
     
     if (!isUserInManualMode()) {
-      console.log("[Dice Link] Digital mode - allowing normal initiative");
-      return true; // Let normal roll proceed
+      console.log("[Dice Link] Digital mode - keeping auto-rolled initiative");
+      return true;
     }
     
-    console.log("[Dice Link] Manual mode - intercepting initiative roll");
-    // For now, we log this - full implementation would prompt for manual entry
-    // The challenge is that this hook can't easily be made async to wait for user input
-    return true;
+    console.log("[Dice Link] Manual mode - will prompt for manual initiative after dialog closes");
+    // Mark these combatants so we can intercept their updates
+    combatants.forEach(c => c._needsManualInitiative = true);
   });
   
-  // For manual initiative, we can use the combatant update hook
+  // For manual initiative, we use the combatant update hook
   // After initiative is rolled, we can detect it and prompt for correction
-  Hooks.on("updateCombatant", (combatant, changes, options, userId) => {
-    if (changes.initiative !== undefined && userId === game.user.id) {
+  Hooks.on("updateCombatant", async (combatant, changes, options, userId) => {
+    if (changes.initiative !== undefined && userId === game.user.id && combatant._needsManualInitiative) {
       console.log("[Dice Link] Combatant initiative updated:", combatant.name, "to", changes.initiative);
       
       if (isUserInManualMode() && !combatant._manualInitiativeSet) {
-        console.log("[Dice Link] Manual mode - initiative was auto-rolled, prompting for manual entry");
-        // Show a prompt to allow manual override
-        promptManualInitiative(combatant, changes.initiative);
+        console.log("[Dice Link] Manual mode - prompting for manual initiative entry");
+        combatant._needsManualInitiative = false;
+        combatant._manualInitiativeSet = true;
+        
+        // Show a prompt to allow manual entry
+        await promptManualInitiative(combatant, changes.initiative);
       }
     }
   });
