@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.2
+ * Version 1.0.6.3
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1504,13 +1504,28 @@ function handleDialogRender(app, html, data) {
  * Check if an application is a roll dialog we should mirror
  */
 function isRollDialog(app) {
-  if (!app?.title) return false;
+  if (!app) return false;
   
-  // Match common roll dialog titles
-  const dialogTitle = app.title.toLowerCase();
+  // Check app constructor name for known roll dialog classes
+  const className = app.constructor?.name?.toLowerCase() || "";
+  const rollDialogClasses = [
+    "rollconfigurationdialog",
+    "d20roll",
+    "damageroll",
+    "rollresolver",
+    "baseconfigurationdialog"
+  ];
+  
+  if (rollDialogClasses.some(cls => className.includes(cls))) {
+    return true;
+  }
+  
+  // Check app title for roll-related keywords
+  const dialogTitle = (app.title || "").toLowerCase();
   const rollDialogKeywords = [
-    "attack", "damage", "skill", "ability", "save", "death save",
-    "initiative", "hit die", "tool", "check"
+    "attack", "damage", "skill", "ability", "save", "saving", "death",
+    "initiative", "hit die", "hit dice", "tool", "check", "roll",
+    "concentration", "throw", "test"
   ];
   
   return rollDialogKeywords.some(keyword => dialogTitle.includes(keyword));
