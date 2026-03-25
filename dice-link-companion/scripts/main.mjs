@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.4.29
+ * Version 1.0.4.30
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1429,33 +1429,18 @@ async function executeDirectRoll(actor, formula, flavor, opts = {}) {
   }
 }
 
-// Flag to track if we're re-triggering a roll that was previously cancelled
-let bypassNextRoll = false;
-let bypassRollId = null;
-
 /**
  * Main interception function for all roll types.
- * Cancels the roll to show our UI, then re-triggers it with user's choices.
- * Properly preserves midi-qol's workflow by re-triggering through the same pathway.
+ * Cancels the roll, shows our UI, then directly executes the roll with user's choices.
+ * This approach bypasses the hook system entirely for the final roll execution.
  */
 function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
   if (!isUserInManualMode()) {
     return true;
   }
 
-  // If this is a re-triggered roll we cancelled before, let it through normally
-  if (bypassNextRoll) {
-    bypassNextRoll = false;
-    bypassRollId = null;
-    return true;  // Let the roll proceed
-  }
-
-  // Generate a unique ID for this roll so we can match re-triggers
-  const rollId = Math.random().toString(36).substring(7);
-  
   // Store everything needed for the pending roll
   pendingRollRequest = {
-    rollId,
     title,
     subtitle,
     formula,
@@ -1466,8 +1451,6 @@ function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
     hasDisadvantage: options.hasDisadvantage !== false,
     hasCritical: options.hasCritical || false,
     abilityOptions: options.abilityOptions || null,
-    rollMethod: options.rollMethod,      // The function to call to re-trigger
-    rollArgs: options.rollArgs || {},    // Args to pass to rollMethod
     // Callback when user makes a choice
     onComplete: async (userChoice) => {
       if (userChoice === "cancel") {
@@ -1477,42 +1460,60 @@ function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
         return;
       }
       
-      // Apply user's choices to the original config object
-      if (config) {
-        config.advantage = userChoice.advantage || false;
-        config.disadvantage = userChoice.disadvantage || false;
-        
-        if (userChoice.critical) {
-          config.critical = true;
-        }
-        
-        if (userChoice.situationalBonus) {
-          if (!config.parts) config.parts = [];
-          config.parts.push(userChoice.situationalBonus);
-        }
-      }
-      
       pendingRollRequest = null;
       refreshPanel();
       
-      // Set bypass flag and re-trigger through the rollMethod
-      // This preserves the workflow because we're using the same pathway
-      if (options.rollMethod) {
-        bypassNextRoll = true;
-        bypassRollId = rollId;
+      // Instead of re-triggering through actor methods (which causes hook loops),
+      // directly create and execute the roll, then send to chat
+      try {
+        // Build the roll formula
+        let rollFormula = formula;
         
-        try {
-          // Re-trigger using the original method with modified config
-          await options.rollMethod({
-            ...options.rollArgs,
-            advantage: userChoice.advantage || false,
-            disadvantage: userChoice.disadvantage || false
-          });
-        } catch (e) {
-          console.error("[v0] Error re-triggering roll:", e);
-          bypassNextRoll = false;
-          bypassRollId = null;
+        // Handle advantage/disadvantage for d20 rolls
+        if (userChoice.advantage || userChoice.disadvantage) {
+          // Replace 1d20 with 2d20kh1 (advantage) or 2d20kl1 (disadvantage)
+          if (rollFormula.includes("1d20")) {
+            if (userChoice.advantage) {
+              rollFormula = rollFormula.replace("1d20", "2d20kh1");
+            } else if (userChoice.disadvantage) {
+              rollFormula = rollFormula.replace("1d20", "2d20kl1");
+            }
+          }
         }
+        
+        // Add situational bonus
+        if (userChoice.situationalBonus) {
+          rollFormula += ` + ${userChoice.situationalBonus}`;
+        }
+        
+        // Get actor for speaker
+        const actor = config?.subject?.parent || config?.subject || game.user.character;
+        
+        // Build flavor text
+        let flavor = title;
+        if (subtitle && subtitle !== "Unknown") {
+          flavor = `${title} - ${subtitle}`;
+        }
+        if (userChoice.advantage) {
+          flavor += " (Advantage)";
+        } else if (userChoice.disadvantage) {
+          flavor += " (Disadvantage)";
+        }
+        
+        // Create and evaluate the roll
+        const roll = new Roll(rollFormula);
+        await roll.evaluate();
+        
+        // Send to chat
+        await roll.toChat({
+          speaker: ChatMessage.getSpeaker({ actor }),
+          flavor: flavor,
+          rollMode: game.settings.get("core", "rollMode")
+        });
+        
+      } catch (e) {
+        console.error("[v0] Error executing roll:", e);
+        ui.notifications.error("Failed to execute roll");
       }
     },
     ...options
