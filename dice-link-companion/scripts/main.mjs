@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.8
+ * Version 1.0.6.9
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -2025,17 +2025,102 @@ class DiceLinkResolver extends foundry.applications.dice.RollResolver {
 /**
  * Setup the Dice Link fulfillment method.
  * Registers our custom method with Foundry's dice system.
+ * We use a non-interactive handler that waits for our panel UI.
  */
 function setupDiceFulfillment() {
-  // Register our custom fulfillment method
+  // Register our custom fulfillment method with a handler function
+  // Using a handler (non-interactive) instead of a resolver ensures we control the UI
   CONFIG.Dice.fulfillment.methods["dice-link"] = {
     label: "Dice Link Companion",
     icon: "fa-dice-d20",
-    interactive: true,
-    resolver: DiceLinkResolver
+    interactive: false,
+    handler: diceLinkFulfillmentHandler
   };
   
-  console.log("[Dice Link] Custom fulfillment method registered");
+  console.log("[Dice Link] Custom fulfillment method registered with handler");
+}
+
+/**
+ * Handler function for dice-link fulfillment.
+ * This is called for each die that needs to be fulfilled.
+ * We collect all dice, show our UI, then return results.
+ */
+async function diceLinkFulfillmentHandler(term) {
+  console.log("[Dice Link] Handler called for term:", term.expression);
+  
+  // Get the denomination (d4, d6, d8, d10, d12, d20, d100)
+  const faces = term.faces;
+  const denomination = `d${faces}`;
+  const count = term.number || 1;
+  
+  console.log("[Dice Link] Need", count, denomination, "dice");
+  
+  // Create array to hold results for each die
+  const results = [];
+  
+  for (let i = 0; i < count; i++) {
+    // Wait for user to enter the die result via our panel
+    const result = await waitForDiceResult(denomination, i + 1, count);
+    results.push(result);
+    
+    // Register this result with Foundry
+    Roll.registerResult("dice-link", denomination, result);
+  }
+  
+  console.log("[Dice Link] Handler returning results:", results);
+  return results;
+}
+
+// Store for pending dice entry
+let pendingDiceEntry = null;
+
+/**
+ * Wait for user to enter a die result via our panel UI.
+ */
+async function waitForDiceResult(denomination, dieNumber, totalDice) {
+  console.log("[Dice Link] Waiting for", denomination, "result (die", dieNumber, "of", totalDice, ")");
+  
+  return new Promise((resolve) => {
+    // Store the resolver so our panel can call it when user enters a value
+    pendingDiceEntry = {
+      denomination,
+      dieNumber,
+      totalDice,
+      resolve
+    };
+    
+    // Update our panel to show dice entry UI
+    showDiceEntryUI(denomination, dieNumber, totalDice);
+  });
+}
+
+/**
+ * Show the dice entry UI in our panel
+ */
+function showDiceEntryUI(denomination, dieNumber, totalDice) {
+  // Set up a pending roll request for dice entry
+  pendingRollRequest = {
+    title: `Enter ${denomination} Result`,
+    subtitle: `Die ${dieNumber} of ${totalDice}`,
+    isFulfillment: true,
+    step: "diceEntry",
+    diceNeeded: [{
+      type: denomination,
+      index: dieNumber - 1,
+      count: 1
+    }],
+    onComplete: (values) => {
+      if (pendingDiceEntry && values && values.length > 0) {
+        console.log("[Dice Link] Dice entry completed with value:", values[0]);
+        pendingDiceEntry.resolve(values[0]);
+        pendingDiceEntry = null;
+      }
+    }
+  };
+  
+  // Expand roll request section and refresh panel
+  collapsedSections.rollRequest = false;
+  refreshPanel();
 }
 
 /**
