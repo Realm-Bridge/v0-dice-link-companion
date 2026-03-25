@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.4.28
+ * Version 1.0.4.29
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1344,6 +1344,7 @@ Hooks.once("ready", () => {
   setupSocketListeners();
   setupChatButtonHandlers();
   setupRollInterception();
+  setupMidiQolInterception();  // Add midi-qol specific hooks if available
 
   const globalOverride = game.settings.get(MODULE_ID, "globalOverride");
   
@@ -1659,6 +1660,11 @@ function setupRollInterception() {
   // ATTACK ROLLS
   // -------------------------------------------------------------------------
   registerRollHook("dnd5e.preRollAttackV2", "dnd5e.preRollAttack", (config, dialog, ...rest) => {
+    // Skip if midi-qol is active - it has its own hooks that preserve workflow
+    if (game.modules.get("midi-qol")?.active) {
+      return true;
+    }
+    
     const item = config?.subject;
     const actor = item?.parent;
     const actorName = actor?.name || "Unknown";
@@ -1686,6 +1692,11 @@ function setupRollInterception() {
   // DAMAGE ROLLS
   // -------------------------------------------------------------------------
   registerRollHook("dnd5e.preRollDamageV2", "dnd5e.preRollDamage", (config, dialog, ...rest) => {
+    // Skip if midi-qol is active - it has its own hooks that preserve workflow
+    if (game.modules.get("midi-qol")?.active) {
+      return true;
+    }
+    
     const item = config?.subject;
     const actor = item?.parent;
     const actorName = actor?.name || "Unknown";
@@ -1794,6 +1805,174 @@ function setupRollInterception() {
     );
   });
 
+}
+
+// ============================================================================
+// MIDI-QOL SPECIFIC INTERCEPTION
+// ============================================================================
+
+/**
+ * Setup midi-qol specific hooks for attack and damage rolls.
+ * Midi-qol's workflow hooks allow us to modify the workflow in-place,
+ * which preserves the connection between attack rolls and the attack card.
+ */
+function setupMidiQolInterception() {
+  // Only setup if midi-qol is active
+  if (!game.modules.get("midi-qol")?.active) {
+    console.log("[Dice Link] midi-qol not active, skipping midi-qol hooks");
+    return;
+  }
+  
+  console.log("[Dice Link] Setting up midi-qol workflow hooks");
+  
+  // Flag to track if we're waiting for user input
+  let midiPendingWorkflow = null;
+  
+  /**
+   * Intercept midi-qol attack rolls
+   * The workflow object is "live" - modifications affect the roll
+   */
+  Hooks.on("midi-qol.preAttackRoll", (workflow) => {
+    if (!isUserInManualMode()) return true;
+    
+    const item = workflow.item;
+    const actor = workflow.actor;
+    const actorName = actor?.name || "Unknown";
+    const itemName = item?.name || "Attack";
+    
+    // Calculate attack formula
+    const attackBonus = item?.labels?.toHit || "+0";
+    const formula = `1d20 ${attackBonus}`;
+    
+    // Store workflow for later modification
+    midiPendingWorkflow = workflow;
+    
+    // Create pending roll request
+    pendingRollRequest = {
+      title: `${itemName} Attack`,
+      subtitle: actorName,
+      formula,
+      isMidiQol: true,
+      workflow,
+      situationalBonus: "",
+      hasAdvantage: true,
+      hasDisadvantage: true,
+      hasCritical: false,
+      onComplete: (userChoice) => {
+        if (userChoice === "cancel") {
+          pendingRollRequest = null;
+          midiPendingWorkflow = null;
+          refreshPanel();
+          // Abort the midi-qol workflow
+          workflow.aborted = true;
+          ui.notifications.info("Roll cancelled.");
+          return;
+        }
+        
+        // Modify the workflow's roll options directly
+        // This is the key to keeping the roll connected to midi's workflow
+        if (userChoice.advantage) {
+          workflow.advantage = true;
+          workflow.rollOptions.advantage = true;
+        }
+        if (userChoice.disadvantage) {
+          workflow.disadvantage = true;
+          workflow.rollOptions.disadvantage = true;
+        }
+        
+        // Add situational bonus if provided
+        if (userChoice.situationalBonus) {
+          if (!workflow.rollOptions.parts) workflow.rollOptions.parts = [];
+          workflow.rollOptions.parts.push(userChoice.situationalBonus);
+        }
+        
+        pendingRollRequest = null;
+        midiPendingWorkflow = null;
+        refreshPanel();
+        
+        // Continue the workflow - it will use our modified options
+        workflow.attackRollComplete = false;
+      }
+    };
+    
+    // Open/refresh panel
+    collapsedSections.rollRequest = false;
+    const panelIsOpen = currentPanelDialog && currentPanelDialog.rendered;
+    if (!panelIsOpen) {
+      openPanel();
+    } else {
+      refreshPanel();
+    }
+    
+    // Don't cancel - let midi-qol proceed, but we've set up our UI
+    // The issue is midi-qol doesn't wait for our input...
+    // We need to return false to pause, then resume the workflow
+    return false;
+  });
+  
+  /**
+   * Intercept midi-qol damage rolls
+   */
+  Hooks.on("midi-qol.preDamageRoll", (workflow) => {
+    if (!isUserInManualMode()) return true;
+    
+    const item = workflow.item;
+    const actor = workflow.actor;
+    const actorName = actor?.name || "Unknown";
+    const itemName = item?.name || "Damage";
+    
+    const damageFormula = item?.labels?.damage || "1d6";
+    
+    midiPendingWorkflow = workflow;
+    
+    pendingRollRequest = {
+      title: `${itemName} Damage`,
+      subtitle: actorName,
+      formula: damageFormula,
+      isMidiQol: true,
+      workflow,
+      situationalBonus: "",
+      hasAdvantage: false,
+      hasDisadvantage: false,
+      hasCritical: true,
+      onComplete: (userChoice) => {
+        if (userChoice === "cancel") {
+          pendingRollRequest = null;
+          midiPendingWorkflow = null;
+          refreshPanel();
+          workflow.aborted = true;
+          ui.notifications.info("Roll cancelled.");
+          return;
+        }
+        
+        // Apply critical if selected
+        if (userChoice.critical) {
+          workflow.isCritical = true;
+          workflow.rollOptions.critical = true;
+        }
+        
+        // Add situational bonus
+        if (userChoice.situationalBonus) {
+          if (!workflow.rollOptions.parts) workflow.rollOptions.parts = [];
+          workflow.rollOptions.parts.push(userChoice.situationalBonus);
+        }
+        
+        pendingRollRequest = null;
+        midiPendingWorkflow = null;
+        refreshPanel();
+      }
+    };
+    
+    collapsedSections.rollRequest = false;
+    const panelIsOpen = currentPanelDialog && currentPanelDialog.rendered;
+    if (!panelIsOpen) {
+      openPanel();
+    } else {
+      refreshPanel();
+    }
+    
+    return false;
+  });
 }
 
 // ============================================================================
