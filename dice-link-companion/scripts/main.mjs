@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.4.27
+ * Version 1.0.4.28
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1428,87 +1428,109 @@ async function executeDirectRoll(actor, formula, flavor, opts = {}) {
   }
 }
 
-// Flag to track if we're executing a roll we triggered (to prevent re-interception)
+// Flag to track if we're re-triggering a roll that was previously cancelled
+let bypassNextRoll = false;
+let bypassRollId = null;
+
 /**
  * Main interception function for all roll types.
- * Returns a Promise that resolves when user makes a choice.
- * Modifies the config object in-place and lets the ORIGINAL roll proceed.
- * This keeps midi-qol and other workflows intact.
+ * Cancels the roll to show our UI, then re-triggers it with user's choices.
+ * Properly preserves midi-qol's workflow by re-triggering through the same pathway.
  */
 function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
   if (!isUserInManualMode()) {
     return true;
   }
 
-  // Disable the native configuration dialog - we'll provide our own UI
-  if (dialog) {
-    dialog.configure = false;
+  // If this is a re-triggered roll we cancelled before, let it through normally
+  if (bypassNextRoll) {
+    bypassNextRoll = false;
+    bypassRollId = null;
+    return true;  // Let the roll proceed
   }
 
-  // Create a Promise that will resolve when the user makes a choice
-  return new Promise((resolve) => {
-    // Store everything needed for the pending roll
-    pendingRollRequest = {
-      title,
-      subtitle,
-      formula,
-      config,
-      dialog,
-      situationalBonus: "",
-      hasAdvantage: options.hasAdvantage !== false,
-      hasDisadvantage: options.hasDisadvantage !== false,
-      hasCritical: options.hasCritical || false,
-      abilityOptions: options.abilityOptions || null,
-      // Callback when user makes a choice
-      onComplete: (userChoice) => {
-        if (userChoice === "cancel") {
-          pendingRollRequest = null;
-          refreshPanel();
-          ui.notifications.info("Roll cancelled.");
-          resolve(false); // Cancel the roll
-          return;
-        }
-        
-        // Modify the original config object with user's choices
-        // This keeps the roll in its original workflow (midi-qol, etc.)
-        if (config) {
-          config.advantage = userChoice.advantage || false;
-          config.disadvantage = userChoice.disadvantage || false;
-          
-          // Handle critical for damage rolls
-          if (userChoice.critical) {
-            config.critical = true;
-          }
-          
-          // Add situational bonus if provided
-          if (userChoice.situationalBonus) {
-            if (!config.parts) config.parts = [];
-            config.parts.push(userChoice.situationalBonus);
-          }
-        }
-        
+  // Generate a unique ID for this roll so we can match re-triggers
+  const rollId = Math.random().toString(36).substring(7);
+  
+  // Store everything needed for the pending roll
+  pendingRollRequest = {
+    rollId,
+    title,
+    subtitle,
+    formula,
+    config,        // Keep reference to original config
+    dialog,
+    situationalBonus: "",
+    hasAdvantage: options.hasAdvantage !== false,
+    hasDisadvantage: options.hasDisadvantage !== false,
+    hasCritical: options.hasCritical || false,
+    abilityOptions: options.abilityOptions || null,
+    rollMethod: options.rollMethod,      // The function to call to re-trigger
+    rollArgs: options.rollArgs || {},    // Args to pass to rollMethod
+    // Callback when user makes a choice
+    onComplete: async (userChoice) => {
+      if (userChoice === "cancel") {
         pendingRollRequest = null;
         refreshPanel();
+        ui.notifications.info("Roll cancelled.");
+        return;
+      }
+      
+      // Apply user's choices to the original config object
+      if (config) {
+        config.advantage = userChoice.advantage || false;
+        config.disadvantage = userChoice.disadvantage || false;
         
-        resolve(true); // Let the original roll proceed with modified config
-      },
-      ...options
-    };
-
-    // Auto-open panel and expand the roll request section
-    collapsedSections.rollRequest = false;
-    
-    // Check if panel is open and rendered
-    const panelIsOpen = currentPanelDialog && currentPanelDialog.rendered;
-    
-    if (!panelIsOpen) {
-      openPanel();
-    } else {
+        if (userChoice.critical) {
+          config.critical = true;
+        }
+        
+        if (userChoice.situationalBonus) {
+          if (!config.parts) config.parts = [];
+          config.parts.push(userChoice.situationalBonus);
+        }
+      }
+      
+      pendingRollRequest = null;
       refreshPanel();
-    }
-    
-    // The Promise will resolve when user clicks a button in the panel
-  });
+      
+      // Set bypass flag and re-trigger through the rollMethod
+      // This preserves the workflow because we're using the same pathway
+      if (options.rollMethod) {
+        bypassNextRoll = true;
+        bypassRollId = rollId;
+        
+        try {
+          // Re-trigger using the original method with modified config
+          await options.rollMethod({
+            ...options.rollArgs,
+            advantage: userChoice.advantage || false,
+            disadvantage: userChoice.disadvantage || false
+          });
+        } catch (e) {
+          console.error("[v0] Error re-triggering roll:", e);
+          bypassNextRoll = false;
+          bypassRollId = null;
+        }
+      }
+    },
+    ...options
+  };
+
+  // Auto-open panel and expand the roll request section
+  collapsedSections.rollRequest = false;
+  
+  // Check if panel is open and rendered
+  const panelIsOpen = currentPanelDialog && currentPanelDialog.rendered;
+  
+  if (!panelIsOpen) {
+    openPanel();
+  } else {
+    refreshPanel();
+  }
+
+  // Return false to CANCEL this roll - we'll re-trigger it after user input
+  return false;
 }
 
 /**
