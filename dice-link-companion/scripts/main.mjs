@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.4.38
+ * Version 1.0.5.0
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -32,53 +32,26 @@ const collapsedSections = {
 // ============================================================================
 
 async function applyManualDice() {
-  let currentConfig = {};
-  try {
-    currentConfig = game.settings.get("core", "diceConfiguration") || {};
-  } catch (e) {}
-  
-  const newConfig = {
-    ...currentConfig,
-    d4: "manual",
-    d6: "manual", 
-    d8: "manual",
-    d10: "manual",
-    d12: "manual",
-    d20: "manual",
-    d100: "manual"
-  };
-  
+  // Use our custom "dice-link" fulfillment method instead of "manual"
+  // This uses our DiceLinkResolver which shows our panel UI
   if (CONFIG.Dice.fulfillment) {
-    CONFIG.Dice.fulfillment.defaultMethod = "manual";
+    CONFIG.Dice.fulfillment.defaultMethod = "dice-link";
     if (CONFIG.Dice.fulfillment.dice) {
-      CONFIG.Dice.fulfillment.dice.d4 = "manual";
-      CONFIG.Dice.fulfillment.dice.d6 = "manual";
-      CONFIG.Dice.fulfillment.dice.d8 = "manual";
-      CONFIG.Dice.fulfillment.dice.d10 = "manual";
-      CONFIG.Dice.fulfillment.dice.d12 = "manual";
-      CONFIG.Dice.fulfillment.dice.d20 = "manual";
-      CONFIG.Dice.fulfillment.dice.d100 = "manual";
+      CONFIG.Dice.fulfillment.dice.d4 = "dice-link";
+      CONFIG.Dice.fulfillment.dice.d6 = "dice-link";
+      CONFIG.Dice.fulfillment.dice.d8 = "dice-link";
+      CONFIG.Dice.fulfillment.dice.d10 = "dice-link";
+      CONFIG.Dice.fulfillment.dice.d12 = "dice-link";
+      CONFIG.Dice.fulfillment.dice.d20 = "dice-link";
+      CONFIG.Dice.fulfillment.dice.d100 = "dice-link";
     }
   }
   
-  if (game.user.isGM) {
-    try {
-      await game.settings.set("core", "diceConfiguration", newConfig);
-    } catch (e) {}
-  }
+  console.log("[Dice Link] Applied dice-link fulfillment method for manual mode");
 }
 
 async function applyDigitalDice() {
-  const newConfig = {
-    d4: "",
-    d6: "",
-    d8: "",
-    d10: "",
-    d12: "",
-    d20: "",
-    d100: ""
-  };
-  
+  // Remove our fulfillment method, restore digital dice
   if (CONFIG.Dice.fulfillment) {
     CONFIG.Dice.fulfillment.defaultMethod = "";
     if (CONFIG.Dice.fulfillment.dice) {
@@ -92,11 +65,7 @@ async function applyDigitalDice() {
     }
   }
   
-  if (game.user.isGM) {
-    try {
-      await game.settings.set("core", "diceConfiguration", newConfig);
-    } catch (e) {}
-  }
+  console.log("[Dice Link] Removed dice-link fulfillment, restored digital dice");
 }
 
 // ============================================================================
@@ -1419,75 +1388,180 @@ Hooks.once("ready", () => {
 });
 
 // ============================================================================
-// DICE FULFILLMENT - AUTOMATIC FOR MANUAL MODE USERS
+// DICE FULFILLMENT - CUSTOM RESOLVER FOR DICE LINK
 // ============================================================================
 
-// Store for pending dice fulfillment
+// Store for pending dice fulfillment - shared between resolver and panel
 let pendingDiceFulfillment = null;
 
 /**
- * Setup automatic dice fulfillment for users in manual mode.
- * This hooks into Foundry's Roll system to intercept dice evaluation
- * when the current user is set to manual mode by the GM.
- * No user configuration required - controlled entirely by our GM panel.
+ * Custom RollResolver that integrates with our Dice Link panel.
+ * This resolver shows our UI instead of Foundry's default manual entry dialog.
  */
-function setupDiceFulfillment() {
-  // Store the original Roll.prototype.evaluate
-  const originalEvaluate = Roll.prototype.evaluate;
+class DiceLinkResolver extends foundry.applications.dice.RollResolver {
   
-  // NOTE: We no longer override Roll.prototype.evaluate here.
-  // The interceptRoll function handles everything through its own Step 1 -> Step 2 flow.
-  // If we also override evaluate, it causes double prompts.
-  console.log("[Dice Link] Dice fulfillment setup complete (handled via interceptRoll flow)");
+  static DEFAULT_OPTIONS = {
+    ...foundry.applications.dice.RollResolver.DEFAULT_OPTIONS,
+    id: "dice-link-resolver",
+    classes: ["dlc-resolver"],
+    window: {
+      title: "Dice Link - Enter Results"
+    }
+  };
+  
+  /**
+   * Override to NOT render the default Foundry UI.
+   * Instead, we show our panel's dice entry UI.
+   */
+  async _renderHTML(context, options) {
+    // Don't render Foundry's UI - we use our panel instead
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML = `<div class="dlc-resolver-placeholder" style="display:none;"></div>`;
+    return wrapper;
+  }
+  
+  /**
+   * Override awaitFulfillment to use our panel UI
+   */
+  async awaitFulfillment() {
+    const roll = this.roll;
+    const fulfillable = this.fulfillable;
+    
+    if (fulfillable.size === 0) {
+      return;
+    }
+    
+    // Build list of dice needed from fulfillable terms
+    const diceNeeded = [];
+    for (const [term, config] of fulfillable) {
+      for (let i = 0; i < term.number; i++) {
+        diceNeeded.push({
+          faces: term.faces,
+          termId: config.id,
+          dieIndex: i,
+          method: config.method
+        });
+      }
+    }
+    
+    console.log("[Dice Link] Resolver awaiting fulfillment for dice:", diceNeeded);
+    
+    // Show our panel UI and wait for user input
+    const results = await this._showDiceLinkPanel(roll.formula, diceNeeded);
+    
+    if (results === null) {
+      // User cancelled - throw to abort
+      throw new Error("Roll cancelled by user");
+    }
+    
+    // Register results with Foundry's system
+    let resultIndex = 0;
+    for (const [term, config] of fulfillable) {
+      for (let i = 0; i < term.number; i++) {
+        const value = results[resultIndex];
+        if (value !== undefined && value !== null) {
+          // Use the static method to register the result
+          Roll.registerResult(config.method, `d${term.faces}`, value);
+        }
+        resultIndex++;
+      }
+    }
+  }
+  
+  /**
+   * Show our panel's dice entry UI and return a promise that resolves with results
+   */
+  _showDiceLinkPanel(formula, diceNeeded) {
+    return new Promise((resolve) => {
+      pendingDiceFulfillment = {
+        formula,
+        diceNeeded,
+        resolve
+      };
+      
+      // Update the pending roll request to show dice input UI
+      pendingRollRequest = {
+        title: "Roll Dice",
+        subtitle: formula,
+        formula: formula,
+        diceNeeded: diceNeeded,
+        isFulfillment: true,
+        step: "diceEntry",
+        situationalBonus: "",
+        hasAdvantage: false,
+        hasDisadvantage: false,
+        hasCritical: false,
+        onComplete: (userChoice) => {
+          pendingDiceFulfillment = null;
+          pendingRollRequest = null;
+          refreshPanel();
+          
+          if (userChoice === "cancel") {
+            resolve(null);
+            return;
+          }
+          
+          // userChoice.diceResults should be array of values
+          resolve(userChoice.diceResults || []);
+        }
+      };
+      
+      // Open/refresh the panel
+      collapsedSections.rollRequest = false;
+      const panelIsOpen = currentPanelDialog && currentPanelDialog.rendered;
+      if (!panelIsOpen) {
+        openPanel();
+      } else {
+        refreshPanel();
+      }
+    });
+  }
 }
 
 /**
- * Request dice fulfillment from the user via the Dice Link panel.
- * Returns a Promise that resolves with an array of dice results.
+ * Setup the Dice Link fulfillment method.
+ * Registers our custom method with Foundry's dice system.
  */
-function requestDiceFulfillment(formula, diceNeeded) {
-  return new Promise((resolve) => {
-    pendingDiceFulfillment = {
-      formula,
-      diceNeeded,
-      resolve
-    };
-    
-    // Update the pending roll request to show dice input UI
-    pendingRollRequest = {
-      title: "Roll Dice",
-      subtitle: formula,
-      formula: formula,
-      diceNeeded: diceNeeded,
-      isFulfillment: true,
-      situationalBonus: "",
-      hasAdvantage: false,
-      hasDisadvantage: false,
-      hasCritical: false,
-      onComplete: (userChoice) => {
-        pendingDiceFulfillment = null;
-        pendingRollRequest = null;
-        refreshPanel();
-        
-        if (userChoice === "cancel") {
-          resolve(null);
-          return;
-        }
-        
-        // userChoice.diceResults should be array of values
-        resolve(userChoice.diceResults || []);
-      }
-    };
-    
-    // Open/refresh the panel
-    collapsedSections.rollRequest = false;
-    const panelIsOpen = currentPanelDialog && currentPanelDialog.rendered;
-    if (!panelIsOpen) {
-      openPanel();
-    } else {
-      refreshPanel();
-    }
-  });
+function setupDiceFulfillment() {
+  // Register our custom fulfillment method
+  CONFIG.Dice.fulfillment.methods["dice-link"] = {
+    label: "Dice Link Companion",
+    icon: "fa-dice-d20",
+    interactive: true,
+    resolver: DiceLinkResolver
+  };
+  
+  console.log("[Dice Link] Custom fulfillment method registered");
+}
+
+/**
+ * Apply Dice Link fulfillment to all dice for manual mode users.
+ * Called when user is set to manual mode.
+ */
+function applyDiceLinkFulfillment() {
+  const diceTypes = ["d4", "d6", "d8", "d10", "d12", "d20", "d100"];
+  
+  for (const die of diceTypes) {
+    CONFIG.Dice.fulfillment.dice[die] = "dice-link";
+  }
+  
+  CONFIG.Dice.fulfillment.defaultMethod = "dice-link";
+  console.log("[Dice Link] Applied dice-link fulfillment to all dice");
+}
+
+/**
+ * Remove Dice Link fulfillment (restore default digital).
+ * Called when user is set to digital mode.
+ */
+function removeDiceLinkFulfillment() {
+  const diceTypes = ["d4", "d6", "d8", "d10", "d12", "d20", "d100"];
+  
+  for (const die of diceTypes) {
+    CONFIG.Dice.fulfillment.dice[die] = "";
+  }
+  
+  CONFIG.Dice.fulfillment.defaultMethod = "";
+  console.log("[Dice Link] Removed dice-link fulfillment, restored digital");
 }
 
 // ============================================================================
@@ -1899,58 +1973,38 @@ function setupRollInterception() {
 
   // -------------------------------------------------------------------------
   // ATTACK ROLLS
+  // For attack rolls, we DON'T cancel the roll. Instead:
+  // 1. Let dnd5e/midi-qol handle advantage/disadvantage configuration (native dialog)
+  // 2. Our DiceLinkResolver will prompt for dice entry when the roll evaluates
+  // 3. This keeps the roll within the workflow for proper hit/miss detection
   // -------------------------------------------------------------------------
   registerRollHook("dnd5e.preRollAttackV2", "dnd5e.preRollAttack", (config, dialog, ...rest) => {
     console.log("[Dice Link] ATTACK HOOK FIRED", config);
-    const item = config?.subject;
-    const actor = item?.parent;
-    const actorName = actor?.name || "Unknown";
-    const itemName = item?.name || "Attack";
     
-    const attackBonus = item?.labels?.toHit || "";
-    const formula = attackBonus ? `1d20 ${attackBonus}` : "1d20";
+    if (!isUserInManualMode()) {
+      return true; // Let roll proceed normally
+    }
     
-    return interceptRoll(
-      `${itemName} Attack`,
-      actorName,
-      formula,
-      config,
-      dialog,
-      { 
-        hasAdvantage: true, 
-        hasDisadvantage: true,
-        rollMethod: (opts) => item.rollAttack(opts),
-        rollArgs: {}
-      }
-    );
+    // In manual mode, let the roll proceed but our DiceLinkResolver will handle dice entry
+    // We DON'T cancel - this keeps the roll in the workflow
+    console.log("[Dice Link] Attack roll - letting proceed, resolver will handle dice");
+    return true;
   });
 
   // -------------------------------------------------------------------------
   // DAMAGE ROLLS
+  // Same approach as attack rolls - don't cancel, let resolver handle dice
   // -------------------------------------------------------------------------
   registerRollHook("dnd5e.preRollDamageV2", "dnd5e.preRollDamage", (config, dialog, ...rest) => {
     console.log("[Dice Link] DAMAGE HOOK FIRED", config);
-    const item = config?.subject;
-    const actor = item?.parent;
-    const actorName = actor?.name || "Unknown";
-    const itemName = item?.name || "Damage";
     
-    const damageFormula = item?.labels?.damage || item?.system?.damage?.parts?.[0]?.[0] || "1d6";
+    if (!isUserInManualMode()) {
+      return true; // Let roll proceed normally
+    }
     
-    return interceptRoll(
-      `${itemName} Damage`,
-      actorName,
-      damageFormula,
-      config,
-      dialog,
-      { 
-        hasAdvantage: false, 
-        hasDisadvantage: false, 
-        hasCritical: true,
-        rollMethod: (opts) => item.rollDamage(opts),
-        rollArgs: {}
-      }
-    );
+    // In manual mode, let the roll proceed but our DiceLinkResolver will handle dice entry
+    console.log("[Dice Link] Damage roll - letting proceed, resolver will handle dice");
+    return true;
   });
 
   // -------------------------------------------------------------------------
