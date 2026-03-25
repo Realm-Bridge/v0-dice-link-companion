@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.4.34
+ * Version 1.0.4.35
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1380,11 +1380,15 @@ function setupDiceFulfillment() {
   
   // Override Roll.prototype.evaluate to intercept for manual mode users
   Roll.prototype.evaluate = async function(options = {}) {
+    console.log("[v0] Roll.evaluate called, formula:", this.formula);
+    
     // Check if user is in manual mode
     if (!isUserInManualMode()) {
-      // Not in manual mode - use normal evaluation
+      console.log("[v0] Not in manual mode, using original evaluate");
       return originalEvaluate.call(this, options);
     }
+    
+    console.log("[v0] Manual mode - intercepting dice evaluation");
     
     // User is in manual mode - we need to fulfill dice manually
     // Get the dice terms that need to be rolled
@@ -1392,8 +1396,10 @@ function setupDiceFulfillment() {
       t instanceof foundry.dice.terms.DiceTerm
     );
     
+    console.log("[v0] Dice terms found:", diceTerms.length, diceTerms.map(t => `${t.number}d${t.faces}`));
+    
     if (diceTerms.length === 0) {
-      // No dice to roll - evaluate normally
+      console.log("[v0] No dice terms, using original evaluate");
       return originalEvaluate.call(this, options);
     }
     
@@ -1409,8 +1415,12 @@ function setupDiceFulfillment() {
       }
     }
     
+    console.log("[v0] Dice needed:", diceNeeded);
+    
     // Wait for user to provide dice results
     const results = await requestDiceFulfillment(this.formula, diceNeeded);
+    
+    console.log("[v0] Got dice results:", results);
     
     if (results === null) {
       // User cancelled - throw to abort the roll
@@ -1432,6 +1442,8 @@ function setupDiceFulfillment() {
     // Mark the roll as evaluated and compute the total
     this._evaluated = true;
     this._total = this._evaluateTotal();
+    
+    console.log("[v0] Roll evaluated with results, total:", this._total);
     
     return this;
   };
@@ -1557,10 +1569,21 @@ async function executeDirectRoll(actor, formula, flavor, opts = {}) {
 
 /**
  * Main interception function for all roll types.
- * Cancels the roll, shows our UI, then directly executes the roll with user's choices.
- * This approach bypasses the hook system entirely for the final roll execution.
+ * For manual mode: Let the roll proceed normally - dice fulfillment will handle getting values.
+ * For digital mode: Just pass through.
  */
 function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
+  // Always let rolls proceed - dice fulfillment at Roll.evaluate() handles manual mode
+  // The native dnd5e dialog will handle advantage/disadvantage selection
+  // Our dice fulfillment will intercept when the roll actually evaluates
+  return true;
+}
+
+/**
+ * LEGACY - kept for reference but no longer used
+ * The old approach that cancelled and re-triggered rolls.
+ */
+function interceptRollLegacy(title, subtitle, formula, config, dialog, options = {}) {
   if (!isUserInManualMode()) {
     return true;
   }
@@ -1570,7 +1593,7 @@ function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
     title,
     subtitle,
     formula,
-    config,        // Keep reference to original config
+    config,
     dialog,
     situationalBonus: "",
     hasAdvantage: options.hasAdvantage !== false,
