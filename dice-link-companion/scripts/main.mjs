@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.4.37
+ * Version 1.0.4.38
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1435,75 +1435,10 @@ function setupDiceFulfillment() {
   // Store the original Roll.prototype.evaluate
   const originalEvaluate = Roll.prototype.evaluate;
   
-  // Override Roll.prototype.evaluate to intercept for manual mode users
-  Roll.prototype.evaluate = async function(options = {}) {
-    console.log("[v0] Roll.evaluate called, formula:", this.formula);
-    
-    // Check if user is in manual mode
-    if (!isUserInManualMode()) {
-      console.log("[v0] Not in manual mode, using original evaluate");
-      return originalEvaluate.call(this, options);
-    }
-    
-    console.log("[v0] Manual mode - intercepting dice evaluation");
-    
-    // User is in manual mode - we need to fulfill dice manually
-    // Get the dice terms that need to be rolled
-    const diceTerms = this.terms.filter(t => 
-      t instanceof foundry.dice.terms.DiceTerm
-    );
-    
-    console.log("[v0] Dice terms found:", diceTerms.length, diceTerms.map(t => `${t.number}d${t.faces}`));
-    
-    if (diceTerms.length === 0) {
-      console.log("[v0] No dice terms, using original evaluate");
-      return originalEvaluate.call(this, options);
-    }
-    
-    // Build list of dice needed
-    const diceNeeded = [];
-    for (const term of diceTerms) {
-      for (let i = 0; i < term.number; i++) {
-        diceNeeded.push({
-          faces: term.faces,
-          termIndex: this.terms.indexOf(term),
-          dieIndex: i
-        });
-      }
-    }
-    
-    console.log("[v0] Dice needed:", diceNeeded);
-    
-    // Wait for user to provide dice results
-    const results = await requestDiceFulfillment(this.formula, diceNeeded);
-    
-    console.log("[v0] Got dice results:", results);
-    
-    if (results === null) {
-      // User cancelled - throw to abort the roll
-      throw new Error("Roll cancelled by user");
-    }
-    
-    // Inject the user-provided results into the dice terms
-    let resultIndex = 0;
-    for (const term of diceTerms) {
-      term.results = [];
-      for (let i = 0; i < term.number; i++) {
-        const value = results[resultIndex] ?? Math.ceil(Math.random() * term.faces);
-        term.results.push({ result: value, active: true });
-        resultIndex++;
-      }
-      term._evaluated = true;
-    }
-    
-    // Mark the roll as evaluated and compute the total
-    this._evaluated = true;
-    this._total = this._evaluateTotal();
-    
-    console.log("[v0] Roll evaluated with results, total:", this._total);
-    
-    return this;
-  };
+  // NOTE: We no longer override Roll.prototype.evaluate here.
+  // The interceptRoll function handles everything through its own Step 1 -> Step 2 flow.
+  // If we also override evaluate, it causes double prompts.
+  console.log("[Dice Link] Dice fulfillment setup complete (handled via interceptRoll flow)");
 }
 
 /**
@@ -1714,9 +1649,14 @@ async function executeRollWithValues(formula, diceResults, title, subtitle, roll
  * The dice fulfillment (Step 2) will then handle getting the actual dice values.
  */
 function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
+  console.log("[Dice Link] interceptRoll called:", title, formula);
+  
   if (!isUserInManualMode()) {
+    console.log("[Dice Link] Not in manual mode, passing through");
     return true;
   }
+  
+  console.log("[Dice Link] Manual mode - showing configuration UI");
   
   // Disable native dialog - we provide our own
   if (dialog) {
@@ -1961,6 +1901,7 @@ function setupRollInterception() {
   // ATTACK ROLLS
   // -------------------------------------------------------------------------
   registerRollHook("dnd5e.preRollAttackV2", "dnd5e.preRollAttack", (config, dialog, ...rest) => {
+    console.log("[Dice Link] ATTACK HOOK FIRED", config);
     const item = config?.subject;
     const actor = item?.parent;
     const actorName = actor?.name || "Unknown";
@@ -1988,6 +1929,7 @@ function setupRollInterception() {
   // DAMAGE ROLLS
   // -------------------------------------------------------------------------
   registerRollHook("dnd5e.preRollDamageV2", "dnd5e.preRollDamage", (config, dialog, ...rest) => {
+    console.log("[Dice Link] DAMAGE HOOK FIRED", config);
     const item = config?.subject;
     const actor = item?.parent;
     const actorName = actor?.name || "Unknown";
