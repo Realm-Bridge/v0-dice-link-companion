@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.17
+ * Version 1.0.6.18
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1219,26 +1219,49 @@ function attachDiceTrayListeners(html) {
 
   // Roll button
   html.find(".dlc-dice-roll-btn").click(async function() {
-    const formula = html.find(".dlc-dice-formula-input").val().replace(/^\/r\s*/, "").trim();
+    let formula = html.find(".dlc-dice-formula-input").val().replace(/^\/r\s*/, "").trim();
     if (!formula) {
       ui.notifications.warn("Enter a dice formula first.");
       return;
     }
     
+    // Apply advantage/disadvantage to d20 rolls
+    if (advMode === "advantage") {
+      // Replace 1d20 with 2d20kh (keep highest)
+      formula = formula.replace(/(\d*)d20/gi, (match, count) => {
+        const num = parseInt(count) || 1;
+        return `${num * 2}d20kh${num}`;
+      });
+    } else if (advMode === "disadvantage") {
+      // Replace 1d20 with 2d20kl (keep lowest)
+      formula = formula.replace(/(\d*)d20/gi, (match, count) => {
+        const num = parseInt(count) || 1;
+        return `${num * 2}d20kl${num}`;
+      });
+    }
+    
     try {
       const roll = new Roll(formula);
       await roll.evaluate();
+      
+      // Add flavor text for advantage/disadvantage
+      const flavorText = advMode !== "normal" 
+        ? `Manual Dice Roll (${advMode === "advantage" ? "Advantage" : "Disadvantage"})` 
+        : "Manual Dice Roll";
+      
       await roll.toMessage({
         speaker: ChatMessage.getSpeaker(),
-        flavor: "Manual Dice Roll"
+        flavor: flavorText
       });
       
       // Reset the dice tray
       Object.keys(diceCounts).forEach(k => diceCounts[k] = 0);
       currentModifier = 0;
+      advMode = "normal";
       html.find(".dlc-die-count").text("0").hide();
       html.find(".dlc-dice-modifier").text("0");
       html.find(".dlc-dice-formula-input").val("/r ");
+      html.find(".dlc-dice-adv-btn").text("ADV/DIS").removeClass("dlc-adv-active dlc-dis-active");
     } catch (e) {
       ui.notifications.error("Invalid dice formula.");
     }
