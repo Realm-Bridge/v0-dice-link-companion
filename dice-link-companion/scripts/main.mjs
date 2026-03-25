@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.21
+ * Version 1.0.6.22
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -2697,8 +2697,16 @@ function setupRollInterception() {
 
 /**
  * Setup midi-qol specific hooks for attack and damage rolls.
- * Midi-qol's workflow hooks allow us to modify the workflow in-place,
- * which preserves the connection between attack rolls and the attack card.
+ * 
+ * IMPORTANT: In v13, Midi-QOL uses Foundry's dice fulfillment system.
+ * Our dice fulfillment handler (diceLinkFulfillmentHandler) is already
+ * registered and will be called for all dice rolls, including those
+ * from Midi-QOL workflows.
+ * 
+ * We should NOT intercept Midi's workflow hooks as that causes the
+ * attack roll to be disconnected from the workflow (separate chat cards).
+ * Instead, we let Midi handle its workflow and just provide dice values
+ * through the fulfillment system.
  */
 function setupMidiQolInterception() {
   // Only setup if midi-qol is active
@@ -2707,7 +2715,15 @@ function setupMidiQolInterception() {
     return;
   }
   
-  console.log("[Dice Link] Setting up midi-qol workflow hooks");
+  console.log("[Dice Link] midi-qol detected - relying on dice fulfillment system for manual rolls");
+  
+  // We don't need to hook into Midi's workflow anymore.
+  // The dice fulfillment handler will be called automatically when Midi
+  // makes its rolls, keeping everything properly connected in the workflow.
+  
+  // The only thing we might want to do is detect when a Midi workflow starts
+  // so we can prepare our UI, but NOT intercept the actual rolls.
+  return;
   
   // Flag to track if we're waiting for user input
   let midiPendingWorkflow = null;
