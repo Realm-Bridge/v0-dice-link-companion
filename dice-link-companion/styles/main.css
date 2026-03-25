@@ -1,5 +1,5 @@
 /* Dice Link Companion - Realm Bridge Branded Styles */
-/* Version 1.0.4.34 */
+/* Version 1.0.4.36 */
 
 /* ============================================================================
    CSS VARIABLES - Realm Bridge Brand Colors
@@ -1445,4 +1445,55 @@
 .dlc-roll-cancel-btn:hover {
   border-color: var(--dlc-danger);
   color: var(--dlc-danger);
+}
+
+/* ============================================================================
+   DICE ENTRY STEP (Step 2 - Manual dice input)
+   ============================================================================ */
+.dlc-dice-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.dlc-dice-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dlc-dice-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--dlc-text-primary);
+  min-width: 40px;
+  text-transform: lowercase;
+}
+
+.dlc-dice-value-input {
+  flex: 1;
+  padding: 8px 12px;
+  background: var(--dlc-bg-input);
+  border: 1px solid var(--dlc-border);
+  border-radius: 4px;
+  color: var(--dlc-text-primary);
+  font-size: 16px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.dlc-dice-value-input:focus {
+  outline: none;
+  border-color: var(--dlc-accent);
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
+}
+
+.dlc-dice-value-input::placeholder {
+  color: var(--dlc-text-muted);
+  font-weight: normal;
+}
+
+.dlc-submit-dice-btn {
+  width: 100%;
 }

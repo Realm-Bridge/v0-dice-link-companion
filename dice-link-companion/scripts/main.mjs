@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.4.34
+ * Version 1.0.4.36
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -534,8 +534,43 @@ function generateDiceTrayHTML() {
 }
 
 function generatePendingRollHTML(roll) {
+  // STEP 2: Dice Entry (isFulfillment = true)
+  if (roll.isFulfillment && roll.diceNeeded) {
+    const diceInputs = roll.diceNeeded.map((die, index) => `
+      <div class="dlc-dice-input-row">
+        <label class="dlc-dice-label">d${die.faces}</label>
+        <input type="number" 
+               class="dlc-dice-value-input" 
+               data-die-index="${index}" 
+               data-die-faces="${die.faces}"
+               min="1" 
+               max="${die.faces}" 
+               placeholder="1-${die.faces}">
+      </div>
+    `).join('');
+    
+    return `
+      <div class="dlc-pending-roll dlc-dice-entry-step">
+        <div class="dlc-pending-roll-header">
+          <h4 class="dlc-pending-roll-title">Enter Dice Results</h4>
+          <p class="dlc-pending-roll-subtitle">${roll.formula}</p>
+        </div>
+        <div class="dlc-dice-inputs">
+          ${diceInputs}
+        </div>
+        <div class="dlc-pending-roll-actions">
+          <button type="button" class="dlc-roll-action-btn dlc-submit-dice-btn dlc-btn-success">Submit Results</button>
+        </div>
+        <div class="dlc-pending-roll-footer">
+          <button type="button" class="dlc-roll-cancel-btn">Cancel Roll</button>
+        </div>
+      </div>
+    `;
+  }
+  
+  // STEP 1: Configuration (advantage/disadvantage/normal)
   return `
-    <div class="dlc-pending-roll">
+    <div class="dlc-pending-roll dlc-config-step">
       <div class="dlc-pending-roll-header">
         <h4 class="dlc-pending-roll-title">${roll.title}</h4>
         ${roll.subtitle ? `<p class="dlc-pending-roll-subtitle">${roll.subtitle}</p>` : ''}
@@ -1189,8 +1224,8 @@ function attachDiceTrayListeners(html) {
   // PENDING ROLL ACTION LISTENERS
   // ============================================================================
 
-  // Advantage / Normal / Disadvantage buttons
-  html.find(".dlc-roll-action-btn").click(async function() {
+  // Advantage / Normal / Disadvantage buttons (Step 1: Configuration)
+  html.find(".dlc-roll-action-btn[data-roll-mode]").click(async function() {
     if (!pendingRollRequest) {
       return;
     }
@@ -1208,6 +1243,28 @@ function attachDiceTrayListeners(html) {
     // Call the onComplete callback to resolve the Promise and proceed with the roll
     if (pendingRollRequest.onComplete) {
       pendingRollRequest.onComplete(userChoice);
+    }
+  });
+  
+  // Submit Dice Results button (Step 2: Dice Entry)
+  html.find(".dlc-submit-dice-btn").click(async function() {
+    if (!pendingRollRequest || !pendingRollRequest.isFulfillment) {
+      return;
+    }
+    
+    // Gather dice values from inputs
+    const diceResults = [];
+    html.find(".dlc-dice-value-input").each(function() {
+      const value = parseInt($(this).val()) || 0;
+      const faces = parseInt($(this).data("die-faces")) || 20;
+      // Clamp to valid range
+      const clampedValue = Math.max(1, Math.min(faces, value));
+      diceResults.push(clampedValue);
+    });
+    
+    // Call the onComplete callback with the dice results
+    if (pendingRollRequest.onComplete) {
+      pendingRollRequest.onComplete({ diceResults });
     }
   });
 
@@ -1380,11 +1437,15 @@ function setupDiceFulfillment() {
   
   // Override Roll.prototype.evaluate to intercept for manual mode users
   Roll.prototype.evaluate = async function(options = {}) {
+    console.log("[v0] Roll.evaluate called, formula:", this.formula);
+    
     // Check if user is in manual mode
     if (!isUserInManualMode()) {
-      // Not in manual mode - use normal evaluation
+      console.log("[v0] Not in manual mode, using original evaluate");
       return originalEvaluate.call(this, options);
     }
+    
+    console.log("[v0] Manual mode - intercepting dice evaluation");
     
     // User is in manual mode - we need to fulfill dice manually
     // Get the dice terms that need to be rolled
@@ -1392,8 +1453,10 @@ function setupDiceFulfillment() {
       t instanceof foundry.dice.terms.DiceTerm
     );
     
+    console.log("[v0] Dice terms found:", diceTerms.length, diceTerms.map(t => `${t.number}d${t.faces}`));
+    
     if (diceTerms.length === 0) {
-      // No dice to roll - evaluate normally
+      console.log("[v0] No dice terms, using original evaluate");
       return originalEvaluate.call(this, options);
     }
     
@@ -1409,8 +1472,12 @@ function setupDiceFulfillment() {
       }
     }
     
+    console.log("[v0] Dice needed:", diceNeeded);
+    
     // Wait for user to provide dice results
     const results = await requestDiceFulfillment(this.formula, diceNeeded);
+    
+    console.log("[v0] Got dice results:", results);
     
     if (results === null) {
       // User cancelled - throw to abort the roll
@@ -1432,6 +1499,8 @@ function setupDiceFulfillment() {
     // Mark the roll as evaluated and compute the total
     this._evaluated = true;
     this._total = this._evaluateTotal();
+    
+    console.log("[v0] Roll evaluated with results, total:", this._total);
     
     return this;
   };
@@ -1555,102 +1624,92 @@ async function executeDirectRoll(actor, formula, flavor, opts = {}) {
   }
 }
 
+// Flag to bypass interception when we're re-triggering after configuration
+let bypassInterception = false;
+
+// Store pending configuration to pass to dice fulfillment
+let pendingRollConfig = null;
+
 /**
- * Main interception function for all roll types.
- * Cancels the roll, shows our UI, then directly executes the roll with user's choices.
- * This approach bypasses the hook system entirely for the final roll execution.
+ * STEP 1: Configuration Interception
+ * Shows our UI for Advantage/Disadvantage/Normal selection and situational bonuses.
+ * After user makes their choice, we apply it to the config and re-trigger the roll.
+ * The dice fulfillment (Step 2) will then handle getting the actual dice values.
  */
 function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
   if (!isUserInManualMode()) {
     return true;
   }
-
-  // Store everything needed for the pending roll
+  
+  // If we're re-triggering after configuration, let it through
+  if (bypassInterception) {
+    bypassInterception = false;
+    return true;
+  }
+  
+  // Disable native dialog - we provide our own
+  if (dialog) {
+    dialog.configure = false;
+  }
+  
+  // Store the roll info for Step 1 UI (configuration)
   pendingRollRequest = {
     title,
     subtitle,
     formula,
-    config,        // Keep reference to original config
+    config,
     dialog,
+    step: "configuration",  // Mark this as configuration step
     situationalBonus: "",
     hasAdvantage: options.hasAdvantage !== false,
     hasDisadvantage: options.hasDisadvantage !== false,
     hasCritical: options.hasCritical || false,
     abilityOptions: options.abilityOptions || null,
-    // Callback when user makes a choice
+    rollMethod: options.rollMethod,
+    // Callback when user makes configuration choice
     onComplete: async (userChoice) => {
       if (userChoice === "cancel") {
         pendingRollRequest = null;
+        pendingRollConfig = null;
         refreshPanel();
         ui.notifications.info("Roll cancelled.");
         return;
       }
       
+      // Store the configuration for dice fulfillment to use
+      pendingRollConfig = {
+        advantage: userChoice.advantage || false,
+        disadvantage: userChoice.disadvantage || false,
+        critical: userChoice.critical || false,
+        situationalBonus: userChoice.situationalBonus || ""
+      };
+      
+      // Apply configuration to the original config object
+      if (config) {
+        config.advantage = pendingRollConfig.advantage;
+        config.disadvantage = pendingRollConfig.disadvantage;
+        if (pendingRollConfig.critical) {
+          config.critical = true;
+        }
+      }
+      
       pendingRollRequest = null;
       refreshPanel();
       
-      // Instead of re-triggering through actor methods (which causes hook loops),
-      // directly create and execute the roll, then send to chat
-      try {
-        console.log("[v0] onComplete called with userChoice:", userChoice);
-        console.log("[v0] Original formula:", formula);
-        console.log("[v0] Config:", config);
-        
-        // Build the roll formula
-        let rollFormula = formula;
-        
-        // Handle advantage/disadvantage for d20 rolls
-        if (userChoice.advantage || userChoice.disadvantage) {
-          // Replace 1d20 with 2d20kh1 (advantage) or 2d20kl1 (disadvantage)
-          if (rollFormula.includes("1d20")) {
-            if (userChoice.advantage) {
-              rollFormula = rollFormula.replace("1d20", "2d20kh1");
-            } else if (userChoice.disadvantage) {
-              rollFormula = rollFormula.replace("1d20", "2d20kl1");
-            }
-          }
+      // Re-trigger the roll - dice fulfillment will handle Step 2
+      if (options.rollMethod) {
+        bypassInterception = true;
+        try {
+          await options.rollMethod({
+            advantage: pendingRollConfig.advantage,
+            disadvantage: pendingRollConfig.disadvantage,
+            fastForward: true  // Skip native dialog
+          });
+        } catch (e) {
+          console.error("[Dice Link] Error re-triggering roll:", e);
+          bypassInterception = false;
+          pendingRollConfig = null;
         }
-        
-        // Add situational bonus
-        if (userChoice.situationalBonus) {
-          rollFormula += ` + ${userChoice.situationalBonus}`;
-        }
-        
-        // Get actor for speaker
-        const actor = config?.subject?.parent || config?.subject || game.user.character;
-        
-        // Build flavor text
-        let flavor = title;
-        if (subtitle && subtitle !== "Unknown") {
-          flavor = `${title} - ${subtitle}`;
-        }
-        if (userChoice.advantage) {
-          flavor += " (Advantage)";
-        } else if (userChoice.disadvantage) {
-          flavor += " (Disadvantage)";
-        }
-        
-        console.log("[v0] Final rollFormula:", rollFormula);
-        console.log("[v0] Actor for speaker:", actor);
-        
-        // Create and evaluate the roll
-        const roll = new Roll(rollFormula);
-        console.log("[v0] Roll created:", roll);
-        await roll.evaluate();
-        console.log("[v0] Roll evaluated, total:", roll.total);
-        
-        // Send to chat
-        await roll.toMessage({
-          speaker: ChatMessage.getSpeaker({ actor }),
-          flavor: flavor,
-          rollMode: game.settings.get("core", "rollMode")
-        });
-        
-      } catch (e) {
-        console.error("[v0] Error executing roll:", e);
-        console.error("[v0] Error stack:", e.stack);
-        console.error("[v0] Formula was:", formula);
-        ui.notifications.error("Failed to execute roll: " + e.message);
       }
     },
     ...options
@@ -1659,16 +1718,14 @@ function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
   // Auto-open panel and expand the roll request section
   collapsedSections.rollRequest = false;
   
-  // Check if panel is open and rendered
   const panelIsOpen = currentPanelDialog && currentPanelDialog.rendered;
-  
   if (!panelIsOpen) {
     openPanel();
   } else {
     refreshPanel();
   }
 
-  // Return false to CANCEL this roll - we'll re-trigger it after user input
+  // Return FALSE to cancel - we'll re-trigger after user configures
   return false;
 }
 
