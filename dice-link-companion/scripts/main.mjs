@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.4.22
+ * Version 1.0.4.23
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1532,9 +1532,11 @@ function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
 }
 
 function setupRollInterception() {
-  if (!isUserInManualMode()) return;
+  // Always register hooks - the interceptRoll function checks isUserInManualMode() dynamically
+  // This allows mode changes at runtime without reloading
 
   registerRollHook("dnd5e.preRollSkillV2", "dnd5e.preRollSkill", (config, dialog, ...rest) => {
+    console.log("[v0] Skill hook fired! config:", config);
     const actor = config?.subject;
     const actorName = actor?.name || "Unknown";
     const skillId = config?.skill || "";
