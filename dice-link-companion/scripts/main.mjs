@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.7
+ * Version 1.0.6.8
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1924,10 +1924,14 @@ class DiceLinkResolver extends foundry.applications.dice.RollResolver {
    * Override awaitFulfillment to use our panel UI
    */
   async awaitFulfillment() {
+    console.log("[Dice Link] DiceLinkResolver.awaitFulfillment() called");
     const roll = this.roll;
     const fulfillable = this.fulfillable;
     
+    console.log("[Dice Link] fulfillable.size:", fulfillable.size);
+    
     if (fulfillable.size === 0) {
+      console.log("[Dice Link] No fulfillable dice, returning early");
       return;
     }
     
