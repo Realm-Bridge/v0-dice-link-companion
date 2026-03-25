@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.4.36
+ * Version 1.0.4.37
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1624,11 +1624,88 @@ async function executeDirectRoll(actor, formula, flavor, opts = {}) {
   }
 }
 
-// Flag to bypass interception when we're re-triggering after configuration
-let bypassInterception = false;
-
 // Store pending configuration to pass to dice fulfillment
 let pendingRollConfig = null;
+
+/**
+ * Parse dice from a formula string to determine what dice inputs we need
+ * Returns array of {faces, count} for each dice type
+ */
+function parseDiceFromFormula(formula) {
+  const diceNeeded = [];
+  // Match patterns like 2d20, 1d8, 4d6, etc.
+  const diceRegex = /(\d+)d(\d+)/gi;
+  let match;
+  
+  while ((match = diceRegex.exec(formula)) !== null) {
+    const count = parseInt(match[1]) || 1;
+    const faces = parseInt(match[2]) || 20;
+    
+    // Add individual dice entries
+    for (let i = 0; i < count; i++) {
+      diceNeeded.push({ faces, index: diceNeeded.length });
+    }
+  }
+  
+  return diceNeeded;
+}
+
+/**
+ * Execute a roll with user-provided dice values
+ */
+async function executeRollWithValues(formula, diceResults, title, subtitle, rollConfig, originalConfig) {
+  try {
+    // Create the roll
+    const roll = new Roll(formula);
+    
+    // We need to manually set the dice results before evaluation
+    // Parse the roll to get terms
+    await roll.evaluate({ allowInteractive: false });
+    
+    // Now we need to replace the random results with user values
+    let resultIndex = 0;
+    for (const term of roll.terms) {
+      if (term instanceof foundry.dice.terms.DiceTerm) {
+        for (let i = 0; i < term.results.length; i++) {
+          if (diceResults[resultIndex] !== undefined) {
+            term.results[i].result = diceResults[resultIndex];
+          }
+          resultIndex++;
+        }
+        // Recalculate the term's total
+        term._evaluateModifiers();
+      }
+    }
+    
+    // Recalculate the roll total
+    roll._total = roll._evaluateTotal();
+    
+    // Build flavor text
+    let flavor = title;
+    if (subtitle && subtitle !== "Unknown") {
+      flavor = `${title} - ${subtitle}`;
+    }
+    if (rollConfig?.advantage) {
+      flavor += " (Advantage)";
+    } else if (rollConfig?.disadvantage) {
+      flavor += " (Disadvantage)";
+    }
+    
+    // Get actor for speaker
+    const actor = originalConfig?.subject?.parent || originalConfig?.subject || game.user.character;
+    
+    // Send to chat
+    await roll.toMessage({
+      speaker: ChatMessage.getSpeaker({ actor }),
+      flavor: flavor,
+      rollMode: game.settings.get("core", "rollMode")
+    });
+    
+  } catch (e) {
+    console.error("[Dice Link] Error executing roll with values:", e);
+    ui.notifications.error("Failed to execute roll.");
+  }
+}
 
 /**
  * STEP 1: Configuration Interception
@@ -1638,12 +1715,6 @@ let pendingRollConfig = null;
  */
 function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
   if (!isUserInManualMode()) {
-    return true;
-  }
-  
-  // If we're re-triggering after configuration, let it through
-  if (bypassInterception) {
-    bypassInterception = false;
     return true;
   }
   
@@ -1693,24 +1764,59 @@ function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
         }
       }
       
-      pendingRollRequest = null;
-      refreshPanel();
-      
-      // Re-trigger the roll - dice fulfillment will handle Step 2
-      if (options.rollMethod) {
-        bypassInterception = true;
-        try {
-          await options.rollMethod({
-            advantage: pendingRollConfig.advantage,
-            disadvantage: pendingRollConfig.disadvantage,
-            fastForward: true  // Skip native dialog
-          });
-        } catch (e) {
-          console.error("[Dice Link] Error re-triggering roll:", e);
-          bypassInterception = false;
-          pendingRollConfig = null;
-        }
+      // Build the final formula with advantage/disadvantage
+      let finalFormula = formula;
+      if (pendingRollConfig.advantage && finalFormula.includes("1d20")) {
+        finalFormula = finalFormula.replace("1d20", "2d20kh");
+      } else if (pendingRollConfig.disadvantage && finalFormula.includes("1d20")) {
+        finalFormula = finalFormula.replace("1d20", "2d20kl");
       }
+      
+      // Add situational bonus
+      if (pendingRollConfig.situationalBonus) {
+        finalFormula += ` + ${pendingRollConfig.situationalBonus}`;
+      }
+      
+      // Parse the formula to get dice needed
+      const diceNeeded = parseDiceFromFormula(finalFormula);
+      
+      // Move to Step 2: Dice Entry
+      pendingRollRequest = {
+        title: title,
+        subtitle: subtitle,
+        formula: finalFormula,
+        originalFormula: formula,
+        config: config,
+        rollConfig: pendingRollConfig,
+        diceNeeded: diceNeeded,
+        isFulfillment: true,  // This triggers dice entry UI
+        step: "diceEntry",
+        onComplete: async (diceChoice) => {
+          if (diceChoice === "cancel") {
+            pendingRollRequest = null;
+            pendingRollConfig = null;
+            refreshPanel();
+            ui.notifications.info("Roll cancelled.");
+            return;
+          }
+          
+          // Execute the roll with user-provided dice values
+          await executeRollWithValues(
+            finalFormula, 
+            diceChoice.diceResults, 
+            title, 
+            subtitle, 
+            pendingRollConfig,
+            config
+          );
+          
+          pendingRollRequest = null;
+          pendingRollConfig = null;
+          refreshPanel();
+        }
+      };
+      
+      refreshPanel();
     },
     ...options
   };
