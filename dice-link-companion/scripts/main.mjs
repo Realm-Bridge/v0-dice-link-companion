@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.4.26
+ * Version 1.0.4.27
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1429,115 +1429,86 @@ async function executeDirectRoll(actor, formula, flavor, opts = {}) {
 }
 
 // Flag to track if we're executing a roll we triggered (to prevent re-interception)
-let bypassNextRoll = false;
-
 /**
- * Intercept a roll and show our UI.
- * Returns false to CANCEL the roll completely, then re-triggers it after user input.
- * This ensures the roll doesn't proceed to dice fulfillment until user makes a choice.
+ * Main interception function for all roll types.
+ * Returns a Promise that resolves when user makes a choice.
+ * Modifies the config object in-place and lets the ORIGINAL roll proceed.
+ * This keeps midi-qol and other workflows intact.
  */
 function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
-  console.log("[v0] interceptRoll called for:", title, "bypassNextRoll:", bypassNextRoll);
-  
   if (!isUserInManualMode()) {
-    console.log("[v0] Not in manual mode, passing through");
     return true;
   }
 
-  // If we triggered this roll ourselves, let it through but skip the native dialog
-  if (bypassNextRoll) {
-    console.log("[v0] Bypass flag set - letting roll through, disabling native dialog");
-    bypassNextRoll = false;
-    
-    // Disable the native configuration dialog since we already collected user input
-    if (dialog) {
-      dialog.configure = false;
-    }
-    
-    return true;
+  // Disable the native configuration dialog - we'll provide our own UI
+  if (dialog) {
+    dialog.configure = false;
   }
-  
-  console.log("[v0] Intercepting roll, returning false to cancel");
 
-  // Store everything needed to re-trigger the roll later
-  pendingRollRequest = {
-    title,
-    subtitle,
-    formula,
-    config,
-    dialog,
-    rollMethod: options.rollMethod,  // Function to call to re-trigger the roll
-    rollArgs: options.rollArgs,      // Arguments for the roll method
-    situationalBonus: "",
-    hasAdvantage: options.hasAdvantage !== false,
-    hasDisadvantage: options.hasDisadvantage !== false,
-    hasCritical: options.hasCritical || false,
-    abilityOptions: options.abilityOptions || null,
-    // Callback when user makes a choice
-    onComplete: async (userChoice) => {
-      if (userChoice === "cancel") {
+  // Create a Promise that will resolve when the user makes a choice
+  return new Promise((resolve) => {
+    // Store everything needed for the pending roll
+    pendingRollRequest = {
+      title,
+      subtitle,
+      formula,
+      config,
+      dialog,
+      situationalBonus: "",
+      hasAdvantage: options.hasAdvantage !== false,
+      hasDisadvantage: options.hasDisadvantage !== false,
+      hasCritical: options.hasCritical || false,
+      abilityOptions: options.abilityOptions || null,
+      // Callback when user makes a choice
+      onComplete: (userChoice) => {
+        if (userChoice === "cancel") {
+          pendingRollRequest = null;
+          refreshPanel();
+          ui.notifications.info("Roll cancelled.");
+          resolve(false); // Cancel the roll
+          return;
+        }
+        
+        // Modify the original config object with user's choices
+        // This keeps the roll in its original workflow (midi-qol, etc.)
+        if (config) {
+          config.advantage = userChoice.advantage || false;
+          config.disadvantage = userChoice.disadvantage || false;
+          
+          // Handle critical for damage rolls
+          if (userChoice.critical) {
+            config.critical = true;
+          }
+          
+          // Add situational bonus if provided
+          if (userChoice.situationalBonus) {
+            if (!config.parts) config.parts = [];
+            config.parts.push(userChoice.situationalBonus);
+          }
+        }
+        
         pendingRollRequest = null;
         refreshPanel();
-        ui.notifications.info("Roll cancelled.");
-        return;
-      }
-      
-      // Re-trigger the roll with user's choices
-      const rollMethod = pendingRollRequest.rollMethod;
-      const rollArgs = pendingRollRequest.rollArgs || {};
-      
-      pendingRollRequest = null;
-      refreshPanel();
-      
-      if (rollMethod) {
-        // Set bypass flag so we don't intercept the re-triggered roll
-        console.log("[v0] Setting bypassNextRoll = true");
-        bypassNextRoll = true;
         
-        const rollOpts = {
-          ...rollArgs,
-          advantage: userChoice.advantage || false,
-          disadvantage: userChoice.disadvantage || false,
-          critical: userChoice.critical || false,
-          fastForward: true  // Skip the native dialog
-        };
-        
-        // Add situational bonus if provided
-        if (userChoice.situationalBonus) {
-          rollOpts.parts = [...(rollArgs.parts || []), userChoice.situationalBonus];
-        }
-        
-        console.log("[v0] About to call rollMethod with:", rollOpts);
-        
-        try {
-          const result = await rollMethod(rollOpts);
-          console.log("[v0] rollMethod returned:", result);
-          console.log("[v0] bypassNextRoll after call:", bypassNextRoll);
-        } catch (e) {
-          console.error("[v0] Error re-triggering roll:", e);
-          bypassNextRoll = false;
-        }
-      } else {
-        console.error("[v0] No rollMethod available!");
-      }
-    },
-    ...options
-  };
+        resolve(true); // Let the original roll proceed with modified config
+      },
+      ...options
+    };
 
-  // Auto-open panel and expand the roll request section
-  collapsedSections.rollRequest = false;
-  
-  // Check if panel is open and rendered
+    // Auto-open panel and expand the roll request section
+    collapsedSections.rollRequest = false;
+    
+    // Check if panel is open and rendered
     const panelIsOpen = currentPanelDialog && currentPanelDialog.rendered;
-  
-  if (!panelIsOpen) {
-    openPanel();
-  } else {
-    refreshPanel();
-  }
-
-  // Return FALSE to completely cancel this roll - we'll re-trigger it ourselves
-  return false;
+    
+    if (!panelIsOpen) {
+      openPanel();
+    } else {
+      refreshPanel();
+    }
+    
+    // The Promise will resolve when user clicks a button in the panel
+  });
 }
 
 /**
@@ -1546,18 +1517,15 @@ function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
  * Older versions use "dnd5e.preRollSkill"
  */
 function registerRollHook(v2HookName, v1HookName, callback) {
-  // Try V2 hook first (dnd5e 4.x+)
+  // Register V2 hook (dnd5e 4.x+)
   Hooks.on(v2HookName, callback);
-  console.log(`[v0] Registered hook: ${v2HookName}`);
 }
 
 function setupRollInterception() {
   // Always register hooks - the interceptRoll function checks isUserInManualMode() dynamically
   // This allows mode changes at runtime without reloading
-  console.log("[v0] Setting up roll interception hooks...");
 
   registerRollHook("dnd5e.preRollSkillV2", "dnd5e.preRollSkill", (config, dialog, ...rest) => {
-    console.log("[v0] Skill hook fired! config:", config);
     const actor = config?.subject;
     const actorName = actor?.name || "Unknown";
     const skillId = config?.skill || "";
