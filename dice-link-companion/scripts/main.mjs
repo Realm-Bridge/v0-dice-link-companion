@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.16
+ * Version 1.0.6.17
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1156,7 +1156,7 @@ function attachDiceTrayListeners(html) {
   let currentModifier = 0;
   let advMode = "normal"; // "normal", "advantage", "disadvantage"
 
-  // Dice button clicks - add to formula
+  // Dice button left-click - add to formula
   html.find(".dlc-dice-btn").click(function() {
     const die = $(this).data("die");
     diceCounts[die]++;
@@ -1167,6 +1167,27 @@ function attachDiceTrayListeners(html) {
     
     // Rebuild formula
     updateDiceFormula(html, diceCounts, currentModifier);
+  });
+  
+  // Dice button right-click - remove from formula
+  html.find(".dlc-dice-btn").on("contextmenu", function(e) {
+    e.preventDefault(); // Prevent browser context menu
+    const die = $(this).data("die");
+    
+    if (diceCounts[die] > 0) {
+      diceCounts[die]--;
+      
+      // Update badge
+      const countEl = $(this).find(".dlc-die-count");
+      if (diceCounts[die] > 0) {
+        countEl.text(diceCounts[die]).show();
+      } else {
+        countEl.text("").hide();
+      }
+      
+      // Rebuild formula
+      updateDiceFormula(html, diceCounts, currentModifier);
+    }
   });
 
   // Modifier buttons
@@ -1306,10 +1327,13 @@ function attachDiceTrayListeners(html) {
 
   // Cancel roll button
   html.find(".dlc-roll-cancel-btn").click(function() {
+    // Set cancellation flag to prevent further dice prompts
+    diceEntryCancelled = true;
+    
     // Handle dice entry cancellation
     if (pendingDiceEntry) {
-      // Resolve with 0 to abort the handler (it will return early)
-      pendingDiceEntry.resolve(0);
+      // Resolve with null to signal cancellation
+      pendingDiceEntry.resolve(null);
       pendingDiceEntry = null;
     }
     
@@ -2084,12 +2108,30 @@ async function diceLinkFulfillmentHandler(term, index) {
   const count = term.number || 1;
   
   // Index tells us which die in the term we're fulfilling (0-based)
-  const dieNumber = (index !== undefined ? index : 0) + 1;
+  // Make sure index is a number - sometimes Foundry passes an object or other type
+  let dieIndex = 0;
+  if (typeof index === "number") {
+    dieIndex = index;
+  } else if (typeof index === "object" && index !== null && typeof index.index === "number") {
+    dieIndex = index.index;
+  }
+  const dieNumber = dieIndex + 1;
+  
+  // Reset cancellation flag on first die of a new roll
+  if (dieNumber === 1) {
+    diceEntryCancelled = false;
+  }
   
   console.log("[Dice Link] Handler called for", denomination, "- die", dieNumber, "of", count);
   
   // Wait for user to enter this single die result
   const result = await waitForDiceResult(denomination, faces, dieNumber, count);
+  
+  // Handle null result (cancelled)
+  if (result === null) {
+    console.log("[Dice Link] Dice entry was cancelled, returning 1");
+    return 1;
+  }
   
   console.log("[Dice Link] Returning result:", result);
   return result;
@@ -2097,11 +2139,18 @@ async function diceLinkFulfillmentHandler(term, index) {
 
 // Store for pending dice entry
 let pendingDiceEntry = null;
+let diceEntryCancelled = false;
 
 /**
  * Wait for user to enter a die result via our panel UI.
  */
 async function waitForDiceResult(denomination, faces, dieNumber, totalDice) {
+  // Check if entry was cancelled (from a previous die in the same roll)
+  if (diceEntryCancelled) {
+    console.log("[Dice Link] Dice entry cancelled, returning 1 for remaining dice");
+    return 1; // Return minimum value for cancelled dice
+  }
+  
   console.log("[Dice Link] Waiting for", denomination, "result (die", dieNumber, "of", totalDice, ")");
   
   return new Promise((resolve) => {
