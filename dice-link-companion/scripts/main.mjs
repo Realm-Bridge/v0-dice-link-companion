@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.4.18
+ * Version 1.0.4.19
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1179,16 +1179,11 @@ function attachDiceTrayListeners(html) {
 
   // Advantage / Normal / Disadvantage buttons
   html.find(".dlc-roll-action-btn").click(async function() {
-    console.log("[v0] Roll action button clicked");
-    console.log("[v0] pendingRollRequest:", pendingRollRequest);
-    
     if (!pendingRollRequest) {
-      console.log("[v0] No pending roll request!");
       return;
     }
     const rollMode = $(this).data("roll-mode");
     const bonus = html.find(".dlc-situational-bonus").val()?.trim() || "";
-    console.log("[v0] rollMode:", rollMode, "bonus:", bonus);
 
     // Build the user choice object
     const userChoice = {
@@ -1451,8 +1446,6 @@ function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
     abilityOptions: options.abilityOptions || null,
     // Callback when user makes a choice
     onComplete: async (userChoice) => {
-      console.log("[v0] onComplete called with:", userChoice);
-      
       if (userChoice === "cancel") {
         pendingRollRequest = null;
         refreshPanel();
@@ -1463,11 +1456,6 @@ function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
       // Re-trigger the roll with user's choices
       const rollMethod = pendingRollRequest.rollMethod;
       const rollArgs = pendingRollRequest.rollArgs || {};
-      const rollTitle = pendingRollRequest.title;
-      
-      console.log("[v0] Re-triggering roll:", rollTitle);
-      console.log("[v0] rollMethod exists:", !!rollMethod);
-      console.log("[v0] rollArgs:", rollArgs);
       
       pendingRollRequest = null;
       refreshPanel();
@@ -1489,17 +1477,12 @@ function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
           rollOpts.parts = [...(rollArgs.parts || []), userChoice.situationalBonus];
         }
         
-        console.log("[v0] Calling rollMethod with opts:", rollOpts);
-        
         try {
           await rollMethod(rollOpts);
-          console.log("[v0] Roll completed successfully");
         } catch (e) {
           console.error("[v0] Error re-triggering roll:", e);
           bypassNextRoll = false;
         }
-      } else {
-        console.error("[v0] No rollMethod found!");
       }
     },
     ...options
@@ -1522,37 +1505,8 @@ function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
 }
 
 function setupRollInterception() {
-  // Only set up dnd5e hooks if the system is dnd5e
-  if (game.system.id !== "dnd5e") {
-    console.log(`[v0] Dice Link Companion: Roll interception not available for system "${game.system.id}". Dice tray still available.`);
-    return;
-  }
+  if (!isUserInManualMode()) return;
 
-  console.log("[v0] Dice Link Companion: Setting up dnd5e roll interception hooks...");
-
-  // Helper to get actor name from various config structures across dnd5e versions
-  function getActorName(config, actor) {
-    return actor?.name || config?.subject?.name || config?.data?.name || config?.actor?.name || "Unknown";
-  }
-
-  // Helper to get formula from config
-  function getFormula(config) {
-    return config?.formula || config?.parts?.join(" + ") || "1d20";
-  }
-
-  // Register a hook with both V2 (dnd5e 3.x+) and legacy (dnd5e 2.x) names
-  function registerRollHook(hookNameV2, hookNameLegacy, handler) {
-    // Try V2 hook first (dnd5e 3.x, 4.x, 5.x)
-    Hooks.on(hookNameV2, handler);
-    // Also register legacy hook for older dnd5e versions
-    if (hookNameLegacy) {
-      Hooks.on(hookNameLegacy, handler);
-    }
-  }
-
-  // -------------------------------------------------------------------------
-  // SKILL CHECKS
-  // -------------------------------------------------------------------------
   registerRollHook("dnd5e.preRollSkillV2", "dnd5e.preRollSkill", (config, dialog, ...rest) => {
     const actor = config?.subject;
     const actorName = actor?.name || "Unknown";
@@ -1800,7 +1754,6 @@ function setupRollInterception() {
     );
   });
 
-  console.log("[v0] Dice Link Companion: Roll interception hooks registered for dnd5e.");
 }
 
 // ============================================================================
