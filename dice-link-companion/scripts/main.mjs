@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.4.18
+ * Version 1.0.4.22
  * 
  * A player-GM dice mode management system with approval workflow.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -426,59 +426,71 @@ async function setManualRollsPermission(role, enabled) {
 }
 
 // ============================================================================
-// CUSTOM APPLICATION CLASS (for proper Foundry header buttons)
+// CUSTOM APPLICATION CLASS (ApplicationV2 for Foundry V13+)
 // ============================================================================
 
-class DiceLinkCompanionApp extends Application {
+const { ApplicationV2 } = foundry.applications.api;
+
+class DiceLinkCompanionApp extends ApplicationV2 {
   constructor(isGM, options = {}) {
     super(options);
     this._isGM = isGM;
   }
 
-  static get defaultOptions() {
-    return foundry.utils.mergeObject(super.defaultOptions, {
-      id: "dice-link-companion-panel",
-      title: "Dice Link Companion",
-      classes: ["dlc-dialog"],
-      resizable: true,
-      minimizable: true,
-      popOut: true,
+  static DEFAULT_OPTIONS = {
+    id: "dice-link-companion-panel",
+    classes: ["dlc-dialog"],
+    position: {
       width: 480,
       height: "auto"
-    });
+    },
+    window: {
+      title: "Dice Link Companion",
+      resizable: true,
+      minimizable: true
+    }
+  };
+
+  get title() {
+    return "Dice Link Companion";
   }
 
   get isGM() {
     return this._isGM;
   }
 
-  _getHeaderButtons() {
-    const buttons = super._getHeaderButtons();
-    // Foundry and other modules (PopOut!, Theme Settings, etc.) inject buttons here
-    // automatically via the getApplicationHeaderButtons hook
-    return buttons;
-  }
-
-  async getData(options = {}) {
+  async _prepareContext(options) {
     return {};
   }
 
-  async _renderInner(data) {
+  async _renderHTML(context, options) {
     const content = this._isGM ? generateGMPanelContent() : generatePlayerPanelContent();
-    const html = $(`<div class="window-content">${content}</div>`);
-    return html;
+    const wrapper = document.createElement("div");
+    wrapper.classList.add("window-content");
+    wrapper.innerHTML = content;
+    return wrapper;
   }
 
-  activateListeners(html) {
-    super.activateListeners(html);
+  _replaceHTML(result, content, options) {
+    // Clear and replace the content
+    content.replaceChildren(result);
+  }
+
+  _onRender(context, options) {
+    // Get the HTML element (not jQuery in V2)
+    const html = this.element;
+    
+    // Wrap in jQuery for compatibility with existing listener code
+    const $html = $(html);
+    
     if (this._isGM) {
-      attachGMPanelListeners(html);
+      attachGMPanelListeners($html);
     } else {
-      attachPlayerPanelListeners(html);
+      attachPlayerPanelListeners($html);
     }
   }
 
-  close(options = {}) {
+  async close(options = {}) {
     currentPanelDialog = null;
     return super.close(options);
   }
@@ -1157,7 +1169,7 @@ function attachDiceTrayListeners(html) {
     try {
       const roll = new Roll(formula);
       await roll.evaluate();
-      await roll.toMessage({
+      await roll.toChat({
         speaker: ChatMessage.getSpeaker(),
         flavor: "Manual Dice Roll"
       });
@@ -1179,16 +1191,11 @@ function attachDiceTrayListeners(html) {
 
   // Advantage / Normal / Disadvantage buttons
   html.find(".dlc-roll-action-btn").click(async function() {
-    console.log("[v0] Roll action button clicked");
-    console.log("[v0] pendingRollRequest:", pendingRollRequest);
-    
     if (!pendingRollRequest) {
-      console.log("[v0] No pending roll request!");
       return;
     }
     const rollMode = $(this).data("roll-mode");
     const bonus = html.find(".dlc-situational-bonus").val()?.trim() || "";
-    console.log("[v0] rollMode:", rollMode, "bonus:", bonus);
 
     // Build the user choice object
     const userChoice = {
@@ -1404,7 +1411,7 @@ async function executeDirectRoll(actor, formula, flavor, opts = {}) {
     const fullFlavor = `${flavor}${modeText}`;
     
     // Send to chat
-    await roll.toMessage({
+    await roll.toChat({
       speaker: ChatMessage.getSpeaker({ actor: actor }),
       flavor: fullFlavor,
       rollMode: game.settings.get("core", "rollMode")
@@ -1427,13 +1434,21 @@ let bypassNextRoll = false;
  * This ensures the roll doesn't proceed to dice fulfillment until user makes a choice.
  */
 function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
-  if (!isUserInManualMode()) return true; // Not in manual mode, let Foundry handle it normally
+  console.log("[v0] interceptRoll called for:", title, "bypassNextRoll:", bypassNextRoll);
+  
+  if (!isUserInManualMode()) {
+    console.log("[v0] Not in manual mode, passing through");
+    return true;
+  }
 
   // If we triggered this roll ourselves, let it through
   if (bypassNextRoll) {
+    console.log("[v0] Bypass flag set - letting roll through");
     bypassNextRoll = false;
     return true;
   }
+  
+  console.log("[v0] Intercepting roll, returning false to cancel");
 
   // Store everything needed to re-trigger the roll later
   pendingRollRequest = {
@@ -1451,8 +1466,6 @@ function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
     abilityOptions: options.abilityOptions || null,
     // Callback when user makes a choice
     onComplete: async (userChoice) => {
-      console.log("[v0] onComplete called with:", userChoice);
-      
       if (userChoice === "cancel") {
         pendingRollRequest = null;
         refreshPanel();
@@ -1463,17 +1476,13 @@ function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
       // Re-trigger the roll with user's choices
       const rollMethod = pendingRollRequest.rollMethod;
       const rollArgs = pendingRollRequest.rollArgs || {};
-      const rollTitle = pendingRollRequest.title;
-      
-      console.log("[v0] Re-triggering roll:", rollTitle);
-      console.log("[v0] rollMethod exists:", !!rollMethod);
-      console.log("[v0] rollArgs:", rollArgs);
       
       pendingRollRequest = null;
       refreshPanel();
       
       if (rollMethod) {
         // Set bypass flag so we don't intercept the re-triggered roll
+        console.log("[v0] Setting bypassNextRoll = true");
         bypassNextRoll = true;
         
         const rollOpts = {
@@ -1489,17 +1498,18 @@ function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
           rollOpts.parts = [...(rollArgs.parts || []), userChoice.situationalBonus];
         }
         
-        console.log("[v0] Calling rollMethod with opts:", rollOpts);
+        console.log("[v0] About to call rollMethod with:", rollOpts);
         
         try {
-          await rollMethod(rollOpts);
-          console.log("[v0] Roll completed successfully");
+          const result = await rollMethod(rollOpts);
+          console.log("[v0] rollMethod returned:", result);
+          console.log("[v0] bypassNextRoll after call:", bypassNextRoll);
         } catch (e) {
           console.error("[v0] Error re-triggering roll:", e);
           bypassNextRoll = false;
         }
       } else {
-        console.error("[v0] No rollMethod found!");
+        console.error("[v0] No rollMethod available!");
       }
     },
     ...options
@@ -1509,7 +1519,7 @@ function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
   collapsedSections.rollRequest = false;
   
   // Check if panel is open and rendered
-  const panelIsOpen = currentPanelDialog && currentPanelDialog.rendered && currentPanelDialog._state === Application.RENDER_STATES.RENDERED;
+    const panelIsOpen = currentPanelDialog && currentPanelDialog.rendered;
   
   if (!panelIsOpen) {
     openPanel();
@@ -1522,37 +1532,8 @@ function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
 }
 
 function setupRollInterception() {
-  // Only set up dnd5e hooks if the system is dnd5e
-  if (game.system.id !== "dnd5e") {
-    console.log(`[v0] Dice Link Companion: Roll interception not available for system "${game.system.id}". Dice tray still available.`);
-    return;
-  }
+  if (!isUserInManualMode()) return;
 
-  console.log("[v0] Dice Link Companion: Setting up dnd5e roll interception hooks...");
-
-  // Helper to get actor name from various config structures across dnd5e versions
-  function getActorName(config, actor) {
-    return actor?.name || config?.subject?.name || config?.data?.name || config?.actor?.name || "Unknown";
-  }
-
-  // Helper to get formula from config
-  function getFormula(config) {
-    return config?.formula || config?.parts?.join(" + ") || "1d20";
-  }
-
-  // Register a hook with both V2 (dnd5e 3.x+) and legacy (dnd5e 2.x) names
-  function registerRollHook(hookNameV2, hookNameLegacy, handler) {
-    // Try V2 hook first (dnd5e 3.x, 4.x, 5.x)
-    Hooks.on(hookNameV2, handler);
-    // Also register legacy hook for older dnd5e versions
-    if (hookNameLegacy) {
-      Hooks.on(hookNameLegacy, handler);
-    }
-  }
-
-  // -------------------------------------------------------------------------
-  // SKILL CHECKS
-  // -------------------------------------------------------------------------
   registerRollHook("dnd5e.preRollSkillV2", "dnd5e.preRollSkill", (config, dialog, ...rest) => {
     const actor = config?.subject;
     const actorName = actor?.name || "Unknown";
@@ -1800,7 +1781,6 @@ function setupRollInterception() {
     );
   });
 
-  console.log("[v0] Dice Link Companion: Roll interception hooks registered for dnd5e.");
 }
 
 // ============================================================================
