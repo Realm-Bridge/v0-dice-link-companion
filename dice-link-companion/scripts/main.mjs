@@ -1,9 +1,11 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.47
+ * Version 1.0.6.48
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
+ * 
+ * LAST KNOWN GOOD VERSION: 1.0.6.47 - Revert here if initiative removal causes issues
  */
 
 import { 
@@ -43,10 +45,6 @@ import {
   clearMirroredDialog
 } from "./dialog-mirroring.js";
 
-import {
-  setupInitiativeInterception
-} from "./initiative-intercept.js";
-
 // All imports complete - logging starts here
 console.log("[Dice Link] ===== Main module loading =====");
 console.log("[Dice Link] Settings module imported");
@@ -54,7 +52,6 @@ console.log("[Dice Link] Approval module imported");
 console.log("[Dice Link] Socket module imported");
 console.log("[Dice Link] Mode-application module imported");
 console.log("[Dice Link] Dialog-mirroring module imported");
-console.log("[Dice Link] Initiative-intercept module imported");
 console.log("[Dice Link] All imports complete - defining variables and hooks");
 
 const REALM_BRIDGE_URL = "https://realmbridge.co.uk";
@@ -1227,7 +1224,6 @@ Hooks.once("ready", () => {
   setupDiceFulfillment();  // Register as a dice fulfillment method
   setupDialogMirroring(); // Mirror native dialogs to our panel (v1.0.6.0)
   setupRollInterception();
-  setupInitiativeInterception();  // Special handling for initiative (bypasses fulfillment)
 
   // Expose refreshPanel and other core functions on global namespace for modules to use
   window.diceLink = window.diceLink || {};
@@ -1300,24 +1296,6 @@ Hooks.once("ready", () => {
       console.log("[Dice Link] Roll dialog detected via renderApplicationV2:", app.title);
     }
     handleDialogRender(app, html, data);
-  });
-  
-  // Hook into dnd5e initiative configuration
-  // Initiative bypasses the fulfillment system, so we need special handling
-  Hooks.on("dnd5e.preConfigureInitiative", (config, dialog, message) => {
-    console.log("[Dice Link] Initiative pre-configure hook triggered");
-    if (isUserInManualMode()) {
-      // Mark this roll to use our fulfillment
-      console.log("[Dice Link] Setting initiative to use manual fulfillment");
-    }
-  });
-  
-  // Also hook into the roll itself to intercept initiative
-  Hooks.on("dnd5e.preRollInitiative", (actor, roll) => {
-    console.log("[Dice Link] Initiative pre-roll hook triggered for:", actor?.name);
-    if (isUserInManualMode()) {
-      console.log("[Dice Link] Manual mode active for initiative");
-    }
   });
 }
 
@@ -2539,10 +2517,6 @@ Hooks.once("ready", async () => {
     console.log("[Dice Link] Setting up roll interception...");
     setupRollInterception();
     console.log("[Dice Link] Roll interception setup complete");
-    
-    console.log("[Dice Link] Setting up initiative interception...");
-    setupInitiativeInterception();
-    console.log("[Dice Link] Initiative interception setup complete");
     
     // Expose refreshPanel and other core functions on global namespace for modules to use
     console.log("[Dice Link] Exposing public API on window.diceLink...");
