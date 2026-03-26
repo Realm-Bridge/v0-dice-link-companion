@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.29
+ * Version 1.0.6.30
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -24,6 +24,12 @@ import {
   createApprovalChatMessage,
   setupChatButtonHandlers
 } from "./approval.js";
+
+import {
+  setupSocketListeners,
+  playerRequestManual,
+  playerSwitchToDigital
+} from "./socket.js";
 const REALM_BRIDGE_URL = "https://realmbridge.co.uk";
 const LOGO_URL = "modules/dice-link-companion/assets/logo-header.png";
 const LOGO_SQUARE_URL = "modules/dice-link-companion/assets/logo-square.png";
@@ -152,129 +158,6 @@ async function createRequestChatMessage(playerId, playerName) {
 // ============================================================================
 // SOCKET HANDLERS
 // ============================================================================
-
-function setupSocketListeners() {
-  game.socket.on(`module.${MODULE_ID}`, async (data) => {
-    if (game.user.isGM && data.action === "playerRequestManual") {
-      let pending = getPendingRequests();
-      
-      if (!pending.some(req => req.playerId === data.playerId)) {
-        pending.push({ playerId: data.playerId, playerName: data.playerName });
-        await setPendingRequests(pending);
-      }
-
-      await createRequestChatMessage(data.playerId, data.playerName);
-      ui.notifications.warn(`${data.playerName} requested manual dice mode.`);
-      refreshPanel();
-    }
-
-    if (game.user.isGM && data.action === "playerSwitchToDigital") {
-      await setPlayerMode(data.playerId, "digital");
-      refreshPanel();
-    } else if (data.action === "playerSwitchToDigital") {
-      // Another player switched to digital, refresh our panel to see the update
-      refreshPanel();
-    }
-
-    if (data.action === "applyMode" && data.playerId === game.user.id) {
-      if (data.mode === "manual") {
-        applyManualDice();
-        hasRequestedThisSession = false;
-        ui.notifications.info("Manual dice mode activated!");
-      } else {
-        applyDigitalDice();
-        ui.notifications.info("Digital dice mode activated!");
-      }
-      refreshPanel();
-    } else if (data.action === "applyMode") {
-      // Another player's mode changed, refresh our panel to see the update
-      refreshPanel();
-    }
-
-    if (data.action === "globalOverride") {
-      if (data.mode === "forceAllManual") {
-        applyManualDice();
-        ui.notifications.info("GM has forced manual dice for everyone.");
-      } else if (data.mode === "forceAllDigital") {
-        applyDigitalDice();
-        ui.notifications.info("GM has forced digital dice for everyone.");
-      } else if (data.mode === "individual") {
-        // Revert to player's own stored mode
-        const myMode = getPlayerMode();
-        if (myMode === "manual") {
-          applyManualDice();
-        } else {
-          applyDigitalDice();
-        }
-        ui.notifications.info("GM has returned to individual control.");
-      }
-      refreshPanel();
-    }
-
-    if (data.action === "revokeMode" && data.playerId === game.user.id) {
-      applyDigitalDice();
-      hasRequestedThisSession = false;
-      ui.notifications.warn("GM has revoked your manual dice mode.");
-      refreshPanel();
-    } else if (data.action === "revokeMode") {
-      // Another player's mode was revoked, refresh our panel to see the update
-      refreshPanel();
-    }
-
-    if (data.action === "requestDenied" && data.playerId === game.user.id) {
-      hasRequestedThisSession = false;
-    }
-  });
-}
-
-// ============================================================================
-// PLAYER FUNCTIONS
-// ============================================================================
-
-function playerRequestManual() {
-  const globalOverride = getGlobalOverride();
-  
-  if (globalOverride === "forceAllManual") {
-    ui.notifications.warn("Manual dice is already globally forced by the GM.");
-    return;
-  }
-  if (globalOverride === "forceAllDigital") {
-    ui.notifications.warn("Digital dice is globally forced by the GM. Cannot request manual.");
-    return;
-  }
-
-  if (hasRequestedThisSession) {
-    ui.notifications.warn("You have already sent a request. Please wait for GM response.");
-    return;
-  }
-
-  game.socket.emit(`module.${MODULE_ID}`, {
-    action: "playerRequestManual",
-    playerId: game.user.id,
-    playerName: game.user.name
-  });
-
-  hasRequestedThisSession = true;
-  ui.notifications.info("Manual dice request sent to GM.");
-}
-
-function playerSwitchToDigital() {
-  const globalOverride = getGlobalOverride();
-  
-  if (globalOverride === "forceAllManual") {
-    ui.notifications.warn("Manual dice is globally forced by the GM. Cannot switch to digital.");
-    return;
-  }
-
-  game.socket.emit(`module.${MODULE_ID}`, {
-    action: "playerSwitchToDigital",
-    playerId: game.user.id
-  });
-
-  applyDigitalDice();
-  hasRequestedThisSession = false;
-  ui.notifications.info("Switched to digital dice.");
-}
 
 // ============================================================================
 // PERMISSIONS HELPERS
@@ -1408,9 +1291,14 @@ Hooks.once("ready", () => {
   setupMidiQolInterception();  // Add midi-qol specific hooks if available
   setupInitiativeInterception();  // Special handling for initiative (bypasses fulfillment)
 
-  // Expose refreshPanel on global namespace for modules to use
+  // Expose refreshPanel and other core functions on global namespace for modules to use
   window.diceLink = window.diceLink || {};
   window.diceLink.refreshPanel = refreshPanel;
+  window.diceLink.applyManualDice = applyManualDice;
+  window.diceLink.applyDigitalDice = applyDigitalDice;
+  window.diceLink.playerRequestManual = playerRequestManual;
+  window.diceLink.playerSwitchToDigital = playerSwitchToDigital;
+  window.diceLink.hasRequestedThisSession = hasRequestedThisSession;
 
   // Apply initial dice mode based on settings
   const globalOverride = getGlobalOverride();
