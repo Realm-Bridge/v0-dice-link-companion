@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.33
+ * Version 1.0.6.34
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -283,9 +283,6 @@ function generatePendingRollHTML(roll) {
         </div>
         <div class="dlc-pending-roll-actions">
           <button type="button" class="dlc-roll-action-btn dlc-submit-dice-btn dlc-btn-success">SUBMIT RESULTS</button>
-        </div>
-        <div class="dlc-pending-roll-footer">
-          <button type="button" class="dlc-roll-cancel-btn">Cancel Roll</button>
         </div>
       </div>
     `;
