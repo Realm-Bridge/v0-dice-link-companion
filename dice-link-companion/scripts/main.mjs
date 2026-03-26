@@ -1,11 +1,14 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.49
+ * Version 1.0.6.50
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  * 
  * LAST KNOWN GOOD VERSION: 1.0.6.48 - Revert here if roll interception removal causes issues
+ * 
+ * v1.0.6.50 - Cleaned up: removed unused imports (getMirroredDialog, clearMirroredDialog),
+ * removed 46 debug console.log statements left over from development/debugging
  */
 
 import { 
@@ -40,19 +43,8 @@ import {
 } from "./mode-application.js";
 
 import {
-  setupDialogMirroring,
-  getMirroredDialog,
-  clearMirroredDialog
+  setupDialogMirroring
 } from "./dialog-mirroring.js";
-
-// All imports complete - logging starts here
-console.log("[Dice Link] ===== Main module loading =====");
-console.log("[Dice Link] Settings module imported");
-console.log("[Dice Link] Approval module imported");
-console.log("[Dice Link] Socket module imported");
-console.log("[Dice Link] Mode-application module imported");
-console.log("[Dice Link] Dialog-mirroring module imported");
-console.log("[Dice Link] All imports complete - defining variables and hooks");
 
 const REALM_BRIDGE_URL = "https://realmbridge.co.uk";
 const LOGO_URL = "modules/dice-link-companion/assets/logo-header.png";
@@ -1043,8 +1035,6 @@ function attachDiceTrayListeners(html) {
         }
       }
     });
-    
-    console.log("[Dice Link] Mirrored dialog button clicked:", buttonLabel, formValues);
     
     // Call onComplete with the form values and button label
     if (pendingRollRequest.onComplete) {
@@ -2303,7 +2293,7 @@ async function executeDirectRoll(actor, formula, flavor, opts = {}) {
     
     return true;
   } catch (e) {
-    console.error("[v0] Error executing direct roll:", e);
+    console.error("[Dice Link] Error executing direct roll:", e);
     ui.notifications.error("Failed to execute roll.");
     return false;
   }
@@ -2415,22 +2405,13 @@ async function executeRollWithValues(formula, diceResults, title, subtitle, roll
  * Initialize the module - register UI, hooks, and settings
  */
 Hooks.once("init", async () => {
-  console.log("[Dice Link] ===== Hooks.once('init') firing =====");
-  console.log("[Dice Link] Registering core settings...");
-  
   // Register settings
   registerCoreSettings();
-  console.log("[Dice Link] Core settings registered");
   
   registerPlayerModeSettings();
-  console.log("[Dice Link] Player mode settings registered");
   
   // Setup socket listeners
-  console.log("[Dice Link] Setting up socket listeners...");
   setupSocketListeners();
-  console.log("[Dice Link] Socket listeners setup complete");
-  
-  console.log("[Dice Link] ===== init hook complete =====");
 });
 
 /**
@@ -2440,7 +2421,7 @@ Hooks.once("ready", async () => {
   console.log("[Dice Link] ===== Hooks.once('ready') firing =====");
   
   try {
-    console.log("[Dice Link] Setting up dialog mirroring...");
+  console.log("[Dice Link] Setting up dialog mirroring...");
     setupDialogMirroring();
     console.log("[Dice Link] Dialog mirroring setup complete");
     
