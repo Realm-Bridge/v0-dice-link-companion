@@ -1,10 +1,12 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.43
+ * Version 1.0.6.44
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  */
+
+console.log("[Dice Link] ===== Main module loading =====");
 
 import { 
   MODULE_ID, 
@@ -21,10 +23,14 @@ import {
   isUserInManualMode
 } from "./settings.js";
 
+console.log("[Dice Link] Settings module imported");
+
 import { 
   createApprovalChatMessage,
   setupChatButtonHandlers
 } from "./approval.js";
+
+console.log("[Dice Link] Approval module imported");
 
 import {
   setupSocketListeners,
@@ -32,10 +38,14 @@ import {
   playerSwitchToDigital
 } from "./socket.js";
 
+console.log("[Dice Link] Socket module imported");
+
 import {
   applyManualDice,
   applyDigitalDice
 } from "./mode-application.js";
+
+console.log("[Dice Link] Mode-application module imported");
 
 import {
   setupDialogMirroring,
@@ -43,9 +53,14 @@ import {
   clearMirroredDialog
 } from "./dialog-mirroring.js";
 
+console.log("[Dice Link] Dialog-mirroring module imported");
+
 import {
   setupInitiativeInterception
 } from "./initiative-intercept.js";
+
+console.log("[Dice Link] Initiative-intercept module imported");
+console.log("[Dice Link] All imports complete - defining variables and hooks");
 
 const REALM_BRIDGE_URL = "https://realmbridge.co.uk";
 const LOGO_URL = "modules/dice-link-companion/assets/logo-header.png";
@@ -2671,50 +2686,67 @@ function setupRollInterception() {
  * Initialize the module - register UI, hooks, and settings
  */
 Hooks.once("init", async () => {
-  console.log("[Dice Link] Initializing Dice Link Companion...");
+  console.log("[Dice Link] ===== Hooks.once('init') firing =====");
+  console.log("[Dice Link] Registering core settings...");
   
   // Register settings
   registerCoreSettings();
+  console.log("[Dice Link] Core settings registered");
+  
   registerPlayerModeSettings();
+  console.log("[Dice Link] Player mode settings registered");
   
   // Setup socket listeners
+  console.log("[Dice Link] Setting up socket listeners...");
   setupSocketListeners();
+  console.log("[Dice Link] Socket listeners setup complete");
   
-  console.log("[Dice Link] Module initialized");
+  console.log("[Dice Link] ===== init hook complete =====");
 });
 
 /**
  * Ready hook - set up UI and active features when game is ready
  */
 Hooks.once("ready", async () => {
-  console.log("[Dice Link] Foundry game ready, finalizing setup...");
+  console.log("[Dice Link] ===== Hooks.once('ready') firing =====");
   
-  // Setup dialog mirroring
-  setupDialogMirroring();
-  
-  // Setup dice fulfillment system
-  setupDiceFulfillment();
-  
-  // Setup roll interception
-  setupRollInterception();
-  
-  // Setup initiative interception
-  setupInitiativeInterception();
-  
-  // Expose refreshPanel and other core functions on global namespace for modules to use
-  window.diceLink = window.diceLink || {};
-  window.diceLink.refreshPanel = refreshPanel;
-  window.diceLink.applyManualDice = applyManualDice;
-  window.diceLink.applyDigitalDice = applyDigitalDice;
-  window.diceLink.isUserInManualMode = isUserInManualMode;
-  window.diceLink.playerRequestManual = playerRequestManual;
-  window.diceLink.playerSwitchToDigital = playerSwitchToDigital;
-  window.diceLink.getPlayerMode = getPlayerMode;
-  window.diceLink.getGlobalOverride = getGlobalOverride;
-  window.diceLink.updatePanelWithMirroredDialog = updatePanelWithMirroredDialog;
-  
-  console.log("[Dice Link] Setup complete - panel ready for use");
-})
+  try {
+    console.log("[Dice Link] Setting up dialog mirroring...");
+    setupDialogMirroring();
+    console.log("[Dice Link] Dialog mirroring setup complete");
+    
+    console.log("[Dice Link] Setting up dice fulfillment system...");
+    setupDiceFulfillment();
+    console.log("[Dice Link] Dice fulfillment setup complete");
+    
+    console.log("[Dice Link] Setting up roll interception...");
+    setupRollInterception();
+    console.log("[Dice Link] Roll interception setup complete");
+    
+    console.log("[Dice Link] Setting up initiative interception...");
+    setupInitiativeInterception();
+    console.log("[Dice Link] Initiative interception setup complete");
+    
+    // Expose refreshPanel and other core functions on global namespace for modules to use
+    console.log("[Dice Link] Exposing public API on window.diceLink...");
+    window.diceLink = window.diceLink || {};
+    window.diceLink.refreshPanel = refreshPanel;
+    window.diceLink.applyManualDice = applyManualDice;
+    window.diceLink.applyDigitalDice = applyDigitalDice;
+    window.diceLink.isUserInManualMode = isUserInManualMode;
+    window.diceLink.playerRequestManual = playerRequestManual;
+    window.diceLink.playerSwitchToDigital = playerSwitchToDigital;
+    window.diceLink.getPlayerMode = getPlayerMode;
+    window.diceLink.getGlobalOverride = getGlobalOverride;
+    window.diceLink.updatePanelWithMirroredDialog = updatePanelWithMirroredDialog;
+    console.log("[Dice Link] Public API exposed on window.diceLink");
+    
+    console.log("[Dice Link] ===== ready hook complete - all setup successful =====");
+  } catch (error) {
+    console.error("[Dice Link] ERROR in ready hook:", error);
+    console.error("[Dice Link] Stack trace:", error.stack);
+  }
+});
 
 // ============================================================================
 // PUBLIC API
