@@ -74,32 +74,11 @@ async function applyDigitalDice() {
   console.log("[Dice Link] Removed dice-link fulfillment, restored digital dice");
 }
 
-/**
- * Check if the current user is in manual dice mode.
- * Respects global overrides from the GM.
- * @returns {boolean} true if user should use manual dice
- */
-function isUserInManualMode() {
-  // This is defined in main.mjs but needs to be here for completeness
-  // We'll use the helper functions from settings module
-  // For now, this will be called from main.mjs where it has access to those functions
-  const getGlobalOverride = window.diceLink?.getGlobalOverride;
-  const getPlayerMode = window.diceLink?.getPlayerMode;
-  
-  if (!getGlobalOverride || !getPlayerMode) {
-    console.warn("[Dice Link] isUserInManualMode: settings functions not available");
-    return false;
-  }
-  
-  const globalOverride = getGlobalOverride();
-  if (globalOverride === "forceAllManual") return true;
-  if (globalOverride === "forceAllDigital") return false;
-  const myMode = getPlayerMode();
-  return myMode === "manual";
-}
+// Note: isUserInManualMode remains in main.mjs as it needs direct access to 
+// imported settings functions (getGlobalOverride, getPlayerMode) which are not
+// available via window.diceLink during module initialization.
 
 export {
   applyManualDice,
-  applyDigitalDice,
-  isUserInManualMode
+  applyDigitalDice
 };
