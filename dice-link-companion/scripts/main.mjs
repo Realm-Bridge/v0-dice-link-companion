@@ -46,6 +46,7 @@ import {
 import {
   setupInitiativeInterception
 } from "./initiative-intercept.js";
+
 const REALM_BRIDGE_URL = "https://realmbridge.co.uk";
 const LOGO_URL = "modules/dice-link-companion/assets/logo-header.png";
 const LOGO_SQUARE_URL = "modules/dice-link-companion/assets/logo-square.png";
