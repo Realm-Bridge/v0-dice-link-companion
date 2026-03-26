@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.35
+ * Version 1.0.6.36
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1221,6 +1221,7 @@ Hooks.once("ready", () => {
   window.diceLink.playerSwitchToDigital = playerSwitchToDigital;
   window.diceLink.getPlayerMode = getPlayerMode;
   window.diceLink.getGlobalOverride = getGlobalOverride;
+  window.diceLink.updatePanelWithMirroredDialog = updatePanelWithMirroredDialog;
 
   // Apply initial dice mode based on settings
   const globalOverride = getGlobalOverride();
