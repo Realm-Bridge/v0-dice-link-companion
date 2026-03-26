@@ -1,11 +1,11 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.48
+ * Version 1.0.6.49
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  * 
- * LAST KNOWN GOOD VERSION: 1.0.6.47 - Revert here if initiative removal causes issues
+ * LAST KNOWN GOOD VERSION: 1.0.6.48 - Revert here if roll interception removal causes issues
  */
 
 import { 
@@ -1223,7 +1223,6 @@ Hooks.once("ready", () => {
   setupChatButtonHandlers();
   setupDiceFulfillment();  // Register as a dice fulfillment method
   setupDialogMirroring(); // Mirror native dialogs to our panel (v1.0.6.0)
-  setupRollInterception();
 
   // Expose refreshPanel and other core functions on global namespace for modules to use
   window.diceLink = window.diceLink || {};
@@ -2404,75 +2403,10 @@ async function executeRollWithValues(formula, diceResults, title, subtitle, roll
  * This was the old approach that cancelled and re-triggered rolls.
  * Now replaced by setupDialogMirroring() which is system-agnostic.
  */
-function interceptRoll(title, subtitle, formula, config, dialog, options = {}) {
-  // DEPRECATED - See setupDialogMirroring() instead
-  return true;
-}
-
-/**
- * Helper to register a hook with fallback for V2 hook names
- * dnd5e 4.x uses hooks like "dnd5e.preRollSkillV2"
- * Older versions use "dnd5e.preRollSkill"
- */
-function registerRollHook(v2HookName, v1HookName, callback) {
-  // Register V2 hook (dnd5e 4.x+)
-  Hooks.on(v2HookName, callback);
-}
-
-function setupRollInterception() {
-  // v1.0.6.0: With dialog mirroring, we don't need complex roll hooks.
-  // The setupDialogMirroring() function automatically detects and mirrors all roll dialogs.
-  // These hooks are now just pass-through to let the system proceed normally.
-  
-  registerRollHook("dnd5e.preRollSkillV2", "dnd5e.preRollSkill", (config, dialog, ...rest) => {
-    // Dialog mirroring handles this - just pass through
-    return true;
-  });
-
-  registerRollHook("dnd5e.preRollAbilityTestV2", "dnd5e.preRollAbilityTest", (config, dialog, ...rest) => {
-    // Dialog mirroring handles this - just pass through
-    return true;
-  });
-
-  registerRollHook("dnd5e.preRollAbilitySaveV2", "dnd5e.preRollAbilitySave", (config, dialog, ...rest) => {
-    // Dialog mirroring handles this - just pass through
-    return true;
-  });
-
-  registerRollHook("dnd5e.preRollDeathSaveV2", "dnd5e.preRollDeathSave", (config, dialog, ...rest) => {
-    // Dialog mirroring handles this - just pass through
-    return true;
-  });
-
-  registerRollHook("dnd5e.preRollAttackV2", "dnd5e.preRollAttack", (config, dialog, ...rest) => {
-    // Dialog mirroring handles this - just pass through
-    return true;
-  });
-
-  registerRollHook("dnd5e.preRollDamageV2", "dnd5e.preRollDamage", (config, dialog, ...rest) => {
-    // Dialog mirroring handles this - just pass through
-    return true;
-  });
-
-  registerRollHook("dnd5e.preRollHitDieV2", "dnd5e.preRollHitDie", (config, dialog, ...rest) => {
-    // Dialog mirroring handles this - just pass through
-    return true;
-  });
-
-  registerRollHook("dnd5e.preRollInitiativeV2", "dnd5e.preRollInitiative", (config, dialog, ...rest) => {
-    // Dialog mirroring handles this - just pass through
-    return true;
-  });
-
-  registerRollHook("dnd5e.preRollToolCheckV2", "dnd5e.preRollToolCheck", (config, dialog, ...rest) => {
-    // Dialog mirroring handles this - just pass through
-    return true;
-  });
-}
-
 // ============================================================================
 // MIDI-QOL NOTE
 // midi-qol interception removed - dice fulfillment system handles all rolls automatically
+// Roll interception also removed - dialog mirroring handles all roll dialogs automatically
 // ============================================================================
 // INITIALIZATION HOOKS
 // ============================================================================
@@ -2513,10 +2447,6 @@ Hooks.once("ready", async () => {
     console.log("[Dice Link] Setting up dice fulfillment system...");
     setupDiceFulfillment();
     console.log("[Dice Link] Dice fulfillment setup complete");
-    
-    console.log("[Dice Link] Setting up roll interception...");
-    setupRollInterception();
-    console.log("[Dice Link] Roll interception setup complete");
     
     // Expose refreshPanel and other core functions on global namespace for modules to use
     console.log("[Dice Link] Exposing public API on window.diceLink...");
