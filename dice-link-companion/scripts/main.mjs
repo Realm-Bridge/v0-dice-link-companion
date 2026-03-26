@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.25
+ * Version 1.0.6.26
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1694,6 +1694,7 @@ function isRollDialog(app) {
   const isDamageDialog = dialogTitle.includes("damage");
   const isInitiativeDialog = dialogTitle.includes("initiative");
   const isDeathSaveDialog = dialogTitle.includes("death") && dialogTitle.includes("sav");
+  const isConcentrationSave = dialogTitle.includes("concentration") && isSaveDialog;
   
   // Match dnd5e roll dialogs by title patterns
   if (hasAbility && isCheckDialog) {
@@ -1722,6 +1723,10 @@ function isRollDialog(app) {
   }
   if (isDeathSaveDialog) {
     console.log(`[Dice Link] Matched death save dialog by title: ${dialogTitle}`);
+    return true;
+  }
+  if (isConcentrationSave) {
+    console.log(`[Dice Link] Matched concentration save by title: ${dialogTitle}`);
     return true;
   }
   
@@ -2232,10 +2237,10 @@ async function diceLinkFulfillmentHandler(term, index) {
   // Wait for user to enter this single die result
   const result = await waitForDiceResult(denomination, faces, dieNumber, count);
   
-  // Handle null result (cancelled)
+  // Handle null result (cancelled) - throw error to abort the roll
   if (result === null) {
-    console.log("[Dice Link] Dice entry was cancelled, returning 1");
-    return 1;
+    console.log("[Dice Link] Dice entry was cancelled, aborting roll");
+    throw new Error("Roll cancelled by user");
   }
   
   console.log("[Dice Link] Returning result:", result);
@@ -2252,8 +2257,8 @@ let diceEntryCancelled = false;
 async function waitForDiceResult(denomination, faces, dieNumber, totalDice) {
   // Check if entry was cancelled (from a previous die in the same roll)
   if (diceEntryCancelled) {
-    console.log("[Dice Link] Dice entry cancelled, returning 1 for remaining dice");
-    return 1; // Return minimum value for cancelled dice
+    console.log("[Dice Link] Dice entry cancelled, aborting remaining dice");
+    return null; // Return null to trigger abort
   }
   
   console.log("[Dice Link] Waiting for", denomination, "result (die", dieNumber, "of", totalDice, ")");
