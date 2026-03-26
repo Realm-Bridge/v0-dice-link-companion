@@ -1,12 +1,10 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.44
+ * Version 1.0.6.45
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  */
-
-console.log("[Dice Link] ===== Main module loading =====");
 
 import { 
   MODULE_ID, 
@@ -23,14 +21,10 @@ import {
   isUserInManualMode
 } from "./settings.js";
 
-console.log("[Dice Link] Settings module imported");
-
 import { 
   createApprovalChatMessage,
   setupChatButtonHandlers
 } from "./approval.js";
-
-console.log("[Dice Link] Approval module imported");
 
 import {
   setupSocketListeners,
@@ -38,14 +32,10 @@ import {
   playerSwitchToDigital
 } from "./socket.js";
 
-console.log("[Dice Link] Socket module imported");
-
 import {
   applyManualDice,
   applyDigitalDice
 } from "./mode-application.js";
-
-console.log("[Dice Link] Mode-application module imported");
 
 import {
   setupDialogMirroring,
@@ -53,12 +43,17 @@ import {
   clearMirroredDialog
 } from "./dialog-mirroring.js";
 
-console.log("[Dice Link] Dialog-mirroring module imported");
-
 import {
   setupInitiativeInterception
 } from "./initiative-intercept.js";
 
+// All imports complete - logging starts here
+console.log("[Dice Link] ===== Main module loading =====");
+console.log("[Dice Link] Settings module imported");
+console.log("[Dice Link] Approval module imported");
+console.log("[Dice Link] Socket module imported");
+console.log("[Dice Link] Mode-application module imported");
+console.log("[Dice Link] Dialog-mirroring module imported");
 console.log("[Dice Link] Initiative-intercept module imported");
 console.log("[Dice Link] All imports complete - defining variables and hooks");
 
