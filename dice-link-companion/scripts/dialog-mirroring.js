@@ -242,7 +242,8 @@ function mirrorDialogToPanel(app, html, data) {
     };
     
     // Update our panel to show the mirrored dialog UI
-    window.diceLink?.updatePanelWithMirroredDialog?.(formData);
+    // Pass the full dialog reference so main.mjs can access app/html for submission
+    window.diceLink?.updatePanelWithMirroredDialog?.(formData, app, html);
     
   } catch (e) {
     console.error("[Dice Link] Error mirroring dialog:", e);
