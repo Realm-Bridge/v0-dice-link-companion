@@ -1,0 +1,27 @@
+{{!-- Dice Tray Template --}}
+<div class="dlc-dice-tray">
+  <div class="dlc-dice-formula-row">
+    <input type="text" class="dlc-dice-formula-input" placeholder="/r 1d20" value="/r ">
+  </div>
+  
+  <div class="dlc-dice-buttons-row">
+    {{#each diceTypes}}
+    <button type="button" class="dlc-dice-btn" data-die="{{this}}" title="d{{this}}">
+      <span class="dlc-die-icon">d{{this}}</span>
+      <span class="dlc-die-count" style="display:none;">0</span>
+    </button>
+    {{/each}}
+  </div>
+  
+  <div class="dlc-dice-controls-row">
+    <button type="button" class="dlc-dice-mod-btn dlc-dice-minus" title="Decrease modifier">-</button>
+    <span class="dlc-dice-modifier">0</span>
+    <button type="button" class="dlc-dice-mod-btn dlc-dice-plus" title="Increase modifier">+</button>
+    <button type="button" class="dlc-dice-adv-btn" data-mode="normal" title="Toggle Advantage/Disadvantage">
+      {{localize "DICE_LINK.DiceTray.AdvDis"}}
+    </button>
+    <button type="button" class="dlc-dice-roll-btn dlc-btn-success" title="Roll dice">
+      {{localize "DICE_LINK.DiceTray.Roll"}}
+    </button>
+  </div>
+</div>
