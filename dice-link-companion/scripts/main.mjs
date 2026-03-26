@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.23
+ * Version 1.0.6.24
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1641,7 +1641,7 @@ function isRollDialog(app) {
   const appId = (app.id || "").toLowerCase();
   const dialogTitle = (app.title || "").toLowerCase();
   
-  // EXCLUDE known third-party module dialogs
+  // EXCLUDE known third-party module dialogs by checking EXACT patterns
   const excludedPatterns = [
     "monks-tokenbar",      // Monk's Token Bar
     "tokenbar",            // Generic token bar references
@@ -1658,9 +1658,10 @@ function isRollDialog(app) {
     "item-sheet"           // Item sheets
   ];
   
-  // Check if this is an excluded dialog
+  // Check if this is an excluded dialog - check in full identifier string
   const fullId = `${className} ${appId} ${dialogTitle}`;
   if (excludedPatterns.some(pattern => fullId.includes(pattern))) {
+    console.log(`[Dice Link] Excluding dialog: ${pattern} found in ${fullId}`);
     return false;
   }
   
@@ -1674,22 +1675,57 @@ function isRollDialog(app) {
   ];
   
   if (rollDialogClasses.some(cls => className.includes(cls))) {
+    console.log(`[Dice Link] Matched roll dialog class: ${className}`);
     return true;
   }
   
-  // For title-based matching, be MORE specific
-  // Only match if it looks like a dnd5e roll dialog (contains both a roll type AND "check"/"roll"/"throw")
-  const rollTypes = ["attack", "damage", "skill", "ability", "death", "initiative", "hit die", "hit dice", "tool", "concentration"];
-  const rollIndicators = ["check", "throw", "roll"];
+  // For title-based matching, check for dnd5e ability/skill checks
+  // These typically have format like "Ability Name (Skill Name) Check" or just "Ability Name Check"
+  const abilityNames = ["strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma"];
+  const skillNames = ["acrobatics", "animal handling", "arcana", "athletics", "deception", "history", 
+                      "insight", "intimidation", "investigation", "medicine", "nature", "perception", 
+                      "performance", "persuasion", "religion", "sleight of hand", "stealth", "survival"];
   
-  const hasRollType = rollTypes.some(type => dialogTitle.includes(type));
-  const hasRollIndicator = rollIndicators.some(ind => dialogTitle.includes(ind));
+  const hasAbility = abilityNames.some(ability => dialogTitle.includes(ability));
+  const hasSkill = skillNames.some(skill => dialogTitle.includes(skill));
+  const isCheckDialog = dialogTitle.includes("check");
+  const isSaveDialog = dialogTitle.includes("saving") || dialogTitle.includes("save");
+  const isAttackDialog = dialogTitle.includes("attack");
+  const isDamageDialog = dialogTitle.includes("damage");
+  const isInitiativeDialog = dialogTitle.includes("initiative");
+  const isDeathSaveDialog = dialogTitle.includes("death") && dialogTitle.includes("sav");
   
-  // Also check for specific dnd5e dialog patterns in the app ID
-  const isDnd5eDialog = appId.includes("dnd5e") || className.includes("dnd5e");
+  // Match dnd5e roll dialogs by title patterns
+  if (hasAbility && isCheckDialog) {
+    console.log(`[Dice Link] Matched ability check by title: ${dialogTitle}`);
+    return true;
+  }
+  if (hasSkill && isCheckDialog) {
+    console.log(`[Dice Link] Matched skill check by title: ${dialogTitle}`);
+    return true;
+  }
+  if ((hasAbility || dialogTitle.includes("ability")) && (isSaveDialog || isCheckDialog)) {
+    console.log(`[Dice Link] Matched ability save/check by title: ${dialogTitle}`);
+    return true;
+  }
+  if (isAttackDialog) {
+    console.log(`[Dice Link] Matched attack dialog by title: ${dialogTitle}`);
+    return true;
+  }
+  if (isDamageDialog) {
+    console.log(`[Dice Link] Matched damage dialog by title: ${dialogTitle}`);
+    return true;
+  }
+  if (isInitiativeDialog) {
+    console.log(`[Dice Link] Matched initiative dialog by title: ${dialogTitle}`);
+    return true;
+  }
+  if (isDeathSaveDialog) {
+    console.log(`[Dice Link] Matched death save dialog by title: ${dialogTitle}`);
+    return true;
+  }
   
-  // Match if: (has roll type AND roll indicator) OR is explicitly a dnd5e dialog with roll keywords
-  return (hasRollType && hasRollIndicator) || (isDnd5eDialog && (hasRollType || hasRollIndicator));
+  return false;
 }
 
 /**
