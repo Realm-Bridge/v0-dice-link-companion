@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.39
+ * Version 1.0.6.40
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -42,10 +42,6 @@ import {
   getMirroredDialog,
   clearMirroredDialog
 } from "./dialog-mirroring.js";
-
-import {
-  setupMidiQolInterception
-} from "./midi-qol-intercept.js";
 
 import {
   setupInitiativeInterception
@@ -1220,7 +1216,6 @@ Hooks.once("ready", () => {
   setupDiceFulfillment();  // Register as a dice fulfillment method
   setupDialogMirroring(); // Mirror native dialogs to our panel (v1.0.6.0)
   setupRollInterception();
-  setupMidiQolInterception();  // Add midi-qol specific hooks if available
   setupInitiativeInterception();  // Special handling for initiative (bypasses fulfillment)
 
   // Expose refreshPanel and other core functions on global namespace for modules to use
@@ -2499,8 +2494,8 @@ function setupRollInterception() {
 // MIDI-QOL SPECIFIC INTERCEPTION
 // ============================================================================
 
-// setupMidiQolInterception and setupInitiativeInterception moved to their own modules
-// Old functions kept for reference but not called - imports above will be used instead
+// midi-qol interception removed - dice fulfillment system handles all rolls automatically
+// setupInitiativeInterception moved to initiative-intercept.js
   // Only setup if midi-qol is active
   if (!game.modules.get("midi-qol")?.active) {
     console.log("[Dice Link] midi-qol not active, skipping midi-qol hooks");
