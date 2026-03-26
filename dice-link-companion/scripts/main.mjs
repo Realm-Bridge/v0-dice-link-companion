@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.40
+ * Version 1.0.6.41
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -46,6 +46,7 @@ import {
 import {
   setupInitiativeInterception
 } from "./initiative-intercept.js";
+
 const REALM_BRIDGE_URL = "https://realmbridge.co.uk";
 const LOGO_URL = "modules/dice-link-companion/assets/logo-header.png";
 const LOGO_SQUARE_URL = "modules/dice-link-companion/assets/logo-square.png";
