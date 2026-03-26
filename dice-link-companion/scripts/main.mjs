@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.31
+ * Version 1.0.6.32
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -30,6 +30,12 @@ import {
   playerRequestManual,
   playerSwitchToDigital
 } from "./socket.js";
+
+import {
+  applyManualDice,
+  applyDigitalDice,
+  isUserInManualMode
+} from "./mode-application.js";
 const REALM_BRIDGE_URL = "https://realmbridge.co.uk";
 const LOGO_URL = "modules/dice-link-companion/assets/logo-header.png";
 const LOGO_SQUARE_URL = "modules/dice-link-companion/assets/logo-square.png";
@@ -54,66 +60,9 @@ const collapsedSections = {
 // DICE CONFIGURATION - Using Foundry v13 core settings
 // ============================================================================
 
-async function applyManualDice() {
-  // Use our custom "dice-link" fulfillment method instead of "manual"
-  // This uses our DiceLinkResolver which shows our panel UI
-  if (CONFIG.Dice.fulfillment) {
-    CONFIG.Dice.fulfillment.defaultMethod = "dice-link";
-    if (CONFIG.Dice.fulfillment.dice) {
-      CONFIG.Dice.fulfillment.dice.d4 = "dice-link";
-      CONFIG.Dice.fulfillment.dice.d6 = "dice-link";
-      CONFIG.Dice.fulfillment.dice.d8 = "dice-link";
-      CONFIG.Dice.fulfillment.dice.d10 = "dice-link";
-      CONFIG.Dice.fulfillment.dice.d12 = "dice-link";
-      CONFIG.Dice.fulfillment.dice.d20 = "dice-link";
-      CONFIG.Dice.fulfillment.dice.d100 = "dice-link";
-    }
-  }
-  
-  console.log("[Dice Link] Applied dice-link fulfillment method for manual mode");
-}
-
-async function applyDigitalDice() {
-  // Remove our fulfillment method, restore digital dice
-  if (CONFIG.Dice.fulfillment) {
-    CONFIG.Dice.fulfillment.defaultMethod = "";
-    if (CONFIG.Dice.fulfillment.dice) {
-      CONFIG.Dice.fulfillment.dice.d4 = "";
-      CONFIG.Dice.fulfillment.dice.d6 = "";
-      CONFIG.Dice.fulfillment.dice.d8 = "";
-      CONFIG.Dice.fulfillment.dice.d10 = "";
-      CONFIG.Dice.fulfillment.dice.d12 = "";
-      CONFIG.Dice.fulfillment.dice.d20 = "";
-      CONFIG.Dice.fulfillment.dice.d100 = "";
-    }
-  }
-  
-  // Also try to reset the user's core dice configuration setting
-  // This is what Foundry's Configure Dice menu sets
-  try {
-    const diceConfig = game.settings.get("core", "diceConfiguration");
-    if (diceConfig && typeof diceConfig === "object") {
-      // Check if any dice are set to manual or dice-link
-      let needsUpdate = false;
-      const newConfig = {...diceConfig};
-      for (const key of Object.keys(newConfig)) {
-        if (newConfig[key] === "manual" || newConfig[key] === "dice-link") {
-          newConfig[key] = "";
-          needsUpdate = true;
-        }
-      }
-      if (needsUpdate) {
-        await game.settings.set("core", "diceConfiguration", newConfig);
-        console.log("[Dice Link] Reset core diceConfiguration to digital");
-      }
-    }
-  } catch (e) {
-    // Setting may not exist or be inaccessible - that's OK
-    console.log("[Dice Link] Could not reset core diceConfiguration:", e.message);
-  }
-  
-  console.log("[Dice Link] Removed dice-link fulfillment, restored digital dice");
-}
+// ============================================================================
+// CORE MODE APPLICATION FUNCTIONS (imported from mode-application.js)
+// ============================================================================
 
 // ============================================================================
 // CHAT MESSAGE HELPERS
@@ -1265,9 +1214,11 @@ Hooks.once("ready", () => {
   window.diceLink.refreshPanel = refreshPanel;
   window.diceLink.applyManualDice = applyManualDice;
   window.diceLink.applyDigitalDice = applyDigitalDice;
+  window.diceLink.isUserInManualMode = isUserInManualMode;
   window.diceLink.playerRequestManual = playerRequestManual;
   window.diceLink.playerSwitchToDigital = playerSwitchToDigital;
-  window.diceLink.hasRequestedThisSession = hasRequestedThisSession;
+  window.diceLink.getPlayerMode = getPlayerMode;
+  window.diceLink.getGlobalOverride = getGlobalOverride;
 
   // Apply initial dice mode based on settings
   const globalOverride = getGlobalOverride();
