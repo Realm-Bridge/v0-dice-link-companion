@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.30
+ * Version 1.0.6.31
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -119,40 +119,9 @@ async function applyDigitalDice() {
 // CHAT MESSAGE HELPERS
 // ============================================================================
 
-async function createRequestChatMessage(playerId, playerName) {
-  const gmContent = `
-    <div class="dice-link-request">
-      <p><strong>${playerName}</strong> is requesting manual dice mode.</p>
-      <div class="dlc-chat-buttons">
-        <button type="button" class="dlc-chat-btn dlc-chat-approve" data-player-id="${playerId}">
-          <i class="fas fa-check"></i> Approve
-        </button>
-        <button type="button" class="dlc-chat-btn dlc-chat-deny" data-player-id="${playerId}">
-          <i class="fas fa-times"></i> Deny
-        </button>
-      </div>
-    </div>
-  `;
-
-  await ChatMessage.create({
-    content: gmContent,
-    whisper: game.users.filter(u => u.isGM).map(u => u.id)
-  });
-
-  const playerContent = `
-    <div class="dice-link-result" style="border-left: 4px solid #7c3aed; padding: 10px;">
-      <p>Your request for manual dice has been sent to the GM.</p>
-    </div>
-  `;
-
-  await ChatMessage.create({
-    content: playerContent,
-    whisper: [playerId]
-  });
-}
-
 // ============================================================================
 // CHAT BUTTON HANDLERS (imported from approval.js)
+// createRequestChatMessage moved to chat.js
 // ============================================================================
 
 // ============================================================================
