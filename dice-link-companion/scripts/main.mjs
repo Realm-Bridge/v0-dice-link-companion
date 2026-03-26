@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.42
+ * Version 1.0.6.43
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -2664,98 +2664,57 @@ function setupRollInterception() {
 }
 
 // ============================================================================
-// INITIATIVE INTERCEPTION (imported from initiative-intercept.js)
+// INITIALIZATION HOOKS
 // ============================================================================
 
-// setupInitiativeInterception moved to initiative-intercept.js
-// Old function kept for reference but not called - import above will be used instead
-  console.log("[Dice Link] Setting up initiative interception...");
+/**
+ * Initialize the module - register UI, hooks, and settings
+ */
+Hooks.once("init", async () => {
+  console.log("[Dice Link] Initializing Dice Link Companion...");
   
-  // Hook into dnd5e's POST-roll initiative hook
-  // This fires AFTER the initiative roll is made with random values
-  // If in manual mode, we replace the roll results with user-entered values
-  Hooks.on("dnd5e.rollInitiative", (roll, combatants) => {
-    console.log("[Dice Link] dnd5e.rollInitiative hook fired");
-    
-    if (!isUserInManualMode()) {
-      console.log("[Dice Link] Digital mode - keeping auto-rolled initiative");
-      return true;
-    }
-    
-    console.log("[Dice Link] Manual mode - will prompt for manual initiative after dialog closes");
-    // Mark these combatants so we can intercept their updates
-    combatants.forEach(c => c._needsManualInitiative = true);
-  });
+  // Register settings
+  registerCoreSettings();
+  registerPlayerModeSettings();
   
-  // For manual initiative, we use the combatant update hook
-  // After initiative is rolled, we can detect it and prompt for correction
-  Hooks.on("updateCombatant", async (combatant, changes, options, userId) => {
-    if (changes.initiative !== undefined && userId === game.user.id && combatant._needsManualInitiative) {
-      console.log("[Dice Link] Combatant initiative updated:", combatant.name, "to", changes.initiative);
-      
-      if (isUserInManualMode() && !combatant._manualInitiativeSet) {
-        console.log("[Dice Link] Manual mode - prompting for manual initiative entry");
-        combatant._needsManualInitiative = false;
-        combatant._manualInitiativeSet = true;
-        
-        // Show a prompt to allow manual entry
-        await promptManualInitiative(combatant, changes.initiative);
-      }
-    }
-  });
-}
+  // Setup socket listeners
+  setupSocketListeners();
+  
+  console.log("[Dice Link] Module initialized");
+});
 
 /**
- * Prompt user to enter manual initiative value
+ * Ready hook - set up UI and active features when game is ready
  */
-async function promptManualInitiative(combatant, autoRolledValue) {
-  // Show our dice entry UI for initiative
-  return new Promise((resolve) => {
-    pendingRollRequest = {
-      title: `Initiative: ${combatant.name}`,
-      subtitle: `Auto-rolled: ${autoRolledValue} - Enter your d20 result`,
-      isFulfillment: true,
-      step: "diceEntry",
-      diceNeeded: [{
-        type: "d20",
-        faces: 20,
-        index: 0,
-        count: 1
-      }],
-      onComplete: async (values) => {
-        if (Array.isArray(values) && values.length > 0) {
-          const manualD20 = parseInt(values[0]);
-          console.log("[Dice Link] Manual initiative d20:", manualD20);
-          
-          // Calculate the new initiative with the manual roll
-          // Initiative = d20 + dex mod + any bonuses
-          // We need to extract the modifier from the auto-rolled value
-          const actor = combatant.actor;
-          const initBonus = actor?.system?.attributes?.init?.total || 0;
-          const newInitiative = manualD20 + initBonus;
-          
-          console.log("[Dice Link] Setting initiative to:", newInitiative, "(d20:", manualD20, "+ bonus:", initBonus, ")");
-          
-          // Mark this combatant so we don't re-prompt
-          combatant._manualInitiativeSet = true;
-          
-          // Update the combatant's initiative
-          await combatant.update({ initiative: newInitiative });
-          
-          combatant._manualInitiativeSet = false;
-          ui.notifications.info(`${combatant.name} initiative set to ${newInitiative}`);
-        }
-        
-        pendingRollRequest = null;
-        refreshPanel();
-        resolve();
-      }
-    };
-    
-    collapsedSections.rollRequest = false;
-    refreshPanel();
-  });
-}
+Hooks.once("ready", async () => {
+  console.log("[Dice Link] Foundry game ready, finalizing setup...");
+  
+  // Setup dialog mirroring
+  setupDialogMirroring();
+  
+  // Setup dice fulfillment system
+  setupDiceFulfillment();
+  
+  // Setup roll interception
+  setupRollInterception();
+  
+  // Setup initiative interception
+  setupInitiativeInterception();
+  
+  // Expose refreshPanel and other core functions on global namespace for modules to use
+  window.diceLink = window.diceLink || {};
+  window.diceLink.refreshPanel = refreshPanel;
+  window.diceLink.applyManualDice = applyManualDice;
+  window.diceLink.applyDigitalDice = applyDigitalDice;
+  window.diceLink.isUserInManualMode = isUserInManualMode;
+  window.diceLink.playerRequestManual = playerRequestManual;
+  window.diceLink.playerSwitchToDigital = playerSwitchToDigital;
+  window.diceLink.getPlayerMode = getPlayerMode;
+  window.diceLink.getGlobalOverride = getGlobalOverride;
+  window.diceLink.updatePanelWithMirroredDialog = updatePanelWithMirroredDialog;
+  
+  console.log("[Dice Link] Setup complete - panel ready for use");
+})
 
 // ============================================================================
 // PUBLIC API
