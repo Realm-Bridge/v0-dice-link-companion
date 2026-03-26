@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.37
+ * Version 1.0.6.38
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1557,9 +1557,17 @@ function extractDialogFormData(app, html) {
 /**
  * Update our panel to display the mirrored dialog UI
  */
-function updatePanelWithMirroredDialog(formData) {
+function updatePanelWithMirroredDialog(formData, app, html) {
   // Clear previous pending roll request
   pendingRollRequest = null;
+  
+  // Store the mirrored dialog reference for submitMirroredDialog to use
+  mirroredDialog = {
+    app,
+    html,
+    data: formData,
+    timestamp: Date.now()
+  };
   
   // Create new pending roll request with mirrored dialog data
   pendingRollRequest = {
