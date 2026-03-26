@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.26
+ * Version 1.0.6.27
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -601,9 +601,6 @@ function generatePendingRollHTML(roll) {
         ${roll.hasDisadvantage ? `<button type="button" class="dlc-roll-action-btn dlc-roll-disadvantage" data-roll-mode="disadvantage">Disadvantage</button>` : ''}
         ${roll.hasCritical ? `<button type="button" class="dlc-roll-action-btn dlc-roll-critical" data-roll-mode="critical">Critical</button>` : ''}
       </div>
-      <div class="dlc-pending-roll-footer">
-        <button type="button" class="dlc-roll-cancel-btn">Cancel Roll</button>
-      </div>
     </div>
   `;
 }
@@ -624,6 +621,7 @@ function generateRollRequestSection(mode, globalOverride) {
       <div class="dlc-section-header" data-section="rollRequest">
         <span class="dlc-collapse-btn">${collapsedSections.rollRequest ? '+' : '−'}</span>
         <h3><i class="fas fa-dice-d20"></i> Roll Request${hasPending ? ' <span class="dlc-pending-badge">PENDING</span>' : ''}</h3>
+        ${hasPending ? '<button type="button" class="dlc-roll-cancel-btn dlc-header-cancel-btn">Cancel Roll</button>' : ''}
       </div>
       <div class="dlc-section-content">
         ${hasPending ? generatePendingRollHTML(pendingRollRequest) : generateDiceTrayHTML()}
