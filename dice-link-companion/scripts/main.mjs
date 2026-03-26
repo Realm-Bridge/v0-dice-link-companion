@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.45
+ * Version 1.0.6.46
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -2273,14 +2273,7 @@ function removeDiceLinkFulfillment() {
 // ============================================================================
 // ROLL INTERCEPTION
 // ============================================================================
-
-function isUserInManualMode() {
-  const globalOverride = getGlobalOverride();
-  if (globalOverride === "forceAllManual") return true;
-  if (globalOverride === "forceAllDigital") return false;
-  const myMode = getPlayerMode();
-  return myMode === "manual";
-}
+// isUserInManualMode is imported from settings.js
 
 /**
  * Execute a roll directly using Foundry's Roll API.
