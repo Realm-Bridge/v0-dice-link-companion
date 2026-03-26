@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.38
+ * Version 1.0.6.40
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -17,7 +17,8 @@ import {
   getGlobalOverride,
   setGlobalOverride,
   getPendingRequests,
-  setPendingRequests
+  setPendingRequests,
+  isUserInManualMode
 } from "./settings.js";
 
 import { 
@@ -41,6 +42,10 @@ import {
   getMirroredDialog,
   clearMirroredDialog
 } from "./dialog-mirroring.js";
+
+import {
+  setupInitiativeInterception
+} from "./initiative-intercept.js";
 const REALM_BRIDGE_URL = "https://realmbridge.co.uk";
 const LOGO_URL = "modules/dice-link-companion/assets/logo-header.png";
 const LOGO_SQUARE_URL = "modules/dice-link-companion/assets/logo-square.png";
@@ -1211,7 +1216,6 @@ Hooks.once("ready", () => {
   setupDiceFulfillment();  // Register as a dice fulfillment method
   setupDialogMirroring(); // Mirror native dialogs to our panel (v1.0.6.0)
   setupRollInterception();
-  setupMidiQolInterception();  // Add midi-qol specific hooks if available
   setupInitiativeInterception();  // Special handling for initiative (bypasses fulfillment)
 
   // Expose refreshPanel and other core functions on global namespace for modules to use
@@ -2490,20 +2494,8 @@ function setupRollInterception() {
 // MIDI-QOL SPECIFIC INTERCEPTION
 // ============================================================================
 
-/**
- * Setup midi-qol specific hooks for attack and damage rolls.
- * 
- * IMPORTANT: In v13, Midi-QOL uses Foundry's dice fulfillment system.
- * Our dice fulfillment handler (diceLinkFulfillmentHandler) is already
- * registered and will be called for all dice rolls, including those
- * from Midi-QOL workflows.
- * 
- * We should NOT intercept Midi's workflow hooks as that causes the
- * attack roll to be disconnected from the workflow (separate chat cards).
- * Instead, we let Midi handle its workflow and just provide dice values
- * through the fulfillment system.
- */
-function setupMidiQolInterception() {
+// midi-qol interception removed - dice fulfillment system handles all rolls automatically
+// setupInitiativeInterception moved to initiative-intercept.js
   // Only setup if midi-qol is active
   if (!game.modules.get("midi-qol")?.active) {
     console.log("[Dice Link] midi-qol not active, skipping midi-qol hooks");
@@ -2671,11 +2663,11 @@ function setupMidiQolInterception() {
 }
 
 // ============================================================================
-// INITIATIVE INTERCEPTION
-// Initiative rolls bypass the fulfillment system, so we need special handling
+// INITIATIVE INTERCEPTION (imported from initiative-intercept.js)
 // ============================================================================
 
-function setupInitiativeInterception() {
+// setupInitiativeInterception moved to initiative-intercept.js
+// Old function kept for reference but not called - import above will be used instead
   console.log("[Dice Link] Setting up initiative interception...");
   
   // Hook into dnd5e's POST-roll initiative hook
