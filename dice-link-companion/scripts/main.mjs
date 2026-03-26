@@ -1260,32 +1260,7 @@ Hooks.once("ready", () => {
   // Only log when it's actually a roll dialog to reduce console spam
   Hooks.on("renderApplication", (app, html, data) => {
     if (isRollDialog(app)) {
-      console.log("[Dice Link] Roll dialog detected via renderApplication:", app.title);
-    }
-    handleDialogRender(app, html, data);
-  });
-  
-  // Also try the legacy Dialog hook for backwards compatibility
-  Hooks.on("renderDialog", (app, html, data) => {
-    if (isRollDialog(app)) {
-      console.log("[Dice Link] Roll dialog detected via renderDialog:", app.title);
-    }
-    handleDialogRender(app, html, data);
-  });
-  
-  // Try specific dnd5e roll configuration dialog hooks
-  Hooks.on("renderRollConfigurationDialog", (app, html, data) => {
-    console.log("[Dice Link] Roll dialog via renderRollConfigurationDialog:", app.title);
-    handleDialogRender(app, html, data);
-  });
-  
-  // Generic hook for any application render - cast wide net
-  Hooks.on("renderApplicationV2", (app, html, data) => {
-    if (isRollDialog(app)) {
-      console.log("[Dice Link] Roll dialog detected via renderApplicationV2:", app.title);
-    }
-    handleDialogRender(app, html, data);
-  });
+  handleDialogRender(app, html, data);
 }
 
 /**
@@ -2418,19 +2393,12 @@ Hooks.once("init", async () => {
  * Ready hook - set up UI and active features when game is ready
  */
 Hooks.once("ready", async () => {
-  console.log("[Dice Link] ===== Hooks.once('ready') firing =====");
-  
   try {
-  console.log("[Dice Link] Setting up dialog mirroring...");
     setupDialogMirroring();
-    console.log("[Dice Link] Dialog mirroring setup complete");
     
-    console.log("[Dice Link] Setting up dice fulfillment system...");
     setupDiceFulfillment();
-    console.log("[Dice Link] Dice fulfillment setup complete");
     
     // Expose refreshPanel and other core functions on global namespace for modules to use
-    console.log("[Dice Link] Exposing public API on window.diceLink...");
     window.diceLink = window.diceLink || {};
     window.diceLink.refreshPanel = refreshPanel;
     window.diceLink.applyManualDice = applyManualDice;
@@ -2441,9 +2409,6 @@ Hooks.once("ready", async () => {
     window.diceLink.getPlayerMode = getPlayerMode;
     window.diceLink.getGlobalOverride = getGlobalOverride;
     window.diceLink.updatePanelWithMirroredDialog = updatePanelWithMirroredDialog;
-    console.log("[Dice Link] Public API exposed on window.diceLink");
-    
-    console.log("[Dice Link] ===== ready hook complete - all setup successful =====");
   } catch (error) {
     console.error("[Dice Link] ERROR in ready hook:", error);
     console.error("[Dice Link] Stack trace:", error.stack);
