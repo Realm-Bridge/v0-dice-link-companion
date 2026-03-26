@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.34
+ * Version 1.0.6.35
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -35,6 +35,12 @@ import {
   applyManualDice,
   applyDigitalDice
 } from "./mode-application.js";
+
+import {
+  setupDialogMirroring,
+  getMirroredDialog,
+  clearMirroredDialog
+} from "./dialog-mirroring.js";
 const REALM_BRIDGE_URL = "https://realmbridge.co.uk";
 const LOGO_URL = "modules/dice-link-companion/assets/logo-header.png";
 const LOGO_SQUARE_URL = "modules/dice-link-companion/assets/logo-square.png";
@@ -1240,13 +1246,10 @@ Hooks.once("ready", () => {
 // ============================================================================
 
 // Store currently mirrored dialog data
-let mirroredDialog = null;
+// Dialog mirroring moved to dialog-mirroring.js module
+// Imported functions: setupDialogMirroring, getMirroredDialog, clearMirroredDialog
 
 /**
- * Detect when a dialog is about to render and mirror it to our panel.
- * Works with any system that uses Foundry dialogs (both legacy Dialog and ApplicationV2).
- */
-function setupDialogMirroring() {
   console.log("[Dice Link] Setting up dialog mirroring...");
   
   // Hook into ApplicationV2 renders (dnd5e 4.x+ uses these)
