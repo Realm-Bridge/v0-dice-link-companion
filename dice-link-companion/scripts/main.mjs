@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.36
+ * Version 1.0.6.37
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -51,6 +51,9 @@ let hasRequestedThisSession = false;
 // Track any pending intercepted roll request
 let pendingRollRequest = null;
 // { title, subtitle, formula, config, dialog, onComplete }
+
+// Track mirrored dialog state (used by updatePanelWithMirroredDialog and submitMirroredDialog)
+let mirroredDialog = null;
 
 // Track collapsed sections state
 const collapsedSections = {
