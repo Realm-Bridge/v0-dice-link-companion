@@ -5,10 +5,14 @@
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  * 
- * LAST KNOWN GOOD VERSION: 1.0.6.48 - Revert here if roll interception removal causes issues
+ * LAST KNOWN GOOD VERSION: 1.0.6.49 - Fully functional before cleanup
  * 
- * v1.0.6.50 - Cleaned up: removed unused imports (getMirroredDialog, clearMirroredDialog),
- * removed 46 debug console.log statements left over from development/debugging
+ * v1.0.6.50 - Cleaned up:
+ * - Removed unused imports (getMirroredDialog, clearMirroredDialog)
+ * - Removed 50+ debug console.log statements from main.mjs
+ * - Removed debug logs from dialog-mirroring.js and mode-application.js
+ * - Fixed broken/orphaned code in setupDialogMirroring section
+ * - Removed leftover initiative hooks from dialog-mirroring.js
  */
 
 import { 
@@ -1249,19 +1253,7 @@ Hooks.once("ready", () => {
 // Hide native dialogs and replicate them in our panel for system-agnostic control
 // ============================================================================
 
-// Store currently mirrored dialog data
 // Dialog mirroring moved to dialog-mirroring.js module
-// Imported functions: setupDialogMirroring, getMirroredDialog, clearMirroredDialog
-
-/**
-  console.log("[Dice Link] Setting up dialog mirroring...");
-  
-  // Hook into ApplicationV2 renders (dnd5e 4.x+ uses these)
-  // Only log when it's actually a roll dialog to reduce console spam
-  Hooks.on("renderApplication", (app, html, data) => {
-    if (isRollDialog(app)) {
-  handleDialogRender(app, html, data);
-}
 
 /**
  * Handle dialog render - check if it's a roll dialog and mirror it
@@ -1281,14 +1273,11 @@ function handleDialogRender(app, html, data) {
     
     // Roll Resolution dialogs are handled by our DiceLinkResolver - just hide them
     if (title.includes("roll resolution") || title.includes("resolver")) {
-      console.log("[Dice Link] Hiding Roll Resolution dialog - handled by our resolver");
       if (elementToHide?.style) {
         elementToHide.style.display = "none";
       }
       return;
     }
-    
-    console.log("[Dice Link] Detected roll dialog:", app.title);
     
     // Hide the native dialog
     if (elementToHide?.style) {
@@ -1416,8 +1405,6 @@ function mirrorDialogToPanel(app, html, data) {
       return;
     }
     
-    console.log("[Dice Link] Mirroring dialog:", formData.title);
-    
     // Store the dialog reference and data
     mirroredDialog = {
       app,
@@ -1453,11 +1440,8 @@ function extractDialogFormData(app, html) {
   }
   
   if (!element) {
-    console.log("[Dice Link] Could not find dialog element");
     return null;
   }
-  
-  console.log("[Dice Link] Extracting form data from element:", element);
   
   const data = {
     title: app.title || app.options?.title || "Roll",
@@ -1504,9 +1488,6 @@ function extractDialogFormData(app, html) {
   if (formulaElement) {
     data.formula = formulaElement.textContent.trim();
   }
-  
-  // Only log button count to avoid console spam
-  console.log("[Dice Link] Extracted form data with", data.buttons.length, "buttons for:", data.title);
   
   return data;
 }
@@ -1563,9 +1544,6 @@ function updatePanelWithMirroredDialog(formData, app, html) {
   } else {
     refreshPanel();
   }
-  
-  // Log to confirm dialog is showing
-  console.log("[Dice Link] Panel updated with mirrored dialog:", formData.title);
 }
 
 /**
@@ -1635,8 +1613,6 @@ async function submitMirroredDialog(userChoice) {
     }
     
     if (targetButton?.element) {
-      console.log("[Dice Link] Clicking button in hidden dialog:", targetButton.label);
-      
       // Make dialog visible temporarily so click works
       element.style.display = "block";
       
@@ -1653,7 +1629,6 @@ async function submitMirroredDialog(userChoice) {
       }
     } else {
       console.error("[Dice Link] Could not find target button:", userChoice.buttonLabel);
-      console.log("[Dice Link] Available buttons:", formData.buttons.map(b => b.label));
     }
   } catch (e) {
     console.error("[Dice Link] Error submitting mirrored dialog:", e);
@@ -1768,14 +1743,10 @@ class DiceLinkResolver extends foundry.applications.dice.RollResolver {
    * Override awaitFulfillment to use our panel UI
    */
   async awaitFulfillment() {
-    console.log("[Dice Link] DiceLinkResolver.awaitFulfillment() called");
     const roll = this.roll;
     const fulfillable = this.fulfillable;
     
-    console.log("[Dice Link] fulfillable.size:", fulfillable.size);
-    
     if (fulfillable.size === 0) {
-      console.log("[Dice Link] No fulfillable dice, returning early");
       return;
     }
     
@@ -1791,8 +1762,6 @@ class DiceLinkResolver extends foundry.applications.dice.RollResolver {
         });
       }
     }
-    
-    console.log("[Dice Link] Resolver awaiting fulfillment for dice:", diceNeeded);
     
     // Show our panel UI and wait for user input
     const results = await this._showDiceLinkPanel(roll.formula, diceNeeded);
@@ -1880,8 +1849,6 @@ function setupDiceFulfillment() {
     interactive: false,
     handler: diceLinkFulfillmentHandler
   };
-  
-  console.log("[Dice Link] Custom fulfillment method registered with handler");
 }
 
 /**
@@ -1911,18 +1878,14 @@ async function diceLinkFulfillmentHandler(term, index) {
     diceEntryCancelled = false;
   }
   
-  console.log("[Dice Link] Handler called for", denomination, "- die", dieNumber, "of", count);
-  
   // Wait for user to enter this single die result
   const result = await waitForDiceResult(denomination, faces, dieNumber, count);
   
   // Handle null result (cancelled) - throw error to abort the roll
   if (result === null) {
-    console.log("[Dice Link] Dice entry was cancelled, aborting roll");
     throw new Error("Roll cancelled by user");
   }
   
-  console.log("[Dice Link] Returning result:", result);
   return result;
 }
 
@@ -1936,11 +1899,8 @@ let diceEntryCancelled = false;
 async function waitForDiceResult(denomination, faces, dieNumber, totalDice) {
   // Check if entry was cancelled (from a previous die in the same roll)
   if (diceEntryCancelled) {
-    console.log("[Dice Link] Dice entry cancelled, aborting remaining dice");
     return null; // Return null to trigger abort
   }
-  
-  console.log("[Dice Link] Waiting for", denomination, "result (die", dieNumber, "of", totalDice, ")");
   
   return new Promise((resolve) => {
     // Store the resolver so our panel can call it when user enters a value
@@ -2107,8 +2067,6 @@ async function waitForDiceTrayEntry(denomination, faces, dieNumber, totalDice) {
     return null;
   }
   
-  console.log("[Dice Link] Dice tray waiting for", denomination, "result (die", dieNumber, "of", totalDice, ")");
-  
   return new Promise((resolve) => {
     pendingDiceEntry = {
       denomination,
@@ -2135,7 +2093,6 @@ async function waitForDiceTrayEntry(denomination, faces, dieNumber, totalDice) {
       onComplete: (values) => {
         if (Array.isArray(values) && values.length > 0) {
           const numericValue = parseInt(values[0]);
-          console.log("[Dice Link] Dice tray entry completed with value:", numericValue);
           pendingDiceEntry = null;
           pendingRollRequest = null;
           refreshPanel();
@@ -2168,7 +2125,6 @@ function showDiceEntryUI(denomination, faces, dieNumber, totalDice) {
     onComplete: (values) => {
       if (pendingDiceEntry && Array.isArray(values) && values.length > 0) {
         const numericValue = parseInt(values[0]);
-        console.log("[Dice Link] Dice entry completed with value:", numericValue);
         pendingDiceEntry.resolve(numericValue);
         pendingDiceEntry = null;
         pendingRollRequest = null;
@@ -2194,7 +2150,6 @@ function applyDiceLinkFulfillment() {
   }
   
   CONFIG.Dice.fulfillment.defaultMethod = "dice-link";
-  console.log("[Dice Link] Applied dice-link fulfillment to all dice");
 }
 
 /**
@@ -2209,7 +2164,6 @@ function removeDiceLinkFulfillment() {
   }
   
   CONFIG.Dice.fulfillment.defaultMethod = "";
-  console.log("[Dice Link] Removed dice-link fulfillment, restored digital");
 }
 
 // ============================================================================

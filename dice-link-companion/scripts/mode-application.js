@@ -1,5 +1,6 @@
 /**
  * Mode Application Module - dice-link-companion
+ * Version 1.0.6.50
  * 
  * Handles applying manual/digital dice modes to the Foundry dice fulfillment system.
  * These functions control whether players use our custom panel UI or Foundry's digital dice.
@@ -24,8 +25,6 @@ async function applyManualDice() {
       CONFIG.Dice.fulfillment.dice.d100 = "dice-link";
     }
   }
-  
-  console.log("[Dice Link] Applied dice-link fulfillment method for manual mode");
 }
 
 /**
@@ -48,11 +47,9 @@ async function applyDigitalDice() {
   }
   
   // Also try to reset the user's core dice configuration setting
-  // This is what Foundry's Configure Dice menu sets
   try {
     const diceConfig = game.settings.get("core", "diceConfiguration");
     if (diceConfig && typeof diceConfig === "object") {
-      // Check if any dice are set to manual or dice-link
       let needsUpdate = false;
       const newConfig = {...diceConfig};
       for (const key of Object.keys(newConfig)) {
@@ -63,20 +60,12 @@ async function applyDigitalDice() {
       }
       if (needsUpdate) {
         await game.settings.set("core", "diceConfiguration", newConfig);
-        console.log("[Dice Link] Reset core diceConfiguration to digital");
       }
     }
   } catch (e) {
     // Setting may not exist or be inaccessible - that's OK
-    console.log("[Dice Link] Could not reset core diceConfiguration:", e.message);
   }
-  
-  console.log("[Dice Link] Removed dice-link fulfillment, restored digital dice");
 }
-
-// Note: isUserInManualMode remains in main.mjs as it needs direct access to 
-// imported settings functions (getGlobalOverride, getPlayerMode) which are not
-// available via window.diceLink during module initialization.
 
 export {
   applyManualDice,
