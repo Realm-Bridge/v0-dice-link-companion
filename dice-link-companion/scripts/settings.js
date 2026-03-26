@@ -111,3 +111,16 @@ export function getPendingRequests() {
 export async function setPendingRequests(requests) {
   return setSetting("pendingRequests", requests);
 }
+
+/**
+ * Check if the current user is in manual dice mode.
+ * Respects global overrides from the GM.
+ * @returns {boolean} true if user should use manual dice
+ */
+export function isUserInManualMode() {
+  const globalOverride = getGlobalOverride();
+  if (globalOverride === "forceAllManual") return true;
+  if (globalOverride === "forceAllDigital") return false;
+  const myMode = getPlayerMode();
+  return myMode === "manual";
+}
