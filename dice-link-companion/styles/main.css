@@ -1,5 +1,5 @@
 /* Dice Link Companion - Realm Bridge Branded Styles */
-/* Version 1.0.6.26 */
+/* Version 1.0.6.27 */
 
 /* ============================================================================
    CSS VARIABLES - Realm Bridge Brand Colors
@@ -1445,6 +1445,22 @@
 .dlc-roll-cancel-btn:hover {
   border-color: var(--dlc-danger);
   color: var(--dlc-danger);
+}
+
+/* Header cancel button - positioned on the right side of section header */
+.dlc-header-cancel-btn {
+  margin-left: auto;
+  padding: 4px 12px;
+  font-size: 10px;
+  background: var(--dlc-danger);
+  border-color: var(--dlc-danger);
+  color: #fff;
+}
+
+.dlc-header-cancel-btn:hover {
+  background: var(--dlc-danger-hover);
+  border-color: var(--dlc-danger-hover);
+  color: #fff;
 }
 
 /* ============================================================================
