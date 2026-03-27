@@ -112,6 +112,8 @@ Native dialog renders
                       → refreshPanel()
 ```
 
+**Cross-reference:** See 02-simplicity-targets.md Section 3.3 - Questions whether this entire dialog mirroring system is necessary, and Section 5.2 about mirroredDialog vs pendingRollRequest overlap. Also see 01-edge-cases.md Section 1 about fragile dialog detection patterns.
+
 ### Manual Dice Roll Flow
 ```
 User clicks "Enter Manually" in mirrored dialog
@@ -232,15 +234,21 @@ Native dialog renders
 **Mitigation:** ready hook populates it early, defensive ?. operator checks
 **Testing needed:** Verify all window.diceLink.* references exist
 
+**Cross-reference:** See 02-simplicity-targets.md Section 4.3 - This global dependency pattern is identified as fragile. The proper solution is to pass functions as parameters or use module imports instead of relying on a global object that may not exist during initialization.
+
 ### 🔴 CRITICAL: Settings Registration Timing
 **Risk:** Settings accessed before registerPlayerModeSettings() completes
 **Mitigation:** 100ms delay before setupDialogMirroring() + defensive getPlayerMode()
 **Testing needed:** Ensure getPlayerMode() never throws
 
+**Cross-reference:** See 01-edge-cases.md Section 2 - The 100ms delay is documented as a "band-aid fix" workaround rather than proper solution. Better approach would be to not register hooks until settings are confirmed ready. See 02-simplicity-targets.md Section 4.3 about window.diceLink coupling issues that compound this timing problem.
+
 ### 🟡 HIGH: mirroredDialog State Consistency
 **Risk:** Dialog reference becomes stale, object properties disappear
 **Mitigation:** Getter/setter pattern, null checks before property access
 **Testing needed:** Test dialog capture with various dnd5e modules
+
+**Cross-reference:** See 02-simplicity-targets.md Section 5.2 - Questions whether mirroredDialog and pendingRollRequest should be unified into a single state object. See 01-edge-cases.md Section 3 about scattered null checks suggesting state management could be more structured.
 
 ### 🟡 HIGH: Circular Refresh Calls
 **Risk:** Accidental infinite refresh loop if not careful with event handling
@@ -264,7 +272,12 @@ Native dialog renders
 ## Known Issues in Dependency Structure
 
 1. **window.diceLink global hack** - Works but not clean architecture
+   - *See 02-simplicity-targets.md Section 4.3*
 2. **100ms delay workaround** - Masks timing issue rather than fixing root cause
+   - *See 01-edge-cases.md Section 2 - WORKAROUND note*
 3. **refreshPanel() is called 45+ times** - Suggests UI state could be more granular
+   - *See 02-simplicity-targets.md Section 2.3 - duplicate panel open/refresh logic*
 4. **Multiple settings defaults defined** - Should be single source of truth
+   - *See 02-simplicity-targets.md Section 2.4 - collapsed sections defaults defined 3 times*
 5. **dialog-mirroring calls main.mjs via optional chaining** - Fragile pattern
+   - *See 02-simplicity-targets.md Section 3.3 - questions if dialog mirroring is needed at all*
