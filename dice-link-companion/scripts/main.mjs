@@ -1,14 +1,16 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.53
+ * Version 1.0.6.54
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  * 
- * LAST KNOWN GOOD VERSION: 1.0.6.51 - Fully functional
+ * LAST KNOWN GOOD VERSION: 1.0.6.53 - Working version before app.js extraction
  * 
- * v1.0.6.53 - Reverted panel management extraction:
- * - Panel functions kept in main.mjs due to circular dependency with DiceLinkCompanionApp class
+ * v1.0.6.54 - Extracted application class:
+ * - Moved DiceLinkCompanionApp class to app.js
+ * - Moved currentPanelDialog state to app.js with getter/setter exports
+ * - Updated panel management functions to use app.js imports
  */
 
 import { 
@@ -50,6 +52,12 @@ import {
   parseDiceFromFormula,
   executeRollWithValues
 } from "./dice-parsing.js";
+
+import {
+  DiceLinkCompanionApp,
+  getCurrentPanelDialog,
+  setCurrentPanelDialog
+} from "./app.js";
 
 const REALM_BRIDGE_URL = "https://realmbridge.co.uk";
 const LOGO_URL = "modules/dice-link-companion/assets/logo-header.png";
@@ -158,83 +166,9 @@ async function setManualRollsPermission(role, enabled) {
 }
 
 // ============================================================================
-// CUSTOM APPLICATION CLASS (ApplicationV2 for Foundry V13+)
+// CUSTOM APPLICATION CLASS
+// DiceLinkCompanionApp moved to app.js module
 // ============================================================================
-
-const { ApplicationV2 } = foundry.applications.api;
-
-class DiceLinkCompanionApp extends ApplicationV2 {
-  constructor(isGM, options = {}) {
-    super(options);
-    this._isGM = isGM;
-  }
-
-  static DEFAULT_OPTIONS = {
-    id: "dice-link-companion-panel",
-    classes: ["dlc-dialog"],
-    position: {
-      width: 480,
-      height: "auto"
-    },
-    window: {
-      title: "Dice Link Companion",
-      resizable: true,
-      minimizable: true
-    }
-  };
-
-  get title() {
-    return "Dice Link Companion";
-  }
-
-  get isGM() {
-    return this._isGM;
-  }
-
-  async _prepareContext(options) {
-    return {};
-  }
-
-  async _renderHTML(context, options) {
-    const content = this._isGM ? generateGMPanelContent() : generatePlayerPanelContent();
-    const wrapper = document.createElement("div");
-    wrapper.classList.add("window-content");
-    wrapper.innerHTML = content;
-    return wrapper;
-  }
-
-  _replaceHTML(result, content, options) {
-    // Clear and replace the content
-    content.replaceChildren(result);
-  }
-
-  _onRender(context, options) {
-    // Get the HTML element (not jQuery in V2)
-    const html = this.element;
-    
-    // Wrap in jQuery for compatibility with existing listener code
-    const $html = $(html);
-    
-    if (this._isGM) {
-      attachGMPanelListeners($html);
-    } else {
-      attachPlayerPanelListeners($html);
-    }
-  }
-
-  async close(options = {}) {
-    currentPanelDialog = null;
-    return super.close(options);
-  }
-
-  setPosition(options = {}) {
-    // Adjust width based on GM/player
-    if (!options.width) {
-      options.width = this._isGM ? 480 : 390;
-    }
-    return super.setPosition(options);
-  }
-}
 
 // ============================================================================
 // ROLL REQUEST SECTION (shared between GM and Player panels)
@@ -370,7 +304,8 @@ function generateRollRequestSection(mode, globalOverride) {
 // GM MANAGEMENT PANEL
 // ============================================================================
 
-let currentPanelDialog = null;
+// UI STATE MANAGEMENT
+// currentPanelDialog moved to app.js module
 
 function generateGMPanelContent() {
   const globalOverride = getGlobalOverride();
@@ -1140,12 +1075,13 @@ function updateDiceFormula(html, diceCounts, modifier) {
 // ============================================================================
 
 function refreshPanel() {
-  if (currentPanelDialog && currentPanelDialog.rendered) {
-    const isGM = currentPanelDialog.isGM;
+  const currentPanel = getCurrentPanelDialog();
+  if (currentPanel && currentPanel.rendered) {
+    const isGM = currentPanel.isGM;
     const newContent = isGM ? generateGMPanelContent() : generatePlayerPanelContent();
     
     // ApplicationV2 returns HTMLElement, not jQuery - wrap in jQuery for compatibility
-    const $element = $(currentPanelDialog.element);
+    const $element = $(currentPanel.element);
     const contentElement = $element.find(".window-content");
     contentElement.html(newContent);
     
@@ -1156,29 +1092,32 @@ function refreshPanel() {
     }
 
     // Recalculate dialog height to fit content after collapse/expand
-    currentPanelDialog.setPosition({ height: "auto" });
+    currentPanel.setPosition({ height: "auto" });
   }
 }
 
 function openPanel() {
+  const currentPanel = getCurrentPanelDialog();
+  
   // If panel already exists and is rendered, just bring it to front - don't recreate
-  if (currentPanelDialog && currentPanelDialog.rendered) {
-    currentPanelDialog.bringToTop();
+  if (currentPanel && currentPanel.rendered) {
+    currentPanel.bringToTop();
     return;
   }
   
   // If panel exists but not rendered, close it first
-  if (currentPanelDialog) {
+  if (currentPanel) {
     try {
-      currentPanelDialog.close();
+      currentPanel.close();
     } catch (e) {
       // Ignore errors from closing
     }
   }
 
   const isGM = game.user.isGM;
-  currentPanelDialog = new DiceLinkCompanionApp(isGM);
-  currentPanelDialog.render(true);
+  const newPanel = new DiceLinkCompanionApp(isGM);
+  setCurrentPanelDialog(newPanel);
+  newPanel.render(true);
 }
 
 // ============================================================================
@@ -1539,12 +1478,13 @@ function updatePanelWithMirroredDialog(formData, app, html) {
   // Expand the roll request section and refresh panel
   collapsedSections.rollRequest = false;
   
-  const panelIsOpen = currentPanelDialog && currentPanelDialog.rendered;
+  const panelIsOpen = getCurrentPanelDialog() && getCurrentPanelDialog().rendered;
   if (!panelIsOpen) {
     openPanel();
   } else {
     refreshPanel();
   }
+}
 }
 
 /**
@@ -1826,7 +1766,7 @@ class DiceLinkResolver extends foundry.applications.dice.RollResolver {
       
       // Open/refresh the panel
       collapsedSections.rollRequest = false;
-      const panelIsOpen = currentPanelDialog && currentPanelDialog.rendered;
+      const panelIsOpen = getCurrentPanelDialog() && getCurrentPanelDialog().rendered;
       if (!panelIsOpen) {
         openPanel();
       } else {
