@@ -323,3 +323,5 @@ See 07-module-boundary-plan.md - The hook timing requirements here directly info
 - The 100ms delay and window.diceLink population are eliminated by proper tier system
 - Hook registration logic stays in main.mjs, but execution code moves to appropriate tier modules
 
+See 08-extraction-sequence.md - Hook registration refactoring is Step 5.4 (Phase 5), where main.mjs becomes Tier 9 entry point containing only hook registrations. The 100ms delay and window.diceLink pattern are eliminated by this restructure
+

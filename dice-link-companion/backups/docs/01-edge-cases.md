@@ -159,3 +159,5 @@ See 07-module-boundary-plan.md - The edge cases documented here directly inform 
 - Dialog detection patterns define dialog-mirroring.js scope
 - State management issues inform the proposed state.js module
 - Timing workarounds inform the initialization sequence in main.mjs
+
+See 08-extraction-sequence.md - Edge cases here determine testing strategy during extraction (Phase 2.1+), and the 100ms delay workaround is eliminated by Phase 5.4 (main.mjs refactoring)

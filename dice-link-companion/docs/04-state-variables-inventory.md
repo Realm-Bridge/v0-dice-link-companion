@@ -284,6 +284,8 @@ refreshPanel() shows normal state
 - See 02-simplicity-targets.md for redundancy in state definitions
 - See 03-dependency-map.md for how state flows between modules
 - See 07-module-boundary-plan.md - The state inventory here directly informed the proposed state.js module:
-  - All memory-only state variables (Section 1) move to state.js
-  - Getter/setter pattern (Section 4.3) is the model for state.js exports
-  - Restructure recommendations (Section 6) are implemented via state.js architecture
+- All memory-only state variables (Section 1) move to state.js
+- Getter/setter pattern (Section 4.3) is the model for state.js exports
+- Restructure recommendations (Section 6) are implemented via state.js architecture
+
+See 08-extraction-sequence.md - state.js creation is Step 1.4 (Phase 1), which consolidates all memory-only variables from main.mjs using the getter/setter pattern documented here

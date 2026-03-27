@@ -185,7 +185,9 @@ This document identifies code that can be simplified, removed, or consolidated d
 - See 03-dependency-map.md for window.diceLink dependency flow
 - See 04-state-variables-inventory.md for mirroredDialog/pendingRollRequest analysis
 - See 07-module-boundary-plan.md - The simplicity targets here directly inform the proposed module structure:
-  - Dead code removal happens before restructure
-  - Redundant code consolidation creates constants.js
-  - Video feed extraction creates video-feed.js
-  - Dialog mirroring evaluation determines if that module stays or goes
+- Dead code removal happens before restructure
+- Redundant code consolidation creates constants.js
+- Video feed extraction creates video-feed.js
+- Dialog mirroring evaluation determines if that module stays or goes
+
+See 08-extraction-sequence.md - Dead code removal recommendations are executed during Phase 1 (constants.js consolidates triple-definitions), video feed extraction is Step 5.3, and dialog mirroring refactoring is Step 3.1

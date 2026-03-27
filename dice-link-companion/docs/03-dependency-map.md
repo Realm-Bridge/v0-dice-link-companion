@@ -229,6 +229,8 @@ Player requests manual mode
 - See 02-simplicity-targets.md for redundancy and dead code
 - See 04-state-variables-inventory.md for detailed state analysis
 - See 07-module-boundary-plan.md - The dependency map here directly informed the tier-based module structure:
-  - Independent modules (settings, dice-parsing) become Tier 1-2
-  - Dependent modules (socket, dialog-mirroring) become higher tiers
-  - window.diceLink issues are addressed by the tier system preventing circular imports
+- Independent modules (settings, dice-parsing) become Tier 1-2
+- Dependent modules (socket, dialog-mirroring) become higher tiers
+- window.diceLink issues are addressed by the tier system preventing circular imports
+
+See 08-extraction-sequence.md - This dependency map directly determines the extraction order. Tier 1-2 modules are extracted in Phase 1 (Steps 1.1-1.5), Tier 3-4 in Phase 2, etc., following dependency relationships to prevent circular imports

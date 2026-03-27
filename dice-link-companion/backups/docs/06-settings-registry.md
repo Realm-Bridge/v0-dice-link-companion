@@ -512,3 +512,5 @@ See 07-module-boundary-plan.md - The settings analysis here directly informed th
 - settings.js (Tier 2) refactored to import defaults from constants.js
 - Late-joiner hook recommendation implemented in main.mjs restructure
 - window.diceLink pattern eliminated by proper tier system preventing circular imports
+
+See 08-extraction-sequence.md - Settings refactoring is Step 1.3 (Phase 1), where constants.js (Step 1.1) consolidates all SETTING_DEFAULTS as single source of truth. The late-joiner hook recommendation is implemented in Step 5.4 (main.mjs refactoring)
