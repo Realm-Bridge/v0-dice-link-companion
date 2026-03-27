@@ -86,6 +86,15 @@ import {
   executeRollWithValues
 } from "./dice-parsing.js";
 
+import {
+  generateDiceTrayHTML,
+  generateRollRequestHTML,
+  generatePendingRollHTML,
+  generateGMPanelContent,
+  generatePlayerPanelContent,
+  generateMirroredDialogHTML
+} from "./ui-templates.js";
+
 const REALM_BRIDGE_URL = "https://realmbridge.co.uk";
 const LOGO_URL = "modules/dice-link-companion/assets/logo-header.png";
 const LOGO_SQUARE_URL = "modules/dice-link-companion/assets/logo-square.png";
@@ -226,49 +235,10 @@ class DiceLinkCompanionApp extends ApplicationV2 {
   }
 }
 
-// ============================================================================
-// ROLL REQUEST SECTION
-// ============================================================================
-
-function generateDiceTrayHTML() {
-  return `
-    <div class="dlc-dice-tray">
-      <div class="dlc-dice-formula-row">
-        <input type="text" class="dlc-dice-formula-input" placeholder="/r 1d20" value="/r ">
-      </div>
-      <div class="dlc-dice-buttons-row">
-        ${[4, 6, 8, 10, 12, 20, 100].map(die => `
-          <button type="button" class="dlc-dice-btn" data-die="${die}" title="d${die}">
-            <span class="dlc-die-icon">d${die}</span>
-            <span class="dlc-die-count" style="display:none;">0</span>
-          </button>
-        `).join('')}
-      </div>
-      <div class="dlc-dice-controls-row">
-        <button type="button" class="dlc-dice-mod-btn dlc-dice-minus" title="Decrease modifier">−</button>
-        <span class="dlc-dice-modifier">0</span>
-        <button type="button" class="dlc-dice-mod-btn dlc-dice-plus" title="Increase modifier">+</button>
-        <button type="button" class="dlc-dice-adv-btn" data-mode="normal" title="Toggle Advantage/Disadvantage">ADV/DIS</button>
-        <button type="button" class="dlc-dice-roll-btn dlc-btn-success" title="Roll dice">Roll</button>
-      </div>
-    </div>
-  `;
-}
-
-function generatePendingRollHTML(roll) {
-  if (roll.isMirroredDialog && roll.mirrorData) {
-    return generateMirroredDialogHTML(roll.mirrorData);
-  }
-  
-  if (roll.isFulfillment && roll.diceNeeded) {
-    const diceInputs = roll.diceNeeded.map((die, index) => {
-      const faces = die.faces || parseInt((die.type || "d20").replace("d", "")) || 20;
-      const dieLabel = die.type || `d${faces}`;
-      return `
-        <div class="dlc-dice-input-row">
-          <label class="dlc-dice-label">${dieLabel}</label>
-          <input type="number" 
-                 class="dlc-dice-value-input" 
+/**
+ * Custom RollResolver that integrates with our Dice Link panel.
+ * This resolver shows our UI instead of Foundry's default manual entry dialog.
+ */ 
                  data-die-index="${index}" 
                  data-die-faces="${faces}"
                  min="1" 
