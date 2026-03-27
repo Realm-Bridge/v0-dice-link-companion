@@ -1,16 +1,14 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.62
+ * Version 1.0.6.63
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  * 
  * LAST KNOWN GOOD VERSION: 1.0.6.53 - Stable after failed UI extraction
  * 
- * v1.0.6.62 - Fixed all initialization errors:
- * - Added delay before dialog mirroring hooks to ensure settings registered
- * - Made getPlayerMode and dialog-mirroring defensive with fallbacks
- * - Added collapsedSections persistence via client-scoped setting
+ * v1.0.6.63 - Fixed mirroredDialog not defined error:
+ * - Added missing `let mirroredDialog = null;` declaration
  */
 
 import { 
@@ -67,6 +65,9 @@ let pendingRollRequest = null;
 
 // Track the currently open panel dialog
 let currentPanelDialog = null;
+
+// Track the mirrored dialog reference for submitMirroredDialog
+let mirroredDialog = null;
 
 // Dice entry state
 let pendingDiceEntry = null;
