@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.77
+ * Version 1.0.6.78
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1152,15 +1152,19 @@ function refreshPanel() {
 }
 
 function openPanel() {
+  console.log("[v0] openPanel called");
   const panelDialog = getCurrentPanelDialog();
+  console.log("[v0] getCurrentPanelDialog returned:", panelDialog);
   // If panel already exists and is rendered, just bring it to front - don't recreate
   if (panelDialog && panelDialog.rendered) {
+    console.log("[v0] Panel exists and rendered, bringing to top");
     panelDialog.bringToTop();
     return;
   }
   
   // If panel exists but not rendered, close it first
   if (panelDialog) {
+    console.log("[v0] Panel exists but not rendered, closing first");
     try {
       panelDialog.close();
     } catch (e) {
@@ -1168,9 +1172,12 @@ function openPanel() {
     }
   }
 
+  console.log("[v0] Creating new panel dialog");
   const isGM = game.user.isGM;
   const newPanelDialog = new DiceLinkCompanionApp(isGM);
+  console.log("[v0] Setting currentPanelDialog");
   setCurrentPanelDialog(newPanelDialog);
+  console.log("[v0] Rendering panel");
   newPanelDialog.render(true);
 }
 
