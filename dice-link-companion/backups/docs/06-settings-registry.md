@@ -516,3 +516,5 @@ See 07-module-boundary-plan.md - The settings analysis here directly informed th
 See 08-extraction-sequence.md - Settings refactoring is Step 1.3 (Phase 1), where constants.js (Step 1.1) consolidates all SETTING_DEFAULTS as single source of truth. The late-joiner hook recommendation is implemented in Step 5.4 (main.mjs refactoring)
 
 See 09-ui-components-inventory.md - All 6 UI component generators access settings through getters (e.g., getGlobalOverride, getPlayerMode, getPermissions)
+
+See 10-public-api.md - The settings accessor functions (getGlobalOverride, getPlayerMode, getPermissions) are core to the module's public API and are currently exposed via window.diceLink

@@ -236,3 +236,5 @@ Player requests manual mode
 See 08-extraction-sequence.md - This dependency map directly determines the extraction order. Tier 1-2 modules are extracted in Phase 1 (Steps 1.1-1.5), Tier 3-4 in Phase 2, etc., following dependency relationships to prevent circular imports
 
 See 09-ui-components-inventory.md - UI generator functions are Tier 4 dependencies; all 6 main UI generators depend on settings and state from lower tiers
+
+See 10-public-api.md - The public API exports documented here follow the dependency tiers; functions from Tier 1-2 modules are more stable than functions from higher tiers

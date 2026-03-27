@@ -193,3 +193,5 @@ This document identifies code that can be simplified, removed, or consolidated d
 See 08-extraction-sequence.md - Dead code removal recommendations are executed during Phase 1 (constants.js consolidates triple-definitions), video feed extraction is Step 5.3, and dialog mirroring refactoring is Step 3.1
 
 See 09-ui-components-inventory.md - Detailed catalog of all HTML generation functions that will be extracted during Step 2.3 of the extraction sequence
+
+See 10-public-api.md - The public API analysis documents the window.diceLink global that needs to be eliminated per this document's architectural concerns

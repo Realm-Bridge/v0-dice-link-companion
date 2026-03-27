@@ -291,3 +291,5 @@ refreshPanel() shows normal state
 See 08-extraction-sequence.md - state.js creation is Step 1.4 (Phase 1), which consolidates all memory-only variables from main.mjs using the getter/setter pattern documented here
 
 See 09-ui-components-inventory.md - All 6 UI component generators access state variables through getters (e.g., getPendingRollRequest, getCollapsedSections)
+
+See 10-public-api.md - The public API includes state accessor functions (refreshPanel, getPlayerMode) that read and modify state documented here

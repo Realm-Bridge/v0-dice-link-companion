@@ -163,3 +163,5 @@ See 07-module-boundary-plan.md - The edge cases documented here directly inform 
 See 08-extraction-sequence.md - Edge cases here determine testing strategy during extraction (Phase 2.1+), and the 100ms delay workaround is eliminated by Phase 5.4 (main.mjs refactoring)
 
 See 09-ui-components-inventory.md - UI edge cases and complex conditional rendering patterns documented with the HTML generators
+
+See 10-public-api.md - Edge cases in API usage; window.diceLink fragility is documented as a concern to be eliminated

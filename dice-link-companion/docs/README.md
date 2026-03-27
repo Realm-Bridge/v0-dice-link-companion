@@ -21,7 +21,7 @@ These documentation files represent significant analysis work and are critical f
 | 07 | 07-module-boundary-plan.md | Proposed file structure for restructure | Complete |
 | 08 | 08-extraction-sequence.md | Order of operations for restructure | Complete |
 | 09 | 09-ui-components-inventory.md | HTML generation functions, UI patterns | Complete |
-| 10 | 10-public-api.md | Exported functions, external interfaces | Pending |
+| 10 | 10-public-api.md | Exported functions, external interfaces | Complete |
 
 ---
 
@@ -48,4 +48,4 @@ After each document is completed:
 2. This manifest is updated with status
 3. Cross-references are verified against all previous documents
 
-Last updated: Document 09 complete
+Last updated: Document 10 complete
