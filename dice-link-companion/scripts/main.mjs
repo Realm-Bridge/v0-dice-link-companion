@@ -1,13 +1,16 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.61
+ * Version 1.0.6.62
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  * 
  * LAST KNOWN GOOD VERSION: 1.0.6.53 - Stable after failed UI extraction
  * 
- * v1.0.6.61 - Made getPlayerMode defensive with fallback when setting not registered
+ * v1.0.6.62 - Fixed all initialization errors:
+ * - Added delay before dialog mirroring hooks to ensure settings registered
+ * - Made getPlayerMode and dialog-mirroring defensive with fallbacks
+ * - Added collapsedSections persistence via client-scoped setting
  */
 
 import { 
@@ -22,7 +25,9 @@ import {
   setGlobalOverride,
   getPendingRequests,
   setPendingRequests,
-  isUserInManualMode
+  isUserInManualMode,
+  getCollapsedSections,
+  setCollapsedSections
 } from "./settings.js";
 
 import { 
@@ -67,12 +72,15 @@ let currentPanelDialog = null;
 let pendingDiceEntry = null;
 let diceEntryCancelled = false;
 
-// Collapsed sections state
-const collapsedSections = {
+// Collapsed sections state - will be loaded from settings during ready hook
+let collapsedSections = {
   rollRequest: false,
   globalOverride: true,
   playerModes: true,
-  permissions: true
+  permissions: true,
+  videoFeed: true,
+  pending: false,
+  topRow: false
 };
 
 // ============================================================================
@@ -678,6 +686,8 @@ function attachGMPanelListeners(html) {
     const section = $(this).data("section");
     if (section && collapsedSections.hasOwnProperty(section)) {
       collapsedSections[section] = !collapsedSections[section];
+      // Save collapsed state to settings
+      setCollapsedSections(collapsedSections);
       refreshPanel();
     }
   });
@@ -828,6 +838,8 @@ function attachPlayerPanelListeners(html) {
     const section = $(this).data("section");
     if (section && collapsedSections.hasOwnProperty(section)) {
       collapsedSections[section] = !collapsedSections[section];
+      // Save collapsed state to settings
+      setCollapsedSections(collapsedSections);
       refreshPanel();
     }
   });
@@ -2189,13 +2201,19 @@ Hooks.once("init", async () => {
  */
 Hooks.once("ready", async () => {
   try {
-    // Register per-user settings now that users are loaded
+    // Register per-user settings FIRST - wait for completion
     registerPlayerModeSettings();
+    
+    // Give settings time to register before hooks fire
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Load collapsed sections state from settings
+    collapsedSections = getCollapsedSections();
     
     // Setup socket listeners
     setupSocketListeners();
     
-    // Setup UI and handlers
+    // Setup UI and handlers (dialog mirroring hooks fire after this)
     setupChatButtonHandlers();
     setupDialogMirroring();
     setupDiceFulfillment();

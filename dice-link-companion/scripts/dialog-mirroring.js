@@ -37,13 +37,20 @@ export function setupDialogMirroring() {
 /**
  * Check if the current user is in manual dice mode
  * Respects global overrides from the GM
+ * Defensive: returns false if settings not ready yet
  */
 function isUserInManualMode() {
-  const globalOverride = getGlobalOverride();
-  if (globalOverride === "forceAllManual") return true;
-  if (globalOverride === "forceAllDigital") return false;
-  const myMode = getPlayerMode();
-  return myMode === "manual";
+  try {
+    const globalOverride = getGlobalOverride();
+    if (globalOverride === "forceAllManual") return true;
+    if (globalOverride === "forceAllDigital") return false;
+    const myMode = getPlayerMode();
+    return myMode === "manual";
+  } catch (e) {
+    // Settings not ready yet, default to digital mode
+    console.log("[Dice Link] isUserInManualMode: settings not ready, defaulting to false");
+    return false;
+  }
 }
 
 /**

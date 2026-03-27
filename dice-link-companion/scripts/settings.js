@@ -25,6 +25,22 @@ export function registerCoreSettings() {
     type: Array,
     default: []
   });
+
+  // UI collapsed sections state - persists across panel refreshes
+  game.settings.register(MODULE_ID, "collapsedSections", {
+    scope: "client",
+    config: false,
+    type: Object,
+    default: {
+      rollRequest: false,
+      globalOverride: true,
+      playerModes: true,
+      permissions: true,
+      videoFeed: true,
+      pending: false,
+      topRow: false
+    }
+  });
 }
 
 /**
@@ -130,6 +146,30 @@ export function getPendingRequests() {
  */
 export async function setPendingRequests(requests) {
   return setSetting("pendingRequests", requests);
+}
+
+/**
+ * Get collapsed sections state
+ * @returns {Object} Current collapsed sections state
+ */
+export function getCollapsedSections() {
+  return getSetting("collapsedSections") || {
+    rollRequest: false,
+    globalOverride: true,
+    playerModes: true,
+    permissions: true,
+    videoFeed: true,
+    pending: false,
+    topRow: false
+  };
+}
+
+/**
+ * Set collapsed sections state
+ * @param {Object} sections - The collapsed sections state
+ */
+export async function setCollapsedSections(sections) {
+  return setSetting("collapsedSections", sections);
 }
 
 /**
