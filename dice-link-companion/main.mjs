@@ -1,12 +1,14 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.75
+ * Version 1.0.6.77
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  * 
  * LAST KNOWN GOOD VERSION: 1.0.6.53 - Stable after failed UI extraction
  * 
+ * v1.0.6.77 - Phase 2 COMPLETE: Full modularization of state (70+ references updated to use state-management.js)
+ * v1.0.6.76 - Fixed: Restored local state variables (state-management.js for external modules only)
  * v1.0.6.75 - Fixed: Resolved import conflicts after Phase 2 extraction
  * v1.0.6.74 - Phase 2: Extracted state-management.js for dependency resolution
  * v1.0.6.73 - Phase 1: Extracted constants.js and types.js for foundation setup
@@ -42,13 +44,13 @@ import {
   getCurrentPanelDialog,
   getPendingDiceEntry,
   getDiceEntryCancelled,
-  getMirroredDialog as getMirroredDialogState,
+  getMirroredDialog,
   setPendingRollRequest,
   setHasRequestedThisSession,
   setCurrentPanelDialog,
   setPendingDiceEntry,
   setDiceEntryCancelled,
-  setMirroredDialog as setMirroredDialogState,
+  setMirroredDialog,
   clearAllState,
   resetUIState,
   hasPendingOperations
@@ -207,7 +209,7 @@ class DiceLinkCompanionApp extends ApplicationV2 {
   }
 
   async close(options = {}) {
-    currentPanelDialog = null;
+    setCurrentPanelDialog(null);
     return super.close(options);
   }
 
@@ -327,18 +329,20 @@ function generateRollRequestSection(mode, globalOverride) {
 
   if (effectiveMode !== "manual") return '';
 
-  const hasPending = pendingRollRequest !== null;
+  const currentPendingRoll = getPendingRollRequest();
+  const hasPending = currentPendingRoll !== null;
+  const currentCollapsed = getCollapsedSections();
   const sectionClass = `dlc-section dlc-roll-request-section${hasPending ? ' dlc-roll-request-pending' : ''}`;
 
   return `
-    <div class="${sectionClass} ${collapsedSections.rollRequest ? 'collapsed' : ''}">
+    <div class="${sectionClass} ${currentCollapsed.rollRequest ? 'collapsed' : ''}">
       <div class="dlc-section-header" data-section="rollRequest">
-        <span class="dlc-collapse-btn">${collapsedSections.rollRequest ? '+' : '−'}</span>
+        <span class="dlc-collapse-btn">${currentCollapsed.rollRequest ? '+' : '−'}</span>
         <h3><i class="fas fa-dice-d20"></i> Roll Request${hasPending ? ' <span class="dlc-pending-badge">PENDING</span>' : ''}</h3>
         ${hasPending ? '<button type="button" class="dlc-roll-cancel-btn dlc-header-cancel-btn">Cancel Roll</button>' : ''}
       </div>
       <div class="dlc-section-content">
-        ${hasPending ? generatePendingRollHTML(pendingRollRequest) : generateDiceTrayHTML()}
+        ${hasPending ? generatePendingRollHTML(currentPendingRoll) : generateDiceTrayHTML()}
       </div>
     </div>
   `;
@@ -353,6 +357,7 @@ function generateGMPanelContent() {
   const pendingRequests = getPendingRequests();
   const gmMode = getPlayerMode();
   const rolePermissions = getManualRollsPermissions();
+  const collapsedSections = getCollapsedSections();
 
   const players = [];
   for (const user of game.users) {
@@ -558,6 +563,7 @@ function generatePlayerPanelContent() {
   const pendingRequests = getPendingRequests();
   const myMode = getPlayerMode();
   const myPending = pendingRequests.some(req => req.playerId === game.user.id);
+  const collapsedSections = getCollapsedSections();
 
   const players = [];
   for (const user of game.users) {
@@ -684,10 +690,11 @@ function attachGMPanelListeners(html) {
   // Collapse/expand sections
   html.find(".dlc-section-header").click(function() {
     const section = $(this).data("section");
-    if (section && collapsedSections.hasOwnProperty(section)) {
-      collapsedSections[section] = !collapsedSections[section];
+    const currentCollapsed = getCollapsedSections();
+    if (section && currentCollapsed.hasOwnProperty(section)) {
+      currentCollapsed[section] = !currentCollapsed[section];
       // Save collapsed state to settings
-      setCollapsedSections(collapsedSections);
+      setCollapsedSections(currentCollapsed);
       refreshPanel();
     }
   });
@@ -836,10 +843,11 @@ function attachPlayerPanelListeners(html) {
   // Collapse/expand sections
   html.find(".dlc-section-header").click(function() {
     const section = $(this).data("section");
-    if (section && collapsedSections.hasOwnProperty(section)) {
-      collapsedSections[section] = !collapsedSections[section];
+    const currentCollapsed = getCollapsedSections();
+    if (section && currentCollapsed.hasOwnProperty(section)) {
+      currentCollapsed[section] = !currentCollapsed[section];
       // Save collapsed state to settings
-      setCollapsedSections(collapsedSections);
+      setCollapsedSections(currentCollapsed);
       refreshPanel();
     }
   });
@@ -1077,20 +1085,22 @@ function attachDiceTrayListeners(html) {
   // Cancel roll button
   html.find(".dlc-roll-cancel-btn").click(function() {
     // Set cancellation flag to prevent further dice prompts
-    diceEntryCancelled = true;
+    setDiceEntryCancelled(true);
     
     // Handle dice entry cancellation
-    if (pendingDiceEntry) {
+    const currentDiceEntry = getPendingDiceEntry();
+    if (currentDiceEntry) {
       // Resolve with null to signal cancellation
-      pendingDiceEntry.resolve(null);
-      pendingDiceEntry = null;
+      currentDiceEntry.resolve(null);
+      setPendingDiceEntry(null);
     }
     
-    if (pendingRollRequest?.onComplete) {
-      pendingRollRequest.onComplete("cancel");
+    const currentRollRequest = getPendingRollRequest();
+    if (currentRollRequest?.onComplete) {
+      currentRollRequest.onComplete("cancel");
     }
     
-    pendingRollRequest = null;
+    setPendingRollRequest(null);
     refreshPanel();
     ui.notifications.info("Roll cancelled.");
   });
@@ -1120,12 +1130,13 @@ function updateDiceFormula(html, diceCounts, modifier) {
 // ============================================================================
 
 function refreshPanel() {
-  if (currentPanelDialog && currentPanelDialog.rendered) {
-    const isGM = currentPanelDialog.isGM;
+  const panelDialog = getCurrentPanelDialog();
+  if (panelDialog && panelDialog.rendered) {
+    const isGM = panelDialog.isGM;
     const newContent = isGM ? generateGMPanelContent() : generatePlayerPanelContent();
     
     // ApplicationV2 returns HTMLElement, not jQuery - wrap in jQuery for compatibility
-    const $element = $(currentPanelDialog.element);
+    const $element = $(panelDialog.element);
     const contentElement = $element.find(".window-content");
     contentElement.html(newContent);
     
@@ -1136,29 +1147,31 @@ function refreshPanel() {
     }
 
     // Recalculate dialog height to fit content after collapse/expand
-    currentPanelDialog.setPosition({ height: "auto" });
+    panelDialog.setPosition({ height: "auto" });
   }
 }
 
 function openPanel() {
+  const panelDialog = getCurrentPanelDialog();
   // If panel already exists and is rendered, just bring it to front - don't recreate
-  if (currentPanelDialog && currentPanelDialog.rendered) {
-    currentPanelDialog.bringToTop();
+  if (panelDialog && panelDialog.rendered) {
+    panelDialog.bringToTop();
     return;
   }
   
   // If panel exists but not rendered, close it first
-  if (currentPanelDialog) {
+  if (panelDialog) {
     try {
-      currentPanelDialog.close();
+      panelDialog.close();
     } catch (e) {
       // Ignore errors from closing
     }
   }
 
   const isGM = game.user.isGM;
-  currentPanelDialog = new DiceLinkCompanionApp(isGM);
-  currentPanelDialog.render(true);
+  const newPanelDialog = new DiceLinkCompanionApp(isGM);
+  setCurrentPanelDialog(newPanelDialog);
+  newPanelDialog.render(true);
 }
 
 // ============================================================================
@@ -1202,7 +1215,7 @@ Hooks.on("getSceneControlButtons", (controls) => {
  */
 function updatePanelWithMirroredDialog(formData, app, html) {
   // Clear previous pending roll request
-  pendingRollRequest = null;
+  setPendingRollRequest(null);
   
   // Store the mirrored dialog reference for submitMirroredDialog to use
   setMirroredDialog({
@@ -1213,7 +1226,7 @@ function updatePanelWithMirroredDialog(formData, app, html) {
   });
   
   // Create new pending roll request with mirrored dialog data
-  pendingRollRequest = {
+  setPendingRollRequest({
     title: formData.title,
     subtitle: formData.formula,
     formula: formData.formula,
@@ -1227,7 +1240,7 @@ function updatePanelWithMirroredDialog(formData, app, html) {
           dialogRef.app.close();
         }
         setMirroredDialog(null);
-        pendingRollRequest = null;
+        setPendingRollRequest(null);
         refreshPanel();
         return;
       }
@@ -1236,15 +1249,18 @@ function updatePanelWithMirroredDialog(formData, app, html) {
       await submitMirroredDialog(userChoice);
       
       setMirroredDialog(null);
-      pendingRollRequest = null;
+      setPendingRollRequest(null);
       refreshPanel();
     }
-  };
+  });
   
   // Expand the roll request section and refresh panel
-  collapsedSections.rollRequest = false;
+  const currentCollapsed = getCollapsedSections();
+  currentCollapsed.rollRequest = false;
+  setCollapsedSections(currentCollapsed);
   
-  const panelIsOpen = currentPanelDialog && currentPanelDialog.rendered;
+  const panelDialog = getCurrentPanelDialog();
+  const panelIsOpen = panelDialog && panelDialog.rendered;
   if (!panelIsOpen) {
     openPanel();
   } else {
@@ -1464,7 +1480,7 @@ async function diceLinkFulfillmentHandler(term, index) {
   
   // Reset cancellation flag on first die of a new roll
   if (dieNumber === 1) {
-    diceEntryCancelled = false;
+    setDiceEntryCancelled(false);
   }
   
   // Wait for user to enter this single die result
@@ -1478,26 +1494,24 @@ async function diceLinkFulfillmentHandler(term, index) {
   return result;
 }
 
-// pendingDiceEntry and diceEntryCancelled declared at top of file
-
 /**
  * Wait for user to enter a die result via our panel UI.
  */
 async function waitForDiceResult(denomination, faces, dieNumber, totalDice) {
   // Check if entry was cancelled (from a previous die in the same roll)
-  if (diceEntryCancelled) {
+  if (getDiceEntryCancelled()) {
     return null; // Return null to trigger abort
   }
   
   return new Promise((resolve) => {
     // Store the resolver so our panel can call it when user enters a value
-    pendingDiceEntry = {
+    setPendingDiceEntry({
       denomination,
       faces,
       dieNumber,
       totalDice,
       resolve
-    };
+    });
     
     // Update our panel to show dice entry UI
     showDiceEntryUI(denomination, faces, dieNumber, totalDice);
@@ -1549,20 +1563,20 @@ async function executeDiceTrayRollManually(formula, flavorText, html) {
   let currentDie = 0;
   
   // Reset cancellation flag
-  diceEntryCancelled = false;
+  setDiceEntryCancelled(false);
   
   for (const term of diceTerms) {
     const termValues = [];
     for (let i = 0; i < term.count; i++) {
       currentDie++;
       
-      if (diceEntryCancelled) {
+      if (getDiceEntryCancelled()) {
         return "cancelled";
       }
       
       const value = await waitForDiceTrayEntry(`d${term.faces}`, term.faces, currentDie, totalDice);
       
-      if (value === null || diceEntryCancelled) {
+      if (value === null || getDiceEntryCancelled()) {
         return "cancelled";
       }
       
@@ -1650,22 +1664,22 @@ async function executeDiceTrayRollManually(formula, flavorText, html) {
  * Wait for dice tray manual entry (similar to waitForDiceResult but for dice tray)
  */
 async function waitForDiceTrayEntry(denomination, faces, dieNumber, totalDice) {
-  if (diceEntryCancelled) {
+  if (getDiceEntryCancelled()) {
     return null;
   }
   
   return new Promise((resolve) => {
-    pendingDiceEntry = {
+    setPendingDiceEntry({
       denomination,
       faces,
       dieNumber,
       totalDice,
       resolve,
       isDiceTray: true
-    };
+    });
     
     // Show dice entry UI
-    pendingRollRequest = {
+    setPendingRollRequest({
       title: `Enter ${denomination} Result`,
       subtitle: `Die ${dieNumber} of ${totalDice}`,
       isFulfillment: true,
@@ -1680,15 +1694,17 @@ async function waitForDiceTrayEntry(denomination, faces, dieNumber, totalDice) {
       onComplete: (values) => {
         if (Array.isArray(values) && values.length > 0) {
           const numericValue = parseInt(values[0]);
-          pendingDiceEntry = null;
-          pendingRollRequest = null;
+          setPendingDiceEntry(null);
+          setPendingRollRequest(null);
           refreshPanel();
           resolve(numericValue);
         }
       }
-    };
+    });
     
-    collapsedSections.rollRequest = false;
+    const currentCollapsed = getCollapsedSections();
+    currentCollapsed.rollRequest = false;
+    setCollapsedSections(currentCollapsed);
     refreshPanel();
   });
 }
@@ -1698,7 +1714,7 @@ async function waitForDiceTrayEntry(denomination, faces, dieNumber, totalDice) {
  */
 function showDiceEntryUI(denomination, faces, dieNumber, totalDice) {
   // Set up a pending roll request for dice entry
-  pendingRollRequest = {
+  setPendingRollRequest({
     title: `Enter ${denomination} Result`,
     subtitle: `Die ${dieNumber} of ${totalDice}`,
     isFulfillment: true,
@@ -1710,18 +1726,21 @@ function showDiceEntryUI(denomination, faces, dieNumber, totalDice) {
       count: 1
     }],
     onComplete: (values) => {
-      if (pendingDiceEntry && Array.isArray(values) && values.length > 0) {
+      const currentDiceEntry = getPendingDiceEntry();
+      if (currentDiceEntry && Array.isArray(values) && values.length > 0) {
         const numericValue = parseInt(values[0]);
-        pendingDiceEntry.resolve(numericValue);
-        pendingDiceEntry = null;
-        pendingRollRequest = null;
+        currentDiceEntry.resolve(numericValue);
+        setPendingDiceEntry(null);
+        setPendingRollRequest(null);
         refreshPanel();
       }
     }
-  };
+  });
   
   // Expand roll request section and refresh panel
-  collapsedSections.rollRequest = false;
+  const currentCollapsed = getCollapsedSections();
+  currentCollapsed.rollRequest = false;
+  setCollapsedSections(currentCollapsed);
   refreshPanel();
 }
 
