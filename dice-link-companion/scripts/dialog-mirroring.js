@@ -5,6 +5,7 @@
  */
 
 import { getPlayerMode, getGlobalOverride } from "./settings.js";
+import { info, error } from "./logger.js";
 
 // Mirrored dialog reference - shared with main.mjs
 let mirroredDialog = null;
@@ -63,7 +64,7 @@ function isUserInManualMode() {
     return myMode === "manual";
   } catch (e) {
     // Settings not ready yet, default to digital mode
-    console.log("[Dice Link] isUserInManualMode: settings not ready, defaulting to false");
+    info("isUserInManualMode: settings not ready, defaulting to false");
     return false;
   }
 }
@@ -204,7 +205,7 @@ function mirrorDialogToPanel(app, html, data) {
     window.diceLink?.updatePanelWithMirroredDialog?.(formData, app, html);
     
   } catch (e) {
-    console.error("[Dice Link] Error mirroring dialog:", e);
+    error("Error mirroring dialog:", e);
   }
 }
 

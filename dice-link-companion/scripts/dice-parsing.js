@@ -3,6 +3,8 @@
  * Handles parsing dice formulas and executing rolls with user-provided values
  */
 
+import { error } from './logger.js';
+
 /**
  * Parse dice from a formula string to determine what dice inputs we need
  * Returns array of {faces, index} for each individual die
@@ -87,7 +89,7 @@ export async function executeRollWithValues(formula, diceResults, title, subtitl
     });
     
   } catch (e) {
-    console.error("[Dice Link] Error executing roll with values:", e);
+    error("Error executing roll with values:", e);
     ui.notifications.error("Failed to execute roll.");
   }
 }
