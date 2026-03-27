@@ -1,240 +1,123 @@
-# Dice Link Companion - Edge Cases Documentation
-**Version: 1.0.6.66**  
-**Date: Current Analysis**
+# 01 - Edge Cases Documentation
+**Version: 1.0.6.66 Snapshot**  
+**Note:** This document analyzes edge cases in v1.0.6.66. Line numbers reference that version only and will change during restructuring. During implementation, refer to function names and section headers instead.
 
 ---
 
 ## 1. DIALOG DETECTION & FILTERING
 
-### Current Implementation
-- **File**: `dialog-mirroring.js` (lines 109-182)
-- **Purpose**: Distinguish between dnd5e roll dialogs vs. third-party module dialogs
-- **Approach**: Check class name, app ID, and dialog title against specific patterns
+**File:** `dialog-mirroring.js`, functions `isRollDialog()`, `handleDialogRender()`, `mirrorDialogToPanel()`
 
 ### Edge Cases Handled
-1. **Third-party module exclusions** (line 118-132)
-   - Monks Token Bar, LMRTFY, GM Screen, Settings, File Picker, Journal, Actor/Item Sheets
-   - Prevents accidental capture of non-roll dialogs
-   - **Note**: Midi-QOL no longer listed in exclusions (deprecated with new architecture)
+- **Third-party module exclusions** - Prevents capture of Monks Token Bar, LMRTFY, GM Screen, Settings, File Picker, Journal, Actor/Item Sheets
+- **Initiative dialogs** - Specially formatted when title contains "initiative" (English-dependent)
+- **Roll dialog class matching** - Multiple hooks (renderApplication, renderDialog, renderRollConfigurationDialog, renderApplicationV2) increase reliability
+- **Dialog state checks** - "Roll Resolution" dialogs handled differently than regular roll dialogs
 
-2. **Initiative dialogs** (line 165, 175)
-   - Specifically checks title for "initiative"
-   - Creates pending roll request formatted for initiative rolls
-   - **Analysis**: This works but is somewhat fragile - relies on English title text
-
-3. **Roll dialog class matching** (line 141-149)
-   - Looks for specific dnd5e class names: `RollConfigurationDialog`, `D20Roll`, `DamageRoll`, etc.
-   - Multiple hooks to catch dialogs: `renderApplication`, `renderDialog`, `renderRollConfigurationDialog`, `renderApplicationV2`
-   - **Analysis**: Casting wide net is good for reliability, but may be redundant - ApplicationV2 hook probably sufficient for Foundry v13
-
-4. **Dialog state checks** (line 88-98)
-   - "Roll Resolution" dialogs are hidden but NOT mirrored (different handling)
-   - Regular roll dialogs are hidden AND mirrored
-   - **Potential redundancy**: Having multiple checks for the same dialog class
-
-### Findings for Future Restructure
-- ⚠️ **POTENTIALLY REDUNDANT**: Four separate hooks (`renderApplication`, `renderDialog`, `renderRollConfigurationDialog`, `renderApplicationV2`) may all fire for the same dialog. Only `renderApplicationV2` may be necessary for Foundry v13+
-- ⚠️ **FRAGILE**: Initiative detection depends on dialog title containing "initiative" (English language dependent)
-- ✅ **WORKING**: Exclusion patterns are comprehensive and prevent false captures
+### Findings
+- ⚠️ **POTENTIALLY REDUNDANT**: Four render hooks may be overkill; ApplicationV2 likely sufficient for Foundry v13+
+- ⚠️ **FRAGILE**: Initiative and button detection depend on English language text
+- ✅ **WORKING**: Comprehensive exclusion patterns prevent false captures
 
 ---
 
 ## 2. PLAYER MODE TIMING & INITIALIZATION
 
-### Current Implementation
-- **File**: `settings.js` (lines 35-51), `main.mjs` (lines 2193-2212)
-- **Issue**: Settings may not be registered when first hook fires
+**Files:** `settings.js` functions `getPlayerMode()`, `getCollapsedSections()`; `main.mjs` ready hook
 
 ### Edge Cases Handled
-1. **Early settings access** (settings.js, lines 102-108)
-   - `getPlayerMode()` checks if setting exists before calling `getSetting()`
-   - Returns "digital" as fallback if setting not registered yet
-   - Try-catch wrapper ensures no crash if settings fail
+- **Early settings access** - Defensive getPlayerMode() checks setting exists, returns "digital" fallback
+- **Initialization timing** - 100ms delay after registerPlayerModeSettings() before dialog hooks fire
+- **Defensive getCollapsedSections()** - Merges saved state with defaults to ensure all keys exist
 
-2. **Initialization timing** (main.mjs, lines 2193-2212)
-   - Added 100ms delay after `registerPlayerModeSettings()` to ensure registration completes
-   - Dialog mirroring hooks only fire AFTER settings ready
-   - `collapsedSections` loaded from settings in ready hook with merge logic
-
-3. **Defensive `getCollapsedSections()`** (settings.js, lines 152-176)
-   - Merges saved sections with defaults to ensure all keys exist
-   - Returns safe defaults if setting doesn't exist or fails to load
-   - Try-catch prevents errors if called before settings initialized
-
-### Findings for Future Restructure
-- ⚠️ **WORKAROUND**: The 100ms delay is a band-aid fix for initialization order. Better approach: don't register hooks until settings are ready
-- ⚠️ **SCATTERED DEFENSIVE CODE**: Multiple defensive checks across files (`dialog-mirroring.js` line 58-68, `settings.js` multiple locations) suggest original architecture didn't properly sequence initialization
-- ✅ **WORKING**: Defensive fallbacks prevent crashes during initialization phase
+### Findings
+- ⚠️ **WORKAROUND**: 100ms delay is band-aid for initialization order (documented as WORKAROUND)
+- ⚠️ **SCATTERED DEFENSIVE CODE**: Multiple defensive checks suggest original architecture didn't properly sequence initialization
+- ✅ **WORKING**: Defensive fallbacks prevent crashes
 
 ---
 
 ## 3. STATE MANAGEMENT ACROSS MODULES
 
-### Current Implementation
-- **Main state variables**: `mirroredDialog`, `pendingRollRequest`, `currentPanelDialog`, `pendingDiceEntry`, `collapsedSections`
+**Variables:** `mirroredDialog`, `pendingRollRequest`, `currentPanelDialog`, `pendingDiceEntry`, `diceEntryCancelled`
 
 ### Edge Cases Handled
-1. **Mirrored dialog scope** (main.mjs vs. dialog-mirroring.js)
-   - After v64 refactor, using getter/setter functions: `getMirroredDialog()`, `setMirroredDialog()`
-   - Prevents duplicate declarations from shadowing
-   - Centralized control point for dialog state
+- **Mirrored dialog scope** - Using getter/setter functions (getMirroredDialog, setMirroredDialog) prevents duplicate declarations
+- **Pending dice entry** - Promise-based with diceEntryCancelled flag prevents double-processing
+- **Null checks throughout** - Consistent `if (!value)` checks before using state variables
 
-2. **Pending dice entry state** (main.mjs, lines 71-72, 1914, 1920, 2032)
-   - `pendingDiceEntry` is a Promise that resolves when user enters dice
-   - `diceEntryCancelled` flag prevents double-processing if cancelled
-   - States reset to null/false after roll completion or cancellation
-
-3. **Null checks throughout** (main.mjs lines 1056, 1084, 1707, 1914, 1920, 1823)
-   - Code consistently checks for null before using state variables
-   - `if (value === null || diceEntryCancelled)` prevents executing cancelled rolls
-   - Dialog checks: `if (!dialogRef)` before accessing properties
-
-### Findings for Future Restructure
-- ⚠️ **SCATTERED NULL CHECKS**: Nearly 20+ null/undefined checks across codebase for state management suggests state could be more structured
-- ⚠️ **NO STATE MACHINE**: Code uses booleans and null checks instead of formal state machine (IDLE, WAITING_ENTRY, PENDING_ROLL, etc.)
-- ⚠️ **MULTIPLE STATE VARIABLES**: Five separate variables tracked at module level could be consolidated into single state object
+### Findings
+- ⚠️ **SCATTERED NULL CHECKS**: Nearly 20+ null/undefined checks across codebase suggests state could be more structured
+- ⚠️ **NO STATE MACHINE**: Uses booleans and nulls instead of formal state machine (IDLE, WAITING_ENTRY, PENDING_ROLL, etc.)
+- ⚠️ **MULTIPLE STATE VARIABLES**: Five separate variables could be consolidated
 - ✅ **WORKING**: Current approach is resilient, just verbose
 
 ---
 
 ## 4. PERMISSIONS & ROLE HANDLING
 
-### Current Implementation
-- **File**: `main.mjs` (lines 89-145)
-- **Purpose**: Control which player roles can use manual dice
+**File:** `main.mjs` functions `getManualRollsPermissions()`, `setManualRollsPermission()`
 
 ### Edge Cases Handled
-1. **Permission caching** (lines 96-109)
-   - `getManualRollsPermissions()` reads from Foundry core settings
-   - Returns object mapping role numbers (1-4) to boolean permissions
-   - Try-catch with safe defaults: `{ 1: false, 2: false, 3: false, 4: true }`
-   - GM (role 4) always has permission
+- **Permission caching** - Reads Foundry core settings with safe defaults
+- **Permission updates** - Attempts to preserve diceConfiguration when enabling
+- **Undefined role handling** - Only defines roles 1-4, undefined roles fail safely
 
-2. **Permission updates** (lines 111-145)
-   - `setManualRollsPermission()` attempts to preserve `diceConfiguration` when enabling
-   - Nested try-catch blocks: inner catches silently ignore dice config errors
-   - Outer catch shows user error notification
-   - Sorts roles array after modification for consistency
-
-3. **Undefined role handling** (ROLE_NAMES lines 89-94)
-   - Only defines roles 1-4
-   - Fallback: undefined roles won't appear in dropdown, but won't crash
-
-### Findings for Future Restructure
-- ⚠️ **REDUNDANT PRESERVATION**: Lines 113-118 and 134-137 attempt to preserve `diceConfiguration`, but this is only used if enabled=true and CONFIG exists. Dead code path?
-- ⚠️ **SILENT FAILURES**: Inner try-catch blocks (lines 115-117, 135-137) swallow errors completely without logging - hard to debug permission issues
-- ⚠️ **MAGIC NUMBERS**: Role numbers (1, 2, 3, 4) hardcoded throughout; Foundry's CONST.USER_ROLES should be used
-- ✅ **WORKING**: Current approach reliably enables/disables permissions
+### Findings
+- ⚠️ **REDUNDANT PRESERVATION**: Logic to preserve diceConfiguration appears in multiple places
+- ⚠️ **SILENT FAILURES**: Inner try-catch blocks swallow errors completely without logging
+- ⚠️ **MAGIC NUMBERS**: Role numbers (1-4) hardcoded; should use CONST.USER_ROLES
+- ✅ **WORKING**: Reliably enables/disables permissions
 
 ---
 
 ## 5. DIALOG CONTENT EXTRACTION & MIRRORING
 
-### Current Implementation
-- **File**: `dialog-mirroring.js` (lines 230-280), `main.mjs` (lines 1300-1380)
+**File:** `dialog-mirroring.js` functions `extractDialogFormData()`, `main.mjs` function `updatePanelWithMirroredDialog()`
 
 ### Edge Cases Handled
-1. **Form data extraction** (dialog-mirroring.js, lines 242-265)
-   - Searches for `<form>` elements within dialog
-   - Extracts form data as object with all input values
-   - **If no form found**: Returns null (line 228)
-   - **Problem**: If form missing, dialog won't be mirrored at all
+- **Form data extraction** - Searches for `<form>` elements, returns null if not found
+- **Missing dialog properties** - Handles missing app.title with fallbacks
+- **Button detection** - Searches for specific button text: "advantage", "disadvantage", "critical"
 
-2. **Missing dialog properties** (main.mjs, lines 1370-1382)
-   - Checks for `app.title`, `app.constructor.name`, both case-insensitive
-   - Handles missing properties gracefully with fallbacks
-   - Try-catch wraps entire extraction process
-
-3. **Advantage/Disadvantage/Critical buttons** (main.mjs, lines 1368-1384)
-   - Searches for specific button text: "advantage", "disadvantage", "critical"
-   - May be dnd5e version-specific
-   - **If buttons missing**: Fields set to false (lines 1379-1382)
-
-### Findings for Future Restructure
-- ⚠️ **FRAGILE FORM DETECTION**: Only looks for `<form>` elements. What if dnd5e uses div-based form layout?
-- ⚠️ **BUTTON TEXT HARDCODING**: Searching for English button text ("advantage", "disadvantage", "critical") - won't work for translated Foundry
-- ⚠️ **NO FALLBACK FOR MISSING FORM**: If `<form>` missing, entire dialog mirroring fails silently
-- ✅ **WORKING**: Current dnd5e uses form-based layout, buttons are in English
+### Findings
+- ⚠️ **FRAGILE FORM DETECTION**: Only looks for `<form>` elements
+- ⚠️ **BUTTON TEXT HARDCODING**: English text search won't work for translated Foundry
+- ⚠️ **NO FALLBACK FOR MISSING FORM**: If form missing, dialog mirroring fails silently
+- ✅ **WORKING**: Current dnd5e uses form-based layout
 
 ---
 
 ## 6. DICE PARSING & FULFILLMENT
 
-### Current Implementation
-- **Files**: `dice-parsing.js`, `main.mjs` (lines 1631-2070)
-- **Purpose**: Intercept d20/damage rolls and allow manual entry
+**Files:** `dice-parsing.js`, `main.mjs` functions `diceLinkFulfillmentHandler()`, `executeDiceTrayRollManually()`
 
 ### Edge Cases Handled
-1. **Midi-QOL integration removed** (main.mjs, line 2112, 2186)
-   - Comment notes: "midi-qol interception removed - dice fulfillment system handles all rolls automatically"
-   - Old code attempted to hook into Midi-QOL workflow
-   - **Status**: DEAD CODE - now uses dice fulfillment system
+- **Dice formula parsing** - Regex `/(\d*)d(\d+)/g` handles: 1d20, 2d8+5, etc.
+- **Cancellation handling** - If user cancels, throws Error to abort roll
+- **Invalid dice value checks** - Validates each die value between 1 and max faces
 
-2. **Dice formula parsing** (dice-parsing.js, lines 16-41)
-   - Regex pattern: `/(\d*)d(\d+)/g`
-   - Handles: `1d20`, `2d8+5`, etc.
-   - **Limitation**: Doesn't handle complex expressions like `(1d4 + 1d6) * 2`
-   - **Current scope**: Only processes simple roll formulas
-
-3. **Cancellation handling** (main.mjs, lines 1705-1710, 1822-1824)
-   - If user cancels dice entry: `throw new Error("Roll cancelled by user")`
-   - This aborts the entire roll fulfillment
-   - Results set to `null` to signal cancellation (lines 1083-1084)
-
-4. **Invalid dice value checks** (main.mjs, lines 1717, 1920)
-   - Validates each die value is between 1 and max faces
-   - Skips `undefined` values (won't apply that die)
-   - **Issue**: Silent skip means if user leaves a field blank, die doesn't count
-
-### Findings for Future Restructure
-- ⚠️ **DEAD CODE**: Midi-QOL code should be removed entirely
-- ⚠️ **REGEX LIMITATION**: Formula regex doesn't handle parentheses or complex expressions
-- ⚠️ **SILENT FAILURES**: Blank dice fields are silently skipped rather than rejected
-- ⚠️ **ERROR UNWINDING**: Throwing errors to cancel rolls might be caught/logged oddly by Foundry
-- ✅ **WORKING**: Simple d20/d8/etc rolls work correctly
+### Findings
+- ⚠️ **DEAD CODE**: Midi-QOL code present but marked removed
+- ⚠️ **REGEX LIMITATION**: Doesn't handle parentheses or complex expressions
+- ⚠️ **SILENT FAILURES**: Blank dice fields silently skipped rather than rejected
+- ✅ **WORKING**: Simple d20/d8 rolls work correctly
 
 ---
 
 ## 7. CHAT MESSAGE & APPROVAL SYSTEM
 
-### Current Implementation
-- **File**: `approval.js`
+**File:** `approval.js` functions `setupChatButtonHandlers()`, `handleApproveClick()`, `handleDenyClick()`
 
 ### Edge Cases Handled
-1. **Missing player check** (lines 44-49, 89-94)
-   - Verifies player exists before approval/denial
-   - Returns error if player not found
-   - Checks `game.user.isGM` before allowing action
+- **Missing player check** - Verifies player exists before approval/denial
+- **Multiple message updates** - Updates ALL chat messages for that player (prevents multiple clicks)
+- **Window diceLink check** - Defensive check before calling window.diceLink.refreshPanel()
 
-2. **Multiple chat message updates** (lines 52-54, 97-99)
-   - When approving/denying, updates ALL chat messages for that player (not just one)
-   - Replaces buttons with text: "Request approved" or "Request denied"
-   - Prevents user from clicking button multiple times on different messages
-
-3. **Window diceLink check** (lines 72-74, 101-103)
-   - Before refreshing panel, checks `if (window.diceLink && window.diceLink.refreshPanel)`
-   - Safe guard against panel not being initialized yet
-   - **Fallback**: If panel not initialized, refresh silently fails
-
-### Findings for Future Restructure
-- ✅ **WELL HANDLED**: Approval system has good defensive checks and handles edge cases
-- ⚠️ **GLOBAL WINDOW CHECK**: Reliance on `window.diceLink` for cross-module communication is fragile
-- ⚠️ **BULK UPDATE**: Updating ALL chat messages for a player might be confusing if many requests exist
-
----
-
-## 8. REMOVED/DEPRECATED FEATURES
-
-### Midi-QOL Support
-- **Location**: main.mjs lines 2112, 2186 (comments only)
-- **Status**: REMOVED - no longer attempts to hook Midi-QOL
-- **Why**: Dice fulfillment system now handles all rolls automatically
-- **Finding**: DEAD CODE PRESENT - these comments should be removed during restructure
-
-### Initiative Roll Special Handling
-- **Location**: main.mjs lines 1291-1320, dialog-mirroring.js lines 165-175
-- **Current**: Specially formats initiative dialogs but routes to same system
-- **Finding**: May be unnecessary - could use generic roll handling
+### Findings
+- ✅ **WELL HANDLED**: Good defensive checks and edge case handling
+- ⚠️ **GLOBAL WINDOW CHECK**: Reliance on window.diceLink is fragile
+- ⚠️ **BULK UPDATE**: Updating all messages for a player might be confusing
 
 ---
 
@@ -248,15 +131,15 @@
 
 ### Fragile Patterns
 1. English language button/dialog title detection
-2. Form-only dialog detection (no div-based forms)
+2. Form-only dialog detection
 3. Regex-based dice parsing doesn't handle complex formulas
-4. 100ms initialization delay is a workaround, not a solution
+4. 100ms initialization delay is a workaround
 
 ### Areas for Improvement
 1. State machine instead of scattered booleans/nulls
-2. Central settings coordination before any hooks fire
+2. Central settings coordination before hooks fire
 3. Remove Midi-QOL references entirely
-4. Better error handling (vs. silent failures or swallowed errors)
+4. Better error handling vs. silent failures
 5. Use Foundry constants instead of magic numbers
 
 ### What's Working Well
@@ -265,4 +148,3 @@
 3. Approval workflow handles edge cases
 4. Role-based permissions functional and safe
 5. Dice fulfillment system is reliable
-
