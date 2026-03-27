@@ -1,12 +1,13 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.71
+ * Version 1.0.6.72
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  * 
  * LAST KNOWN GOOD VERSION: 1.0.6.53 - Stable after failed UI extraction
  * 
+ * v1.0.6.72 - Optimized: Reduced async operation delays from 100ms to 40ms, unified into single constant
  * v1.0.6.71 - Fixed: Restored updatePanelWithMirroredDialog (was needed, not duplicate)
  * v1.0.6.70 - Removed duplicate dialog mirroring functions that were dead code (~289 lines)
  */
@@ -27,6 +28,9 @@ import {
   getCollapsedSections,
   setCollapsedSections
 } from "./settings.js";
+
+// Timing constants
+const ASYNC_OPERATION_DELAY_MS = 40; // Delay for async operations to complete (mirroring, settings registration)
 
 import { 
   createApprovalChatMessage,
@@ -1327,7 +1331,7 @@ async function submitMirroredDialog(userChoice) {
       targetButton.element.click();
       
       // Small delay to let the click process
-      await new Promise(resolve => setTimeout(resolve, 40));
+      await new Promise(resolve => setTimeout(resolve, ASYNC_OPERATION_DELAY_MS));
       
       // The dialog should close itself after the button click
       // But hide it just in case
@@ -1799,7 +1803,7 @@ Hooks.once("ready", async () => {
     registerPlayerModeSettings();
     
     // Give settings time to register before hooks fire
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise(resolve => setTimeout(resolve, ASYNC_OPERATION_DELAY_MS));
     
     // Load collapsed sections state from settings
     collapsedSections = getCollapsedSections();
