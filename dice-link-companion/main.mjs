@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.79
+ * Version 1.0.6.80
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1832,8 +1832,7 @@ Hooks.once("ready", async () => {
     // Give settings time to register before hooks fire
     await new Promise(resolve => setTimeout(resolve, ASYNC_OPERATION_DELAY_MS));
     
-    // Load collapsed sections state from settings
-    collapsedSections = getCollapsedSections();
+    // Collapsed sections are now managed by settings.js - no need to load here
     
     // Setup socket listeners
     setupSocketListeners();
