@@ -245,6 +245,8 @@ export function generatePlayerPanel() {
 
 **Testing:** Panels render correctly, all buttons present
 
+**Cross-reference:** See 09-ui-components-inventory.md for complete inventory of all HTML generators and their dependencies
+
 **Cross-reference:** See 09-ui-components-inventory.md for complete list of functions
 
 ---
@@ -426,7 +428,8 @@ See 07-module-boundary-plan.md for the overall architecture this sequence implem
 See 03-dependency-map.md for dependency relationships that inform this order.  
 See 02-simplicity-targets.md for dead code that should be removed during extraction.  
 See 06-settings-registry.md for settings refactoring during constants.js creation.  
-See 04-state-variables-inventory.md for state.js module content.
+See 04-state-variables-inventory.md for state.js module content.  
+See 09-ui-components-inventory.md for UI component extraction details (Step 2.3).
 
 ## IMPORTANT: DO NOT DELETE THESE FILES WITHOUT APPROVAL
 

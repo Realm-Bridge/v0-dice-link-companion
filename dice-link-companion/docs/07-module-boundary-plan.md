@@ -445,3 +445,5 @@ These decisions affect module boundaries and should be confirmed before starting
 ## Cross-Reference to Extraction Sequence
 
 See 08-extraction-sequence.md - Provides the step-by-step order for implementing this module boundary plan. The tier system here determines the extraction order there.
+
+See 09-ui-components-inventory.md - Documents all UI component functions that will be extracted into ui-templates.js (Tier 4)
