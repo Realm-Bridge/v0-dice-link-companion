@@ -1,13 +1,13 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.66
+ * Version 1.0.6.68
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  * 
  * LAST KNOWN GOOD VERSION: 1.0.6.53 - Stable after failed UI extraction
  * 
- * v1.0.6.66 - Removed duplicate getMirroredDialog export in dialog-mirroring.js
+ * v1.0.6.68 - Removed dead code: executeDirectRoll, DiceLinkResolver class, pendingRollConfig
  */
 
 import { 
@@ -1655,126 +1655,8 @@ function generateMirroredDialogHTML(mirrorData) {
  * Custom RollResolver that integrates with our Dice Link panel.
  * This resolver shows our UI instead of Foundry's default manual entry dialog.
  */
-class DiceLinkResolver extends foundry.applications.dice.RollResolver {
-  
-  static DEFAULT_OPTIONS = {
-    ...foundry.applications.dice.RollResolver.DEFAULT_OPTIONS,
-    id: "dice-link-resolver",
-    classes: ["dlc-resolver"],
-    window: {
-      title: "Dice Link - Enter Results"
-    }
-  };
-  
   /**
-   * Override to NOT render the default Foundry UI.
-   * Instead, we show our panel's dice entry UI.
-   */
-  async _renderHTML(context, options) {
-    // Don't render Foundry's UI - we use our panel instead
-    const wrapper = document.createElement("div");
-    wrapper.innerHTML = `<div class="dlc-resolver-placeholder" style="display:none;"></div>`;
-    return wrapper;
-  }
-  
-  /**
-   * Override awaitFulfillment to use our panel UI
-   */
-  async awaitFulfillment() {
-    const roll = this.roll;
-    const fulfillable = this.fulfillable;
-    
-    if (fulfillable.size === 0) {
-      return;
-    }
-    
-    // Build list of dice needed from fulfillable terms
-    const diceNeeded = [];
-    for (const [term, config] of fulfillable) {
-      for (let i = 0; i < term.number; i++) {
-        diceNeeded.push({
-          faces: term.faces,
-          termId: config.id,
-          dieIndex: i,
-          method: config.method
-        });
-      }
-    }
-    
-    // Show our panel UI and wait for user input
-    const results = await this._showDiceLinkPanel(roll.formula, diceNeeded);
-    
-    if (results === null) {
-      // User cancelled - throw to abort
-      throw new Error("Roll cancelled by user");
-    }
-    
-    // Register results with Foundry's system
-    let resultIndex = 0;
-    for (const [term, config] of fulfillable) {
-      for (let i = 0; i < term.number; i++) {
-        const value = results[resultIndex];
-        if (value !== undefined && value !== null) {
-          // Use the static method to register the result
-          Roll.registerResult(config.method, `d${term.faces}`, value);
-        }
-        resultIndex++;
-      }
-    }
-  }
-  
-  /**
-   * Show our panel's dice entry UI and return a promise that resolves with results
-   */
-  _showDiceLinkPanel(formula, diceNeeded) {
-    return new Promise((resolve) => {
-      pendingDiceFulfillment = {
-        formula,
-        diceNeeded,
-        resolve
-      };
-      
-      // Update the pending roll request to show dice input UI
-      pendingRollRequest = {
-        title: "Roll Dice",
-        subtitle: formula,
-        formula: formula,
-        diceNeeded: diceNeeded,
-        isFulfillment: true,
-        step: "diceEntry",
-        situationalBonus: "",
-        hasAdvantage: false,
-        hasDisadvantage: false,
-        hasCritical: false,
-        onComplete: (userChoice) => {
-          pendingDiceFulfillment = null;
-          pendingRollRequest = null;
-          refreshPanel();
-          
-          if (userChoice === "cancel") {
-            resolve(null);
-            return;
-          }
-          
-          // userChoice.diceResults should be array of values
-          resolve(userChoice.diceResults || []);
-        }
-      };
-      
-      // Open/refresh the panel
-      collapsedSections.rollRequest = false;
-      const panelIsOpen = currentPanelDialog && currentPanelDialog.rendered;
-      if (!panelIsOpen) {
-        openPanel();
-      } else {
-        refreshPanel();
-      }
-    });
-  }
-}
-
-/**
- * Setup the Dice Link fulfillment method.
+	 * Setup the Dice Link fulfillment method.
  * Registers our custom method with Foundry's dice system.
  * We use a non-interactive handler that waits for our panel UI.
  */
@@ -2111,76 +1993,8 @@ function removeDiceLinkFulfillment() {
  * Execute a roll directly using Foundry's Roll API.
  * This bypasses dnd5e/midi-qol hooks and is used as a fallback.
  */
-async function executeDirectRoll(actor, formula, flavor, opts = {}) {
-  try {
-    let rollFormula = formula;
-    let rollMode = "normal";
-    
-    // Handle advantage/disadvantage by modifying the d20 portion
-    if (opts.advantage && !opts.disadvantage) {
-      rollFormula = formula.replace("1d20", "2d20kh");
-      rollMode = "advantage";
-    } else if (opts.disadvantage && !opts.advantage) {
-      rollFormula = formula.replace("1d20", "2d20kl");
-      rollMode = "disadvantage";
-    }
-    
-    // Handle critical for damage rolls (double dice)
-    if (opts.critical) {
-      // Double all dice in the formula (e.g., 2d6 + 3 becomes 4d6 + 3)
-      rollFormula = rollFormula.replace(/(\d+)d(\d+)/g, (match, num, sides) => {
-        return `${parseInt(num) * 2}d${sides}`;
-      });
-      rollMode = "critical";
-    }
-    
-    // Add situational bonus if provided
-    if (opts.situationalBonus) {
-      rollFormula += ` + ${opts.situationalBonus}`;
-    }
-    
-    // Create and evaluate the roll
-    const roll = new Roll(rollFormula);
-    await roll.evaluate();
-    
-    // Build the flavor text with mode indicator
-    const modeText = rollMode === "advantage" ? " (Advantage)" : 
-                    rollMode === "disadvantage" ? " (Disadvantage)" :
-                    rollMode === "critical" ? " (Critical)" : "";
-    const fullFlavor = `${flavor}${modeText}`;
-    
-    // Send to chat
-    await roll.toMessage({
-      speaker: ChatMessage.getSpeaker({ actor: actor }),
-      flavor: fullFlavor,
-      rollMode: game.settings.get("core", "rollMode")
-    });
-    
-    return true;
-  } catch (e) {
-    console.error("[Dice Link] Error executing direct roll:", e);
-    ui.notifications.error("Failed to execute roll.");
-    return false;
-  }
-}
-
-// Store pending configuration to pass to dice fulfillment
-let pendingRollConfig = null;
-
-// Dice parsing moved to dice-parsing.js module
-// Imported functions: parseDiceFromFormula, executeRollWithValues
-
-/**
- * STEP 1: Configuration Interception
- * Shows our UI for Advantage/Disadvantage/Normal selection and situational bonuses.
- * After user makes their choice, we apply it to the config and re-trigger the roll.
- * The dice fulfillment (Step 2) will then handle getting the actual dice values.
- */
-/**
- * LEGACY - Kept for reference but no longer used in v1.0.6.0
- * This was the old approach that cancelled and re-triggered rolls.
- * Now replaced by setupDialogMirroring() which is system-agnostic.
- */
+// ============================================================================
+// CUSTOM RESOLVER CLASS (for dialog mirroring approach)
 // ============================================================================
 // MIDI-QOL NOTE
 // midi-qol interception removed - dice fulfillment system handles all rolls automatically
