@@ -1,13 +1,13 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.57
+ * Version 1.0.6.58
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  * 
  * LAST KNOWN GOOD VERSION: 1.0.6.53 - Stable after failed UI extraction
  * 
- * v1.0.6.57 - Fixed duplicate initialization hooks and orphaned code
+ * v1.0.6.58 - Completed ready hook initialization
  */
 
 import { 
@@ -2196,8 +2196,8 @@ Hooks.once("init", async () => {
  */
 Hooks.once("ready", async () => {
   try {
+    setupChatButtonHandlers();
     setupDialogMirroring();
-    
     setupDiceFulfillment();
     
     // Expose refreshPanel and other core functions on global namespace for modules to use
@@ -2211,6 +2211,22 @@ Hooks.once("ready", async () => {
     window.diceLink.getPlayerMode = getPlayerMode;
     window.diceLink.getGlobalOverride = getGlobalOverride;
     window.diceLink.updatePanelWithMirroredDialog = updatePanelWithMirroredDialog;
+
+    // Apply initial dice mode based on settings
+    const globalOverride = getGlobalOverride();
+    
+    if (globalOverride === "forceAllManual") {
+      applyManualDice();
+    } else if (globalOverride === "forceAllDigital") {
+      applyDigitalDice();
+    } else {
+      const myMode = getPlayerMode();
+      if (myMode === "manual") {
+        applyManualDice();
+      } else {
+        applyDigitalDice();
+      }
+    }
   } catch (error) {
     console.error("[Dice Link] ERROR in ready hook:", error);
     console.error("[Dice Link] Stack trace:", error.stack);
