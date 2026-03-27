@@ -1,6 +1,6 @@
 # Module Boundary Plan
 
-**Version:** 1.0.6.69 Snapshot
+**Version:** 1.0.6.72 Snapshot
 **Note:** This document proposes module boundaries for restructuring. Regenerate after implementation.
 
 ---
