@@ -15,15 +15,15 @@
     }
   ],
   "url": "https://github.com/Realm-Bridge/v0-dice-link-companion",
-  "manifest": "https://raw.githubusercontent.com/Realm-Bridge/v0-dice-link-companion/main/dice-link-companion/module.json",
+  "manifest": "https://raw.githubusercontent.com/Realm-Bridge/v0-dice-link-companion/main/module.json",
   "download": "https://github.com/Realm-Bridge/v0-dice-link-companion/archive/refs/heads/main.zip",
-  "esmodules": ["scripts/main.mjs"],
-  "styles": ["styles/main.css"],
+  "esmodules": ["dice-link-companion/scripts/main.mjs"],
+  "styles": ["dice-link-companion/styles/main.css"],
   "languages": [
     {
       "lang": "en",
       "name": "English",
-      "path": "lang/en.json"
+      "path": "dice-link-companion/lang/en.json"
     }
   ],
   "socket": true,
