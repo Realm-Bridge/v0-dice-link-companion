@@ -1,15 +1,14 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.52
+ * Version 1.0.6.53
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  * 
- * LAST KNOWN GOOD VERSION: 1.0.6.51 - Fully functional before panel extraction
+ * LAST KNOWN GOOD VERSION: 1.0.6.51 - Fully functional
  * 
- * v1.0.6.52 - Extracted panel management:
- * - Moved refreshPanel() to panel-management.js
- * - Moved openPanel() to panel-management.js
+ * v1.0.6.53 - Reverted panel management extraction:
+ * - Panel functions kept in main.mjs due to circular dependency with DiceLinkCompanionApp class
  */
 
 import { 
@@ -51,11 +50,6 @@ import {
   parseDiceFromFormula,
   executeRollWithValues
 } from "./dice-parsing.js";
-
-import {
-  refreshPanel,
-  openPanel
-} from "./panel-management.js";
 
 const REALM_BRIDGE_URL = "https://realmbridge.co.uk";
 const LOGO_URL = "modules/dice-link-companion/assets/logo-header.png";
@@ -1141,8 +1135,51 @@ function updateDiceFormula(html, diceCounts, modifier) {
   html.find(".dlc-dice-formula-input").val(`/r ${formula}`);
 }
 
-// Panel management moved to panel-management.js module
-// Imported functions: refreshPanel, openPanel
+// ============================================================================
+// PANEL MANAGEMENT
+// ============================================================================
+
+function refreshPanel() {
+  if (currentPanelDialog && currentPanelDialog.rendered) {
+    const isGM = currentPanelDialog.isGM;
+    const newContent = isGM ? generateGMPanelContent() : generatePlayerPanelContent();
+    
+    // ApplicationV2 returns HTMLElement, not jQuery - wrap in jQuery for compatibility
+    const $element = $(currentPanelDialog.element);
+    const contentElement = $element.find(".window-content");
+    contentElement.html(newContent);
+    
+    if (isGM) {
+      attachGMPanelListeners($element);
+    } else {
+      attachPlayerPanelListeners($element);
+    }
+
+    // Recalculate dialog height to fit content after collapse/expand
+    currentPanelDialog.setPosition({ height: "auto" });
+  }
+}
+
+function openPanel() {
+  // If panel already exists and is rendered, just bring it to front - don't recreate
+  if (currentPanelDialog && currentPanelDialog.rendered) {
+    currentPanelDialog.bringToTop();
+    return;
+  }
+  
+  // If panel exists but not rendered, close it first
+  if (currentPanelDialog) {
+    try {
+      currentPanelDialog.close();
+    } catch (e) {
+      // Ignore errors from closing
+    }
+  }
+
+  const isGM = game.user.isGM;
+  currentPanelDialog = new DiceLinkCompanionApp(isGM);
+  currentPanelDialog.render(true);
+}
 
 // ============================================================================
 // SCENE CONTROLS - D20 BUTTON
