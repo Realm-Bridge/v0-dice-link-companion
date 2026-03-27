@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.83
+ * Version 1.0.6.84
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -86,14 +86,16 @@ import {
   executeRollWithValues
 } from "./dice-parsing.js";
 
-import {
-  generateDiceTrayHTML,
-  generateRollRequestHTML,
-  generatePendingRollHTML,
-  generateGMPanelContent,
-  generatePlayerPanelContent,
-  generateMirroredDialogHTML
-} from "./ui-templates.js";
+// NOTE: ui-templates.js is ready but not yet integrated
+// Import will be re-enabled once duplicate generate functions are removed from main.mjs
+// import {
+//   generateDiceTrayHTML,
+//   generateRollRequestHTML,
+//   generatePendingRollHTML,
+//   generateGMPanelContent,
+//   generatePlayerPanelContent,
+//   generateMirroredDialogHTML
+// } from "./ui-templates.js";
 
 const REALM_BRIDGE_URL = "https://realmbridge.co.uk";
 const LOGO_URL = "modules/dice-link-companion/assets/logo-header.png";
