@@ -7,9 +7,9 @@
  * 
  * LAST KNOWN GOOD VERSION: 1.0.6.53 - Stable after failed UI extraction
  * 
- * v1.0.6.83 - Phase 3 IN PROGRESS: Created ui-templates.js, added import (generate functions removal deferred)
- * v1.0.6.82 - Phase 3 START: Extracted ui-templates.js with all 6 generate functions (615 lines)
- * v1.0.6.81 - Phase 2 COMPLETE: Fixed remaining pendingRollRequest button handler references
+ * v1.0.6.77 - Phase 2 COMPLETE: Full modularization of state (70+ references updated to use state-management.js)
+ * v1.0.6.76 - Fixed: Restored local state variables (state-management.js for external modules only)
+ * v1.0.6.75 - Fixed: Resolved import conflicts after Phase 2 extraction
  * v1.0.6.74 - Phase 2: Extracted state-management.js for dependency resolution
  * v1.0.6.73 - Phase 1: Extracted constants.js and types.js for foundation setup
  * v1.0.6.72 - Optimized: Reduced async operation delays from 100ms to 40ms, unified into single constant
@@ -85,15 +85,6 @@ import {
   parseDiceFromFormula,
   executeRollWithValues
 } from "./dice-parsing.js";
-
-import {
-  generateDiceTrayHTML,
-  generateRollRequestHTML,
-  generatePendingRollHTML,
-  generateGMPanelContent,
-  generatePlayerPanelContent,
-  generateMirroredDialogHTML
-} from "./ui-templates.js";
 
 const REALM_BRIDGE_URL = "https://realmbridge.co.uk";
 const LOGO_URL = "modules/dice-link-companion/assets/logo-header.png";
@@ -235,20 +226,149 @@ class DiceLinkCompanionApp extends ApplicationV2 {
   }
 }
 
-/**
- * Custom RollResolver that integrates with our Dice Link panel.
- * This resolver shows our UI instead of Foundry's default manual entry dialog.
- */
+// ============================================================================
+// ROLL REQUEST SECTION
+// ============================================================================
+
+function generateDiceTrayHTML() {
+  return `
+    <div class="dlc-dice-tray">
+      <div class="dlc-dice-formula-row">
+        <input type="text" class="dlc-dice-formula-input" placeholder="/r 1d20" value="/r ">
+      </div>
+      <div class="dlc-dice-buttons-row">
+        ${[4, 6, 8, 10, 12, 20, 100].map(die => `
+          <button type="button" class="dlc-dice-btn" data-die="${die}" title="d${die}">
+            <span class="dlc-die-icon">d${die}</span>
+            <span class="dlc-die-count" style="display:none;">0</span>
+          </button>
+        `).join('')}
+      </div>
+      <div class="dlc-dice-controls-row">
+        <button type="button" class="dlc-dice-mod-btn dlc-dice-minus" title="Decrease modifier">−</button>
+        <span class="dlc-dice-modifier">0</span>
+        <button type="button" class="dlc-dice-mod-btn dlc-dice-plus" title="Increase modifier">+</button>
+        <button type="button" class="dlc-dice-adv-btn" data-mode="normal" title="Toggle Advantage/Disadvantage">ADV/DIS</button>
+        <button type="button" class="dlc-dice-roll-btn dlc-btn-success" title="Roll dice">Roll</button>
       </div>
     </div>
   `;
 }
 
+function generatePendingRollHTML(roll) {
+  if (roll.isMirroredDialog && roll.mirrorData) {
+    return generateMirroredDialogHTML(roll.mirrorData);
+  }
+  
+  if (roll.isFulfillment && roll.diceNeeded) {
+    const diceInputs = roll.diceNeeded.map((die, index) => {
+      const faces = die.faces || parseInt((die.type || "d20").replace("d", "")) || 20;
+      const dieLabel = die.type || `d${faces}`;
+      return `
+        <div class="dlc-dice-input-row">
+          <label class="dlc-dice-label">${dieLabel}</label>
+          <input type="number" 
+                 class="dlc-dice-value-input" 
+                 data-die-index="${index}" 
+                 data-die-faces="${faces}"
+                 min="1" 
+                 max="${faces}" 
+                 placeholder="1-${faces}">
+        </div>
+      `;
+    }).join('');
+    
+    return `
+      <div class="dlc-pending-roll dlc-dice-entry-step">
+        <div class="dlc-pending-roll-header">
+          <h4 class="dlc-pending-roll-title">${roll.title || "Enter Dice Results"}</h4>
+          ${roll.subtitle ? `<p class="dlc-pending-roll-subtitle">${roll.subtitle}</p>` : ''}
+        </div>
+        <div class="dlc-dice-inputs">
+          ${diceInputs}
+        </div>
+        <div class="dlc-pending-roll-actions">
+          <button type="button" class="dlc-roll-action-btn dlc-submit-dice-btn dlc-btn-success">SUBMIT RESULTS</button>
+        </div>
+      </div>
+    `;
+  }
+  
+  return `
+    <div class="dlc-pending-roll dlc-config-step">
+      <div class="dlc-pending-roll-header">
+        <h4 class="dlc-pending-roll-title">${roll.title}</h4>
+        ${roll.subtitle ? `<p class="dlc-pending-roll-subtitle">${roll.subtitle}</p>` : ''}
+      </div>
+      <div class="dlc-pending-roll-formula">
+        <span class="dlc-pending-formula-text">${roll.formula}</span>
+        <span class="dlc-pending-formula-label">Formula</span>
+      </div>
+      ${roll.situationalBonus !== undefined ? `
+      <div class="dlc-pending-roll-bonus">
+        <input type="text" class="dlc-dice-formula-input dlc-situational-bonus" placeholder="Situational Bonus?" value="${roll.situationalBonus || ''}">
+      </div>
+      ` : ''}
+      ${roll.abilityOptions ? `
+      <div class="dlc-pending-roll-config">
+        <div class="dlc-config-row">
+          <label>Ability</label>
+          <span class="dlc-config-value">${roll.abilityOptions}</span>
+        </div>
+      </div>
+      ` : ''}
+      <div class="dlc-pending-roll-actions">
+        ${roll.hasAdvantage ? `<button type="button" class="dlc-roll-action-btn dlc-roll-advantage" data-roll-mode="advantage">Advantage</button>` : ''}
+        <button type="button" class="dlc-roll-action-btn dlc-roll-normal" data-roll-mode="normal">Normal</button>
+        ${roll.hasDisadvantage ? `<button type="button" class="dlc-roll-action-btn dlc-roll-disadvantage" data-roll-mode="disadvantage">Disadvantage</button>` : ''}
+        ${roll.hasCritical ? `<button type="button" class="dlc-roll-action-btn dlc-roll-critical" data-roll-mode="critical">Critical</button>` : ''}
+      </div>
+    </div>
+  `;
+}
 
-/**
- * Custom RollResolver that integrates with our Dice Link panel.
- * This resolver shows our UI instead of Foundry's default manual entry dialog.
- */
+function generateRollRequestSection(mode, globalOverride) {
+  let effectiveMode = mode;
+  if (globalOverride === "forceAllManual") effectiveMode = "manual";
+  else if (globalOverride === "forceAllDigital") effectiveMode = "digital";
+
+  if (effectiveMode !== "manual") return '';
+
+  const currentPendingRoll = getPendingRollRequest();
+  const hasPending = currentPendingRoll !== null;
+  const currentCollapsed = getCollapsedSections();
+  const sectionClass = `dlc-section dlc-roll-request-section${hasPending ? ' dlc-roll-request-pending' : ''}`;
+
+  return `
+    <div class="${sectionClass} ${currentCollapsed.rollRequest ? 'collapsed' : ''}">
+      <div class="dlc-section-header" data-section="rollRequest">
+        <span class="dlc-collapse-btn">${currentCollapsed.rollRequest ? '+' : '−'}</span>
+        <h3><i class="fas fa-dice-d20"></i> Roll Request${hasPending ? ' <span class="dlc-pending-badge">PENDING</span>' : ''}</h3>
+        ${hasPending ? '<button type="button" class="dlc-roll-cancel-btn dlc-header-cancel-btn">Cancel Roll</button>' : ''}
+      </div>
+      <div class="dlc-section-content">
+        ${hasPending ? generatePendingRollHTML(currentPendingRoll) : generateDiceTrayHTML()}
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================================
+// GM MANAGEMENT PANEL
+// ============================================================================
+
+function generateGMPanelContent() {
+  const globalOverride = getGlobalOverride();
+  const pendingRequests = getPendingRequests();
+  const gmMode = getPlayerMode();
+  const rolePermissions = getManualRollsPermissions();
+  const collapsedSections = getCollapsedSections();
+
+  const players = [];
+  for (const user of game.users) {
+    if (user.isGM) continue;
+    const storedMode = getPlayerMode(user.id);
+    const isPending = pendingRequests.some(req => req.playerId === user.id);
     
     // Determine effective mode based on global override
     let effectiveMode = storedMode;
@@ -439,9 +559,27 @@ class DiceLinkCompanionApp extends ApplicationV2 {
   `;
 }
 
+// ============================================================================
+// PLAYER PANEL
+// ============================================================================
 
-/**
- * Setup the Dice Link fulfillment method.
+function generatePlayerPanelContent() {
+  const globalOverride = getGlobalOverride();
+  const pendingRequests = getPendingRequests();
+  const myMode = getPlayerMode();
+  const myPending = pendingRequests.some(req => req.playerId === game.user.id);
+  const collapsedSections = getCollapsedSections();
+
+  const players = [];
+  for (const user of game.users) {
+    if (user.isGM) continue;
+    const storedMode = getPlayerMode(user.id);
+    const isPendingRaw = pendingRequests.some(req => req.playerId === user.id);
+    let effectiveMode = storedMode;
+    if (globalOverride === "forceAllManual") effectiveMode = "manual";
+    else if (globalOverride === "forceAllDigital") effectiveMode = "digital";
+    const isPending = globalOverride === "individual" ? isPendingRaw : false;
+    players.push({
       id: user.id,
       name: user.name,
       mode: effectiveMode,
