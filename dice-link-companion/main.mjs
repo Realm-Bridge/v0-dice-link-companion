@@ -1,12 +1,13 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.70
+ * Version 1.0.6.71
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  * 
  * LAST KNOWN GOOD VERSION: 1.0.6.53 - Stable after failed UI extraction
  * 
+ * v1.0.6.71 - Fixed: Restored updatePanelWithMirroredDialog (was needed, not duplicate)
  * v1.0.6.70 - Removed duplicate dialog mirroring functions that were dead code (~289 lines)
  */
 
@@ -1192,8 +1193,65 @@ Hooks.on("getSceneControlButtons", (controls) => {
 // Dialog mirroring moved to dialog-mirroring.js module
 
 /**
- * Handle dialog render - check if it's a roll dialog and mirror it
+  * Handle dialog render - check if it's a roll dialog and mirror it
+  */
+
+/**
+ * Update our panel to display the mirrored dialog UI
+ * Called from dialog-mirroring.js via window.diceLink.updatePanelWithMirroredDialog()
  */
+function updatePanelWithMirroredDialog(formData, app, html) {
+  // Clear previous pending roll request
+  pendingRollRequest = null;
+  
+  // Store the mirrored dialog reference for submitMirroredDialog to use
+  setMirroredDialog({
+    app,
+    html,
+    data: formData,
+    timestamp: Date.now()
+  });
+  
+  // Create new pending roll request with mirrored dialog data
+  pendingRollRequest = {
+    title: formData.title,
+    subtitle: formData.formula,
+    formula: formData.formula,
+    isMirroredDialog: true,
+    mirrorData: formData,
+    onComplete: async (userChoice) => {
+      if (userChoice === "cancel") {
+        // Close the native dialog
+        const dialogRef = getMirroredDialog();
+        if (dialogRef?.app) {
+          dialogRef.app.close();
+        }
+        setMirroredDialog(null);
+        pendingRollRequest = null;
+        refreshPanel();
+        return;
+      }
+      
+      // Apply user choices to the hidden dialog and submit it
+      await submitMirroredDialog(userChoice);
+      
+      setMirroredDialog(null);
+      pendingRollRequest = null;
+      refreshPanel();
+    }
+  };
+  
+  // Expand the roll request section and refresh panel
+  collapsedSections.rollRequest = false;
+  
+  const panelIsOpen = currentPanelDialog && currentPanelDialog.rendered;
+  if (!panelIsOpen) {
+    openPanel();
+  } else {
+    refreshPanel();
+  }
+}
+
 /**
  * Apply user choices to the mirrored dialog and submit it
  */
