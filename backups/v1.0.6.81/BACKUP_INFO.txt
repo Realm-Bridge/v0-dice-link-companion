@@ -1,0 +1,44 @@
+BACKUP: v1.0.6.81
+DATE: 2026-03-27
+STATUS: Phase 2 Complete - State Management Modularization
+
+MILESTONE: Modularization Phase 1 & 2 Complete
+============================================
+
+Phase 1: Foundation Setup (v1.0.6.73)
+- Created constants.js - Centralized MODULE_ID, timing delays, setting defaults
+- Created types.js - JSDoc type definitions
+- Refactored settings.js to import from constants.js
+
+Phase 2: State Management (v1.0.6.74-81)
+- Created state-management.js - Centralized all application state
+- Updated 70+ direct variable references to use getter/setter functions
+- Created debug.js - Centralized debug logging (toggle DEBUG_ENABLED)
+- Fixed multiple ReferenceErrors from missed variable migrations
+
+NEW FILES IN THIS VERSION:
+- constants.js - Foundation constants and defaults
+- types.js - JSDoc type definitions  
+- state-management.js - Centralized state with getters/setters
+- debug.js - Debug logging module (can disable with DEBUG_ENABLED=false)
+
+STATE VARIABLES NOW IN state-management.js:
+- pendingRollRequest
+- currentPanelDialog
+- hasRequestedThisSession
+- pendingDiceEntry
+- diceEntryCancelled
+- mirroredDialog
+
+TESTING STATUS:
+- Panel opens correctly
+- Roll request buttons work (advantage/disadvantage/normal)
+- Dialog mirroring working
+- Debug logging visible in console
+
+KNOWN ISSUE:
+- offsetWidth null error on some panel renders (non-blocking)
+
+NEXT STEPS:
+- Phase 3: Continue extraction sequence per 08-extraction-sequence.md
+- Consider disabling debug.js (set DEBUG_ENABLED = false) when stable
