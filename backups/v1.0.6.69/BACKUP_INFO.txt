@@ -1,0 +1,50 @@
+v1.0.6.69 - Backup Information
+================================================================================
+
+VERSION: 1.0.6.69
+DATE: Current Session
+PURPOSE: Complete backup after refactoring dice types to use Foundry API dynamically
+
+CHANGES IN THIS VERSION:
+- Refactored hardcoded dice type arrays to use CONFIG.Dice.terms dynamically
+- Replaced 4 instances of ["d4", "d6", "d8", "d10", "d12", "d20", "d100"] with:
+  Object.keys(CONFIG.Dice.terms).filter(term => /^d\d+$/.test(term) && CONFIG.Dice.terms[term])
+- This allows module to automatically support any custom dice Foundry adds in future versions
+- Code now adapts to Foundry configuration instead of hardcoding dice types
+- Reduced code duplication across 4 functions
+
+FILES MODIFIED:
+- main.mjs: applyDiceLinkFulfillment(), removeDiceLinkFulfillment() functions
+- mode-application.js: applyManualDice(), applyDigitalDice() functions
+- module.json: version bumped to 1.0.6.69
+
+TESTING PERFORMED:
+- Module tested and verified working in Foundry
+- Dice mode switching (manual/digital) confirmed functional
+- Custom dice types are now dynamically detected from CONFIG.Dice.terms
+
+BACKUP CONTENTS:
+This folder contains all 11 core module files:
+1. module.json.backup
+2. main.mjs
+3. settings.js
+4. socket.js
+5. approval.js
+6. chat.js
+7. dialog-mirroring.js
+8. dice-parsing.js
+9. mode-application.js
+10. en.json
+11. main.css
+
+ROLLBACK INSTRUCTIONS:
+If needed, restore all 11 files from this backup folder to the module folder.
+Module will need to be reloaded in Foundry and version bumped back to 1.0.6.68.
+
+PRIOR BACKUPS:
+- v1.0.6.66: Original complete backup
+- v1.0.6.68: Previous working version (dead code removed)
+- v1.0.6.67: DELETED - was incomplete backup
+
+NEXT STEPS:
+After v1.0.6.69 is confirmed working, consider next cleanup targets from simplicity-targets.md
