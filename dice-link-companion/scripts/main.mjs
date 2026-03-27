@@ -1,16 +1,15 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.54
+ * Version 1.0.6.53
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  * 
- * LAST KNOWN GOOD VERSION: 1.0.6.53 - Working version before app.js extraction
+ * LAST KNOWN GOOD VERSION: 1.0.6.51 - Fully functional
  * 
- * v1.0.6.54 - Extracted application class:
- * - Moved DiceLinkCompanionApp class to app.js
- * - Moved currentPanelDialog state to app.js with getter/setter exports
- * - Updated panel management functions to use app.js imports
+ * v1.0.6.53 - Reverted app.js extraction:
+ * - App class kept in main.mjs due to tight coupling with content generation and listeners
+ * - currentPanelDialog state remains in main.mjs for simplicity
  */
 
 import { 
@@ -53,12 +52,6 @@ import {
   executeRollWithValues
 } from "./dice-parsing.js";
 
-import {
-  DiceLinkCompanionApp,
-  getCurrentPanelDialog,
-  setCurrentPanelDialog
-} from "./app.js";
-
 const REALM_BRIDGE_URL = "https://realmbridge.co.uk";
 const LOGO_URL = "modules/dice-link-companion/assets/logo-header.png";
 const LOGO_SQUARE_URL = "modules/dice-link-companion/assets/logo-square.png";
@@ -68,20 +61,91 @@ let hasRequestedThisSession = false;
 
 // Track any pending intercepted roll request
 let pendingRollRequest = null;
-// { title, subtitle, formula, config, dialog, onComplete }
 
-// Track mirrored dialog state (used by updatePanelWithMirroredDialog and submitMirroredDialog)
-let mirroredDialog = null;
+// Track the currently open panel dialog
+let currentPanelDialog = null;
 
-// Track collapsed sections state
-const collapsedSections = {
-  topRow: true, // Settings section (Permissions, Global Override, GM Mode)
-  pending: true,
-  playerModes: true,
-  rollRequest: false, // Roll Request section - starts expanded
-  videoFeed: true // Start collapsed
-};
+// ============================================================================
+// CUSTOM APPLICATION CLASS (ApplicationV2 for Foundry V13+)
+// ============================================================================
 
+const { ApplicationV2 } = foundry.applications.api;
+
+class DiceLinkCompanionApp extends ApplicationV2 {
+  constructor(isGM, options = {}) {
+    super(options);
+    this._isGM = isGM;
+  }
+
+  static DEFAULT_OPTIONS = {
+    id: "dice-link-companion-panel",
+    classes: ["dlc-dialog"],
+    position: {
+      width: 480,
+      height: "auto"
+    },
+    window: {
+      title: "Dice Link Companion",
+      resizable: true,
+      minimizable: true
+    }
+  };
+
+  get title() {
+    return "Dice Link Companion";
+  }
+
+  get isGM() {
+    return this._isGM;
+  }
+
+  async _prepareContext(options) {
+    return {};
+  }
+
+  async _renderHTML(context, options) {
+    const content = this._isGM ? generateGMPanelContent() : generatePlayerPanelContent();
+    const wrapper = document.createElement("div");
+    wrapper.classList.add("window-content");
+    wrapper.innerHTML = content;
+    return wrapper;
+  }
+
+  _replaceHTML(result, content, options) {
+    // Clear and replace the content
+    content.replaceChildren(result);
+  }
+
+  _onRender(context, options) {
+    // Get the HTML element (not jQuery in V2)
+    const html = this.element;
+    
+    // Wrap in jQuery for compatibility with existing listener code
+    const $html = $(html);
+    
+    if (this._isGM) {
+      attachGMPanelListeners($html);
+    } else {
+      attachPlayerPanelListeners($html);
+    }
+  }
+
+  async close(options = {}) {
+    currentPanelDialog = null;
+    return super.close(options);
+  }
+
+  setPosition(options = {}) {
+    // Adjust width based on GM/player
+    if (!options.width) {
+      options.width = this._isGM ? 480 : 390;
+    }
+    return super.setPosition(options);
+  }
+}
+
+// ============================================================================
+// UI STATE MANAGEMENT
 // ============================================================================
 // DICE CONFIGURATION - Using Foundry v13 core settings
 // ============================================================================
@@ -1075,13 +1139,12 @@ function updateDiceFormula(html, diceCounts, modifier) {
 // ============================================================================
 
 function refreshPanel() {
-  const currentPanel = getCurrentPanelDialog();
-  if (currentPanel && currentPanel.rendered) {
-    const isGM = currentPanel.isGM;
+  if (currentPanelDialog && currentPanelDialog.rendered) {
+    const isGM = currentPanelDialog.isGM;
     const newContent = isGM ? generateGMPanelContent() : generatePlayerPanelContent();
     
     // ApplicationV2 returns HTMLElement, not jQuery - wrap in jQuery for compatibility
-    const $element = $(currentPanel.element);
+    const $element = $(currentPanelDialog.element);
     const contentElement = $element.find(".window-content");
     contentElement.html(newContent);
     
@@ -1092,32 +1155,29 @@ function refreshPanel() {
     }
 
     // Recalculate dialog height to fit content after collapse/expand
-    currentPanel.setPosition({ height: "auto" });
+    currentPanelDialog.setPosition({ height: "auto" });
   }
 }
 
 function openPanel() {
-  const currentPanel = getCurrentPanelDialog();
-  
   // If panel already exists and is rendered, just bring it to front - don't recreate
-  if (currentPanel && currentPanel.rendered) {
-    currentPanel.bringToTop();
+  if (currentPanelDialog && currentPanelDialog.rendered) {
+    currentPanelDialog.bringToTop();
     return;
   }
   
   // If panel exists but not rendered, close it first
-  if (currentPanel) {
+  if (currentPanelDialog) {
     try {
-      currentPanel.close();
+      currentPanelDialog.close();
     } catch (e) {
       // Ignore errors from closing
     }
   }
 
   const isGM = game.user.isGM;
-  const newPanel = new DiceLinkCompanionApp(isGM);
-  setCurrentPanelDialog(newPanel);
-  newPanel.render(true);
+  currentPanelDialog = new DiceLinkCompanionApp(isGM);
+  currentPanelDialog.render(true);
 }
 
 // ============================================================================
@@ -1478,7 +1538,7 @@ function updatePanelWithMirroredDialog(formData, app, html) {
   // Expand the roll request section and refresh panel
   collapsedSections.rollRequest = false;
   
-  const panelIsOpen = getCurrentPanelDialog() && getCurrentPanelDialog().rendered;
+  const panelIsOpen = currentPanelDialog && currentPanelDialog.rendered;
   if (!panelIsOpen) {
     openPanel();
   } else {
@@ -1766,7 +1826,7 @@ class DiceLinkResolver extends foundry.applications.dice.RollResolver {
       
       // Open/refresh the panel
       collapsedSections.rollRequest = false;
-      const panelIsOpen = getCurrentPanelDialog() && getCurrentPanelDialog().rendered;
+      const panelIsOpen = currentPanelDialog && currentPanelDialog.rendered;
       if (!panelIsOpen) {
         openPanel();
       } else {
