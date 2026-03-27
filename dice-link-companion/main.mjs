@@ -1,18 +1,18 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.82
+ * Version 1.0.6.83
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  * 
  * LAST KNOWN GOOD VERSION: 1.0.6.53 - Stable after failed UI extraction
  * 
+ * v1.0.6.83 - Phase 3 IN PROGRESS: Created ui-templates.js, added import (generate functions removal deferred)
  * v1.0.6.82 - Phase 3 START: Extracted ui-templates.js with all 6 generate functions (615 lines)
  * v1.0.6.81 - Phase 2 COMPLETE: Fixed remaining pendingRollRequest button handler references
- * v1.0.6.80 - Fixed: Removed undefined collapsedSections assignment in ready hook (module load failure)
- * v1.0.6.79 - Created debug.js module for centralized logging (flip DEBUG_ENABLED to disable all logging)
- * v1.0.6.78 - Fixed: Added debug logging to openPanel to trace execution
- * v1.0.6.77 - Phase 2 COMPLETE: Full modularization of state (70+ references updated to use state-management.js)
+ * v1.0.6.74 - Phase 2: Extracted state-management.js for dependency resolution
+ * v1.0.6.73 - Phase 1: Extracted constants.js and types.js for foundation setup
+ * v1.0.6.72 - Optimized: Reduced async operation delays from 100ms to 40ms, unified into single constant
  * v1.0.6.71 - Fixed: Restored updatePanelWithMirroredDialog (was needed, not duplicate)
  * v1.0.6.70 - Removed duplicate dialog mirroring functions that were dead code (~289 lines)
  */
@@ -85,6 +85,15 @@ import {
   parseDiceFromFormula,
   executeRollWithValues
 } from "./dice-parsing.js";
+
+import {
+  generateDiceTrayHTML,
+  generateRollRequestHTML,
+  generatePendingRollHTML,
+  generateGMPanelContent,
+  generatePlayerPanelContent,
+  generateMirroredDialogHTML
+} from "./ui-templates.js";
 
 const REALM_BRIDGE_URL = "https://realmbridge.co.uk";
 const LOGO_URL = "modules/dice-link-companion/assets/logo-header.png";
