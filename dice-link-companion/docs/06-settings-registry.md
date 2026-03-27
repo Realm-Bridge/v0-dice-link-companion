@@ -1,6 +1,6 @@
 # 06 - Settings Registry
 
-**Version:** 1.0.6.66 Snapshot  
+**Version:** 1.0.6.67 Snapshot  
 **Note:** This document catalogs all Foundry settings used by DLC. References use function/section names for durability. Regenerate this documentation after restructuring.
 
 ---
