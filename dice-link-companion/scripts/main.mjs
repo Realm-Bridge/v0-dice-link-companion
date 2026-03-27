@@ -1,13 +1,13 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.58
+ * Version 1.0.6.59
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  * 
  * LAST KNOWN GOOD VERSION: 1.0.6.53 - Stable after failed UI extraction
  * 
- * v1.0.6.58 - Completed ready hook initialization
+ * v1.0.6.59 - Fixed duplicate let declarations (pendingDiceEntry, diceEntryCancelled)
  */
 
 import { 
@@ -1814,9 +1814,7 @@ async function diceLinkFulfillmentHandler(term, index) {
   return result;
 }
 
-// Store for pending dice entry
-let pendingDiceEntry = null;
-let diceEntryCancelled = false;
+// pendingDiceEntry and diceEntryCancelled declared at top of file
 
 /**
  * Wait for user to enter a die result via our panel UI.
