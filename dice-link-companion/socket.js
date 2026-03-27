@@ -3,8 +3,9 @@
  * Handles cross-client communication for dice mode changes
  */
 
+import { MODULE_ID } from "./constants.js";
+
 import { 
-  MODULE_ID,
   getPlayerMode,
   setPlayerMode,
   getGlobalOverride,
