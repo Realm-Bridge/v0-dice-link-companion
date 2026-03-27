@@ -163,11 +163,16 @@ export function getCollapsedSections() {
     topRow: false
   };
   
-  const saved = getSetting("collapsedSections");
-  if (!saved) return defaults;
-  
-  // Merge with defaults to ensure all keys exist
-  return { ...defaults, ...saved };
+  try {
+    const saved = getSetting("collapsedSections");
+    if (!saved) return defaults;
+    
+    // Merge with defaults to ensure all keys exist
+    return { ...defaults, ...saved };
+  } catch (e) {
+    // Setting not registered yet
+    return defaults;
+  }
 }
 
 /**
