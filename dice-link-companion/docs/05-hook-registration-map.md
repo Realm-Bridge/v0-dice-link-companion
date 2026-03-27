@@ -39,6 +39,11 @@ Foundry hooks are the lifecycle events that trigger DLC functionality. This docu
 
 **Why this order matters:** Dialog mirroring hooks must fire AFTER settings are ready, hence the 100ms delay. Socket listeners must be registered early to catch cross-client messages.
 
+**Cross-reference - IMPORTANT:** Both the 100ms delay and the dialog mirroring itself are questioned in earlier documents:
+- See 01-edge-cases.md Section 2 - The 100ms delay is documented as a WORKAROUND, not a proper solution
+- See 02-simplicity-targets.md Section 3.3 - Questions whether the entire dialog mirroring system is necessary
+- If dialog mirroring is removed or simplified, this timing requirement may become irrelevant
+
 ---
 
 ## Individual Hook Registrations
@@ -155,15 +160,15 @@ init hook
     ↓ (immediate)
 ready hook (async)
     ├→ registerPlayerModeSettings()
-    ├→ [100ms delay] ← WORKAROUND
+    ├→ [100ms delay] ← WORKAROUND (see 01-edge-cases.md Section 2)
     ├→ setupSocketListeners()
     │   └→ Listens for cross-client messages
-    ├→ setupDialogMirroring()
-    │   ├→ Hooks.on("renderApplication")
-    │   ├→ Hooks.on("renderDialog")
-    │   ├→ Hooks.on("renderRollConfigurationDialog")
-    │   └→ Hooks.on("renderApplicationV2")
-    ├→ Populate window.diceLink
+    ├→ setupDialogMirroring() ← QUESTIONED (see 02-simplicity-targets.md Section 3.3)
+    │   ├→ Hooks.on("renderApplication")    ← POTENTIALLY REDUNDANT
+    │   ├→ Hooks.on("renderDialog")          ← POTENTIALLY REDUNDANT
+    │   ├→ Hooks.on("renderRollConfigurationDialog") ← POTENTIALLY REDUNDANT
+    │   └→ Hooks.on("renderApplicationV2")   ← LIKELY ONLY ONE NEEDED
+    ├→ Populate window.diceLink ← FRAGILE (see 02-simplicity-targets.md Section 4.3)
     ├→ getSceneControlButtons hook (for GM button)
     └→ Apply initial dice mode
 
@@ -175,6 +180,8 @@ During gameplay:
     socket messages arrive
         └→ setupSocketListeners handlers
 ```
+
+**Note:** Items marked WORKAROUND, QUESTIONED, POTENTIALLY REDUNDANT, or FRAGILE are architectural concerns documented in earlier logs that should be addressed during restructuring.
 
 ---
 
@@ -198,6 +205,8 @@ During gameplay:
 - **Defensive getPlayerMode():** See 01-edge-cases.md Section 2 - has try-catch fallback
 - **Four render hooks:** See 01-edge-cases.md Section 1 - potentially redundant pattern
 
+**Key Question:** If dialog mirroring is simplified or removed (see 02-simplicity-targets.md Section 3.3), several of these timing constraints become irrelevant. Evaluate necessity before optimizing.
+
 ---
 
 ## Cross-Module Hook Interactions
@@ -217,12 +226,18 @@ These hooks create implicit dependencies between modules:
 ## Recommendations for Restructuring
 
 1. **Consolidate dialog detection:** The four render hooks (renderApplication, renderDialog, renderRollConfigurationDialog, renderApplicationV2) likely do the same thing. Investigate if only renderApplicationV2 is needed for Foundry v13+.
+   - *See 01-edge-cases.md Section 1 for analysis*
 
 2. **Remove 100ms delay:** Properly await settings registration instead of using arbitrary timeout.
+   - *See 01-edge-cases.md Section 2 - documented as WORKAROUND*
 
 3. **Replace window.diceLink pattern:** Use proper ES6 module exports instead of global object coupling.
+   - *See 02-simplicity-targets.md Section 4.3 for fragility analysis*
 
 4. **Separate hook registration from execution:** Register hooks early, execute logic late (after dependencies ready).
+
+5. **Evaluate dialog mirroring necessity:** Before optimizing the hook system, determine if dialog mirroring is even needed.
+   - *See 02-simplicity-targets.md Section 3.3 - questions the entire approach*
 
 ---
 
