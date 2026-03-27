@@ -1,13 +1,13 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.60
+ * Version 1.0.6.61
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  * 
  * LAST KNOWN GOOD VERSION: 1.0.6.53 - Stable after failed UI extraction
  * 
- * v1.0.6.60 - Fixed initialization order: registerPlayerModeSettings moved to ready hook
+ * v1.0.6.61 - Made getPlayerMode defensive with fallback when setting not registered
  */
 
 import { 
