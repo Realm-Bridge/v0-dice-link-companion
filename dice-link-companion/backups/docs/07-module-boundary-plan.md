@@ -439,3 +439,9 @@ Before implementing, answer these questions:
    - See 02-simplicity-targets.md Section 3.4
 
 These decisions affect module boundaries and should be confirmed before starting migration.
+
+---
+
+## Cross-Reference to Extraction Sequence
+
+See 08-extraction-sequence.md - Provides the step-by-step order for implementing this module boundary plan. The tier system here determines the extraction order there.
