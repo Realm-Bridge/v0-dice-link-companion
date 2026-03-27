@@ -1,6 +1,6 @@
 # 05 - Hook Registration Map
 
-**Version:** 1.0.6.66 Snapshot (durable function-based references)  
+**Version:** 1.0.6.68 Snapshot (durable function-based references)  
 **Note:** This document uses function/section references instead of line numbers for longevity. Regenerate during restructuring to reflect new organization.
 
 ---
