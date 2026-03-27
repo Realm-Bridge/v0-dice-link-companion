@@ -277,16 +277,4 @@ function extractDialogFormData(app, html) {
   return data;
 }
 
-/**
- * Get the currently mirrored dialog reference
- */
-export function getMirroredDialog() {
-  return mirroredDialog;
-}
-
-/**
- * Clear the mirrored dialog reference
- */
-export function clearMirroredDialog() {
-  mirroredDialog = null;
-}
+// Note: getMirroredDialog() and setMirroredDialog() are exported at the top of this file
