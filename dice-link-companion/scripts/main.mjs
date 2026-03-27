@@ -1514,7 +1514,6 @@ function updatePanelWithMirroredDialog(formData, app, html) {
     refreshPanel();
   }
 }
-}
 
 /**
  * Apply user choices to the mirrored dialog and submit it
