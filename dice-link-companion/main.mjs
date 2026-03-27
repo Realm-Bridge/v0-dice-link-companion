@@ -1327,7 +1327,7 @@ async function submitMirroredDialog(userChoice) {
       targetButton.element.click();
       
       // Small delay to let the click process
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 40));
       
       // The dialog should close itself after the button click
       // But hide it just in case
