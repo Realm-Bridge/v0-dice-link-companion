@@ -16,7 +16,7 @@
   ],
   "url": "https://github.com/Realm-Bridge/v0-dice-link-companion",
   "manifest": "https://raw.githubusercontent.com/Realm-Bridge/v0-dice-link-companion/main/dice-link-companion/module.json",
-  "download": "https://github.com/Realm-Bridge/v0-dice-link-companion/releases/download/latest/dice-link-companion.zip",
+  "download": "https://codeload.github.com/Realm-Bridge/v0-dice-link-companion/zip/refs/heads/main",
   "esmodules": ["scripts/main.mjs"],
   "styles": ["styles/main.css"],
   "languages": [
