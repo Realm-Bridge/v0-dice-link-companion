@@ -35,21 +35,19 @@ import {
   setCollapsedSections
 } from "./settings.js";
 
-import {
+import { 
   getPendingRollRequest,
   getHasRequestedThisSession,
   getCurrentPanelDialog,
   getPendingDiceEntry,
   getDiceEntryCancelled,
   getMirroredDialog as getMirroredDialogState,
-  getCollapsedSections as getCollapsedSectionsState,
   setPendingRollRequest,
   setHasRequestedThisSession,
   setCurrentPanelDialog,
   setPendingDiceEntry,
   setDiceEntryCancelled,
-  setMirroredDialog,
-  setCollapsedSections as setCollapsedSectionsState,
+  setMirroredDialog as setMirroredDialogState,
   clearAllState,
   resetUIState,
   hasPendingOperations
@@ -72,9 +70,7 @@ import {
 } from "./mode-application.js";
 
 import {
-  setupDialogMirroring,
-  getMirroredDialog,
-  setMirroredDialog as setMirroredDialogModule
+  setupDialogMirroring
 } from "./dialog-mirroring.js";
 
 import {
