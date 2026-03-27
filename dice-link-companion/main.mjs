@@ -7,7 +7,10 @@
  * 
  * LAST KNOWN GOOD VERSION: 1.0.6.53 - Stable after failed UI extraction
  * 
- * v1.0.6.77 - Phase 2 COMPLETE: Full modularization of state (70+ references updated to use state-management.js)
+ * v1.0.6.84 - Phase 3 COMPLETE: Removed all 6 duplicate generate functions from main.mjs (1200+ lines), ui-templates.js now active
+ * v1.0.6.83 - Phase 3 IN PROGRESS: Created ui-templates.js, added import (generate functions removal deferred)
+ * v1.0.6.82 - Phase 3 START: Extracted ui-templates.js with all 6 generate functions (615 lines)
+ * v1.0.6.81 - Phase 2 COMPLETE: Fixed remaining pendingRollRequest button handler references
  * v1.0.6.76 - Fixed: Restored local state variables (state-management.js for external modules only)
  * v1.0.6.75 - Fixed: Resolved import conflicts after Phase 2 extraction
  * v1.0.6.74 - Phase 2: Extracted state-management.js for dependency resolution
@@ -925,83 +928,6 @@ async function submitMirroredDialog(userChoice) {
   } catch (e) {
     console.error("[Dice Link] Error submitting mirrored dialog:", e);
   }
-}
-
-/**
- * Generate HTML for mirrored dialog UI in our panel
- */
-function generateMirroredDialogHTML(mirrorData) {
-  if (!mirrorData) {
-    return "";
-  }
-  
-  let html = `
-    <div class="dlc-mirrored-dialog">
-      <div class="dlc-dialog-title">${mirrorData.title}</div>
-      <div class="dlc-dialog-content">
-  `;
-  
-  // Show formula if available
-  if (mirrorData.formula) {
-    html += `
-      <div class="dlc-dialog-formula">
-        <span class="dlc-label">Formula</span>
-        <span class="dlc-value">${mirrorData.formula}</span>
-      </div>
-    `;
-  }
-  
-  // Generate input fields for form inputs
-  html += `<div class="dlc-dialog-inputs">`;
-  
-  for (const [name, input] of Object.entries(mirrorData.inputs)) {
-    if (input.type === "checkbox") {
-      html += `
-        <div class="dlc-input-row">
-          <label class="dlc-checkbox-label">
-            <input type="checkbox" name="${name}" ${input.checked ? "checked" : ""}>
-            <span>${name}</span>
-          </label>
-        </div>
-      `;
-    } else if (input.type === "select" || input.options) {
-      html += `
-        <div class="dlc-input-row">
-          <label class="dlc-label">${name}</label>
-          <select name="${name}" class="dlc-select-input">
-      `;
-      if (input.options) {
-        for (const opt of input.options) {
-          html += `<option value="${opt.value}" ${opt.value === input.value ? "selected" : ""}>${opt.label}</option>`;
-        }
-      }
-      html += `</select></div>`;
-    } else {
-      html += `
-        <div class="dlc-input-row">
-          <label class="dlc-label">${name}</label>
-          <input type="text" name="${name}" class="dlc-text-input" value="${input.value}">
-        </div>
-      `;
-    }
-  }
-  
-  html += `</div>`;
-  
-  // Generate buttons
-  html += `<div class="dlc-dialog-buttons">`;
-  for (const btn of mirrorData.buttons) {
-    html += `
-      <button type="button" class="dlc-dialog-btn" data-button="${btn.label}">
-        ${btn.label}
-      </button>
-    `;
-  }
-  html += `</div>`;
-  
-  html += `</div></div>`;
-  
-  return html;
 }
 
 
