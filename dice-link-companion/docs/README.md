@@ -37,9 +37,10 @@ All documents are interconnected with cross-references. When a topic is discusse
 
 ## Version Note
 
-These documents analyze the **v1.0.6.68** codebase. Cleanup changes implemented:
+These documents analyze the **v1.0.6.69** codebase. Cleanup changes implemented:
 - v1.0.6.67: Removed debug console.log statements (4 lines)
 - v1.0.6.68: Removed dead code - DiceLinkResolver class, executeDirectRoll function, pendingRollConfig variable (~171 lines)
+- v1.0.6.69: Documentation update snapshot
 
 If the code is further restructured, these documents should be regenerated to reflect the new architecture.
 

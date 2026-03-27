@@ -1,6 +1,6 @@
 # 08. Extraction Sequence - Order of Operations for Restructure
 
-**Version:** 1.0.6.68 Snapshot  
+**Version:** 1.0.6.69 Snapshot  
 **Purpose:** Define the order in which modules should be extracted/refactored to minimize risk and circular dependency issues  
 **Status:** Complete  
 **Last Updated:** After full code analysis
@@ -57,7 +57,7 @@ export const PANEL_HEIGHT_MAX = 800;
 
 // Module metadata
 export const MODULE_ID = 'dice-link-companion';
-export const MODULE_VERSION = '1.0.6.66';
+export const MODULE_VERSION = '1.0.6.69';
 ```
 
 **Why first:** Every other module will import from this. No circular dependency possible.
@@ -468,13 +468,12 @@ All documents are interconnected with cross-references. When a topic is discusse
 
 ## Version Note
 
-These documents analyze the **v1.0.6.68** codebase (after dead code removal).
+These documents analyze the **v1.0.6.69** codebase.
 
-Cleanup completed in v1.0.6.68:
-- Removed executeDirectRoll function (~52 lines)
-- Removed DiceLinkResolver class (~117 lines)
-- Removed pendingRollConfig variable (~2 lines)
-- Total: ~171 lines of dead code removed
+Cleanup completed in prior versions:
+- v1.0.6.67: Removed debug console.log statements (4 lines)
+- v1.0.6.68: Removed dead code - DiceLinkResolver class (~117 lines), executeDirectRoll function (~52 lines), pendingRollConfig variable (~2 lines)
+- v1.0.6.69: Documentation update snapshot
 
 If the code is restructured, these documents should be regenerated to reflect the new architecture.
 
