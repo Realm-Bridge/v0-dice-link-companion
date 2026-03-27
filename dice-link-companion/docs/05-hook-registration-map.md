@@ -326,4 +326,3 @@ See 07-module-boundary-plan.md - The hook timing requirements here directly info
 See 08-extraction-sequence.md - Hook registration refactoring is Step 5.4 (Phase 5), where main.mjs becomes Tier 9 entry point containing only hook registrations. The 100ms delay and window.diceLink pattern are eliminated by this restructure
 
 See 10-public-api.md - The public API exports (refreshPanel, applyManualDice, etc.) that are currently exposed via window.diceLink will be imported directly instead of populated in the ready hook
-

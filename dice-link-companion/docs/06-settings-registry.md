@@ -254,36 +254,36 @@ Module Load
     v
 init hook fires
     |
-    +---> registerCoreSettings()
+    +--> registerCoreSettings()
     |         |
-    |         +---> game.settings.register("globalOverride")
-    |         +---> game.settings.register("collapsedSections")
-    |         +---> game.settings.register("permissions")
+    |         +--> game.settings.register("globalOverride")
+    |         +--> game.settings.register("collapsedSections")
+    |         +--> game.settings.register("permissions")
     |
     v
 ready hook fires
     |
-    +---> registerPlayerModeSettings()
+    +--> registerPlayerModeSettings()
     |         |
-    |         +---> for each user in game.users:
+    |         +--> for each user in game.users:
     |                   game.settings.register("playerMode_${userId}")
     |
-    +---> [100ms delay] <-- WORKAROUND (see 01-edge-cases.md Section 2)
+    +--> [100ms delay] <-- WORKAROUND (see 01-edge-cases.md Section 2)
     |
-    +---> setupDialogMirroring() <-- QUESTIONED (see 02-simplicity-targets.md Section 3.3)
+    +--> setupDialogMirroring() <-- QUESTIONED (see 02-simplicity-targets.md Section 3.3)
     |         |
-    |         +---> isUserInManualMode() called
+    |         +--> isUserInManualMode() called
     |                   |
-    |                   +---> getGlobalOverride()
-    |                   +---> getPlayerMode() if "individual"
+    |                   +--> getGlobalOverride()
+    |                   +--> getPlayerMode() if "individual"
     |
     v
 Panel renders
     |
-    +---> getCollapsedSections()
-    +---> getGlobalOverride()
-    +---> getPlayerMode() for each user (GM panel)
-    +---> getPermissions()
+    +--> getCollapsedSections()
+    +--> getGlobalOverride()
+    +--> getPlayerMode() for each user (GM panel)
+    +--> getPermissions()
 ```
 
 **Key Timing Constraint:**
