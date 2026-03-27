@@ -1,13 +1,13 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.59
+ * Version 1.0.6.60
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  * 
  * LAST KNOWN GOOD VERSION: 1.0.6.53 - Stable after failed UI extraction
  * 
- * v1.0.6.59 - Fixed duplicate let declarations (pendingDiceEntry, diceEntryCancelled)
+ * v1.0.6.60 - Fixed initialization order: registerPlayerModeSettings moved to ready hook
  */
 
 import { 
@@ -2177,16 +2177,11 @@ let pendingRollConfig = null;
 // ============================================================================
 
 /**
- * Initialize the module - register UI, hooks, and settings
+ * Initialize the module - register core settings and hooks
  */
 Hooks.once("init", async () => {
-  // Register settings
+  // Register core settings (world-scoped, available immediately)
   registerCoreSettings();
-  
-  registerPlayerModeSettings();
-  
-  // Setup socket listeners
-  setupSocketListeners();
 });
 
 /**
@@ -2194,6 +2189,13 @@ Hooks.once("init", async () => {
  */
 Hooks.once("ready", async () => {
   try {
+    // Register per-user settings now that users are loaded
+    registerPlayerModeSettings();
+    
+    // Setup socket listeners
+    setupSocketListeners();
+    
+    // Setup UI and handlers
     setupChatButtonHandlers();
     setupDialogMirroring();
     setupDiceFulfillment();
