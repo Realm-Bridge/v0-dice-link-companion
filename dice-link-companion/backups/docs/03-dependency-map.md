@@ -228,3 +228,7 @@ Player requests manual mode
 - See 01-edge-cases.md for dialog detection edge cases
 - See 02-simplicity-targets.md for redundancy and dead code
 - See 04-state-variables-inventory.md for detailed state analysis
+- See 07-module-boundary-plan.md - The dependency map here directly informed the tier-based module structure:
+  - Independent modules (settings, dice-parsing) become Tier 1-2
+  - Dependent modules (socket, dialog-mirroring) become higher tiers
+  - window.diceLink issues are addressed by the tier system preventing circular imports

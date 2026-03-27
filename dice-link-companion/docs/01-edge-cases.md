@@ -150,3 +150,12 @@
 3. Approval workflow handles edge cases
 4. Role-based permissions functional and safe
 5. Dice fulfillment system is reliable
+
+---
+
+## Cross-Reference to Module Boundary Plan
+
+See 07-module-boundary-plan.md - The edge cases documented here directly inform module boundaries:
+- Dialog detection patterns define dialog-mirroring.js scope
+- State management issues inform the proposed state.js module
+- Timing workarounds inform the initialization sequence in main.mjs

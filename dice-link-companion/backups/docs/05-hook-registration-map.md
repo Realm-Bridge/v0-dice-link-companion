@@ -314,3 +314,12 @@ These hooks create implicit dependencies between modules:
 4. **Verify socket handler:** Cross-client messages received and processed
 5. **Verify window.diceLink:** All properties exist and callable
 
+---
+
+## Cross-Reference to Module Boundary Plan
+
+See 07-module-boundary-plan.md - The hook timing requirements here directly informed the proposed main.mjs restructure:
+- main.mjs becomes Tier 9 (entry point only) containing just hook registrations
+- The 100ms delay and window.diceLink population are eliminated by proper tier system
+- Hook registration logic stays in main.mjs, but execution code moves to appropriate tier modules
+

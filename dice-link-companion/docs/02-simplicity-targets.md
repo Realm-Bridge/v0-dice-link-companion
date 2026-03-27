@@ -184,3 +184,8 @@ This document identifies code that can be simplified, removed, or consolidated d
 - See 01-edge-cases.md for fragility details on dialog detection
 - See 03-dependency-map.md for window.diceLink dependency flow
 - See 04-state-variables-inventory.md for mirroredDialog/pendingRollRequest analysis
+- See 07-module-boundary-plan.md - The simplicity targets here directly inform the proposed module structure:
+  - Dead code removal happens before restructure
+  - Redundant code consolidation creates constants.js
+  - Video feed extraction creates video-feed.js
+  - Dialog mirroring evaluation determines if that module stays or goes

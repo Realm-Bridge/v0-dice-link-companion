@@ -502,3 +502,13 @@ export function getPlayerMode(userId) {
 | permissions | world | init | None |
 
 **Key architectural debt:** Timing workarounds (100ms delay, defensive try-catch) mask underlying issues that should be fixed during restructure.
+
+---
+
+## Cross-Reference to Module Boundary Plan
+
+See 07-module-boundary-plan.md - The settings analysis here directly informed the proposed restructure:
+- constants.js (Tier 1) will hold SETTING_DEFAULTS as single source of truth
+- settings.js (Tier 2) refactored to import defaults from constants.js
+- Late-joiner hook recommendation implemented in main.mjs restructure
+- window.diceLink pattern eliminated by proper tier system preventing circular imports
