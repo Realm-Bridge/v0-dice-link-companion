@@ -15,7 +15,7 @@
     }
   ],
   "url": "https://github.com/Realm-Bridge/v0-dice-link-companion",
-  "manifest": "https://raw.githubusercontent.com/Realm-Bridge/v0-dice-link-companion/main/module.json",
+  "manifest": "https://raw.githubusercontent.com/Realm-Bridge/v0-dice-link-companion/main/dice-link-companion/module.json",
   "download": "https://github.com/Realm-Bridge/v0-dice-link-companion/archive/refs/heads/main.zip",
   "esmodules": ["scripts/main.mjs"],
   "styles": ["styles/main.css"],
