@@ -6,7 +6,22 @@
 
 import { getPlayerMode, getGlobalOverride } from "./settings.js";
 
+// Mirrored dialog reference - shared with main.mjs
 let mirroredDialog = null;
+
+/**
+ * Get the currently mirrored dialog
+ */
+export function getMirroredDialog() {
+  return mirroredDialog;
+}
+
+/**
+ * Set the currently mirrored dialog
+ */
+export function setMirroredDialog(dialog) {
+  mirroredDialog = dialog;
+}
 
 /**
  * Setup dialog mirroring - hook into ApplicationV2 and Dialog renders

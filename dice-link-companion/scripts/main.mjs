@@ -1,14 +1,16 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.63
+ * Version 1.0.6.64
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  * 
  * LAST KNOWN GOOD VERSION: 1.0.6.53 - Stable after failed UI extraction
  * 
- * v1.0.6.63 - Fixed mirroredDialog not defined error:
- * - Added missing `let mirroredDialog = null;` declaration
+ * v1.0.6.64 - Fixed mirroredDialog scope and collapsedSections issues:
+ * - Removed duplicate mirroredDialog variable shadowing in dialog-mirroring.js
+ * - Added getter/setter functions to share mirroredDialog state
+ * - Fixed collapsedSections to merge with defaults, ensuring videoFeed stays collapsed
  */
 
 import { 
@@ -45,7 +47,9 @@ import {
 } from "./mode-application.js";
 
 import {
-  setupDialogMirroring
+  setupDialogMirroring,
+  getMirroredDialog,
+  setMirroredDialog
 } from "./dialog-mirroring.js";
 
 import {
@@ -65,9 +69,6 @@ let pendingRollRequest = null;
 
 // Track the currently open panel dialog
 let currentPanelDialog = null;
-
-// Track the mirrored dialog reference for submitMirroredDialog
-let mirroredDialog = null;
 
 // Dice entry state
 let pendingDiceEntry = null;
@@ -1344,12 +1345,12 @@ function mirrorDialogToPanel(app, html, data) {
     }
     
     // Store the dialog reference and data
-    mirroredDialog = {
+    setMirroredDialog({
       app,
       html,
       data: formData,
       timestamp: Date.now()
-    };
+    });
     
     // Update our panel to show the mirrored dialog UI
     updatePanelWithMirroredDialog(formData);
@@ -1438,12 +1439,12 @@ function updatePanelWithMirroredDialog(formData, app, html) {
   pendingRollRequest = null;
   
   // Store the mirrored dialog reference for submitMirroredDialog to use
-  mirroredDialog = {
+  setMirroredDialog({
     app,
     html,
     data: formData,
     timestamp: Date.now()
-  };
+  });
   
   // Create new pending roll request with mirrored dialog data
   pendingRollRequest = {
@@ -1455,10 +1456,11 @@ function updatePanelWithMirroredDialog(formData, app, html) {
     onComplete: async (userChoice) => {
       if (userChoice === "cancel") {
         // Close the native dialog
-        if (mirroredDialog?.app) {
-          mirroredDialog.app.close();
+        const dialogRef = getMirroredDialog();
+        if (dialogRef?.app) {
+          dialogRef.app.close();
         }
-        mirroredDialog = null;
+        setMirroredDialog(null);
         pendingRollRequest = null;
         refreshPanel();
         return;
@@ -1467,7 +1469,7 @@ function updatePanelWithMirroredDialog(formData, app, html) {
       // Apply user choices to the hidden dialog and submit it
       await submitMirroredDialog(userChoice);
       
-      mirroredDialog = null;
+      setMirroredDialog(null);
       pendingRollRequest = null;
       refreshPanel();
     }
@@ -1488,12 +1490,13 @@ function updatePanelWithMirroredDialog(formData, app, html) {
  * Apply user choices to the mirrored dialog and submit it
  */
 async function submitMirroredDialog(userChoice) {
-  if (!mirroredDialog) {
+  const dialogRef = getMirroredDialog();
+  if (!dialogRef) {
     console.error("[Dice Link] No mirrored dialog to submit");
     return;
   }
   
-  const { app, html, data: formData } = mirroredDialog;
+  const { app, html, data: formData } = dialogRef;
   
   // Normalize html to a DOM element
   let element;
