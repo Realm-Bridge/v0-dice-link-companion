@@ -32,17 +32,26 @@ export function registerCoreSettings() {
  * This runs after users are loaded so we can iterate over them.
  */
 export function registerPlayerModeSettings() {
+  console.log("[v0] registerPlayerModeSettings called, users:", game.users?.size);
   for (const user of game.users) {
     const key = `playerMode_${user.id}`;
-    if (!game.settings.settings.has(`${MODULE_ID}.${key}`)) {
-      game.settings.register(MODULE_ID, key, {
-        scope: "world",
-        config: false,
-        type: String,
-        default: "digital"
-      });
+    const fullKey = `${MODULE_ID}.${key}`;
+    console.log("[v0] Checking setting:", fullKey, "exists:", game.settings.settings.has(fullKey));
+    if (!game.settings.settings.has(fullKey)) {
+      try {
+        game.settings.register(MODULE_ID, key, {
+          scope: "world",
+          config: false,
+          type: String,
+          default: "digital"
+        });
+        console.log("[v0] Registered setting:", fullKey);
+      } catch (e) {
+        console.error("[v0] Failed to register setting:", fullKey, e);
+      }
     }
   }
+  console.log("[v0] registerPlayerModeSettings complete");
 }
 
 /**
@@ -68,7 +77,18 @@ export async function setSetting(key, value) {
  * @returns {string} "manual" or "digital"
  */
 export function getPlayerMode(userId = game.user.id) {
-  return getSetting(`playerMode_${userId}`) || "digital";
+  const key = `playerMode_${userId}`;
+  // Check if setting exists before trying to get it
+  if (!game.settings.settings.has(`${MODULE_ID}.${key}`)) {
+    // Setting not registered yet, return default
+    return "digital";
+  }
+  try {
+    return getSetting(key) || "digital";
+  } catch (e) {
+    // Fallback if setting somehow fails
+    return "digital";
+  }
 }
 
 /**
