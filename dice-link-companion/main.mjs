@@ -1,12 +1,13 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.75
+ * Version 1.0.6.76
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  * 
  * LAST KNOWN GOOD VERSION: 1.0.6.53 - Stable after failed UI extraction
  * 
+ * v1.0.6.76 - Fixed: Restored local state variables (state-management.js for external modules only)
  * v1.0.6.75 - Fixed: Resolved import conflicts after Phase 2 extraction
  * v1.0.6.74 - Phase 2: Extracted state-management.js for dependency resolution
  * v1.0.6.73 - Phase 1: Extracted constants.js and types.js for foundation setup
@@ -82,6 +83,36 @@ import {
 const REALM_BRIDGE_URL = "https://realmbridge.co.uk";
 const LOGO_URL = "modules/dice-link-companion/assets/logo-header.png";
 const LOGO_SQUARE_URL = "modules/dice-link-companion/assets/logo-square.png";
+
+// ============================================================================
+// LOCAL STATE VARIABLES
+// These are used directly throughout main.mjs for performance.
+// State-management.js provides the centralized getters/setters for external modules.
+// ============================================================================
+
+// Track if player has already requested this session
+let hasRequestedThisSession = false;
+
+// Track any pending intercepted roll request
+let pendingRollRequest = null;
+
+// Track the currently open panel dialog
+let currentPanelDialog = null;
+
+// Dice entry state
+let pendingDiceEntry = null;
+let diceEntryCancelled = false;
+
+// Collapsed sections state - will be loaded from settings during ready hook
+let collapsedSections = {
+  rollRequest: false,
+  globalOverride: true,
+  playerModes: true,
+  permissions: true,
+  videoFeed: true,
+  pending: false,
+  topRow: false
+};
 
 // ============================================================================
 // PERMISSIONS HELPERS
