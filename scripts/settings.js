@@ -3,8 +3,6 @@
  * Handles all game.settings registration
  */
 
-import { info, error } from './logger.js';
-
 export const MODULE_ID = "dice-link-companion";
 
 /**
@@ -50,11 +48,11 @@ export function registerCoreSettings() {
  * This runs after users are loaded so we can iterate over them.
  */
 export function registerPlayerModeSettings() {
-  info("registerPlayerModeSettings called, users:", game.users?.size);
+  console.log("[v0] registerPlayerModeSettings called, users:", game.users?.size);
   for (const user of game.users) {
     const key = `playerMode_${user.id}`;
     const fullKey = `${MODULE_ID}.${key}`;
-    info("Checking setting:", fullKey, "exists:", game.settings.settings.has(fullKey));
+    console.log("[v0] Checking setting:", fullKey, "exists:", game.settings.settings.has(fullKey));
     if (!game.settings.settings.has(fullKey)) {
       try {
         game.settings.register(MODULE_ID, key, {
@@ -63,13 +61,13 @@ export function registerPlayerModeSettings() {
           type: String,
           default: "digital"
         });
-        info("Registered setting:", fullKey);
+        console.log("[v0] Registered setting:", fullKey);
       } catch (e) {
-        error("Failed to register setting:", fullKey, e);
+        console.error("[v0] Failed to register setting:", fullKey, e);
       }
     }
   }
-  info("registerPlayerModeSettings complete");
+  console.log("[v0] registerPlayerModeSettings complete");
 }
 
 /**
