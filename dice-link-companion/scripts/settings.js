@@ -153,7 +153,7 @@ export async function setPendingRequests(requests) {
  * @returns {Object} Current collapsed sections state
  */
 export function getCollapsedSections() {
-  return getSetting("collapsedSections") || {
+  const defaults = {
     rollRequest: false,
     globalOverride: true,
     playerModes: true,
@@ -162,6 +162,12 @@ export function getCollapsedSections() {
     pending: false,
     topRow: false
   };
+  
+  const saved = getSetting("collapsedSections");
+  if (!saved) return defaults;
+  
+  // Merge with defaults to ensure all keys exist
+  return { ...defaults, ...saved };
 }
 
 /**
