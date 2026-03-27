@@ -1,13 +1,13 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.56
+ * Version 1.0.6.57
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  * 
  * LAST KNOWN GOOD VERSION: 1.0.6.53 - Stable after failed UI extraction
  * 
- * v1.0.6.56 - Fixed syntax error (duplicate closing brace at line 1517)
+ * v1.0.6.57 - Fixed duplicate initialization hooks and orphaned code
  */
 
 import { 
@@ -1170,52 +1170,8 @@ Hooks.on("getSceneControlButtons", (controls) => {
 });
 
 // ============================================================================
-// INITIALIZATION
+// INITIALIZATION - Moved to end of file for complete setup
 // ============================================================================
-
-Hooks.once("init", () => {
-  registerCoreSettings();
-});
-
-Hooks.once("ready", () => {
-  // Register per-user player mode settings
-  registerPlayerModeSettings();
-
-  // Setup all listeners and interception
-  setupSocketListeners();
-  setupChatButtonHandlers();
-  setupDiceFulfillment();  // Register as a dice fulfillment method
-  setupDialogMirroring(); // Mirror native dialogs to our panel (v1.0.6.0)
-
-  // Expose refreshPanel and other core functions on global namespace for modules to use
-  window.diceLink = window.diceLink || {};
-  window.diceLink.refreshPanel = refreshPanel;
-  window.diceLink.applyManualDice = applyManualDice;
-  window.diceLink.applyDigitalDice = applyDigitalDice;
-  window.diceLink.isUserInManualMode = isUserInManualMode;
-  window.diceLink.playerRequestManual = playerRequestManual;
-  window.diceLink.playerSwitchToDigital = playerSwitchToDigital;
-  window.diceLink.getPlayerMode = getPlayerMode;
-  window.diceLink.getGlobalOverride = getGlobalOverride;
-  window.diceLink.updatePanelWithMirroredDialog = updatePanelWithMirroredDialog;
-
-  // Apply initial dice mode based on settings
-  const globalOverride = getGlobalOverride();
-  
-  if (globalOverride === "forceAllManual") {
-    applyManualDice();
-  } else if (globalOverride === "forceAllDigital") {
-    applyDigitalDice();
-  } else {
-    const myMode = getPlayerMode();
-    if (myMode === "manual") {
-      applyManualDice();
-    } else {
-      // IMPORTANT: Also apply digital dice settings on startup to clear any manual fulfillment
-      applyDigitalDice();
-    }
-  }
-});
 
 // ============================================================================
 // DIALOG MIRRORING SYSTEM - v1.0.6.0 Architecture
