@@ -1,6 +1,6 @@
 # 10. Public API - Module Exports & External Interfaces
 
-**Version:** 1.0.6.66 Snapshot  
+**Version:** 1.0.6.68 Snapshot  
 **Purpose:** Catalog all exported functions and global API surface for the Dice Link Companion module  
 **Status:** Complete  
 **Last Updated:** After full API analysis

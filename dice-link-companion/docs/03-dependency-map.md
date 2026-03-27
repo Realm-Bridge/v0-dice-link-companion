@@ -1,6 +1,6 @@
 # Dependency Map - Dice Link Companion
 
-**Version: 1.0.6.66 Snapshot**
+**Version: 1.0.6.68 Snapshot**
 **Note:** This document maps dependencies in v1.0.6.66. When we restructure the code, regenerate this documentation using the same analysis process to reflect the new architecture.
 
 ---
@@ -9,7 +9,7 @@
 
 ### Files and Their Exports
 
-**main.mjs** (2266 lines) - Core module, entry point
+**main.mjs** (~2095 lines - was 2266, removed ~171 lines of dead code) - Core module, entry point
 - No exports (self-contained)
 - Registers all Foundry hooks
 - Defines all UI generation

@@ -1,6 +1,6 @@
 # Simplicity Targets - Dice Link Companion
 
-**Version: 1.0.6.67 Snapshot**
+**Version: 1.0.6.68 Snapshot**
 **Note:** This document analyzes simplicity targets in v1.0.6.66. When we restructure the code, regenerate this documentation using the same analysis process to reflect the new architecture.
 
 ---
@@ -16,16 +16,19 @@ This document identifies code that can be simplified, removed, or consolidated d
 **Location:** `main.mjs` - `DiceLinkResolver` class definition
 **Issue:** Class is defined (~115 lines) but never instantiated anywhere
 **Action:** DELETE - No callers, no references
+**Status:** COMPLETED in v1.0.6.68 - Removed unused class
 
 ### 1.2 executeDirectRoll Function
 **Location:** `main.mjs` - `executeDirectRoll()` function
 **Issue:** Function exists (~50 lines) but is never called
 **Action:** DELETE - Dead code from previous architecture
+**Status:** COMPLETED in v1.0.6.68 - Removed unused function
 
 ### 1.3 pendingRollConfig Variable
 **Location:** `main.mjs` - state variable declarations at top
 **Issue:** Declared but never used anywhere in codebase
 **Action:** DELETE - Orphaned variable
+**Status:** COMPLETED in v1.0.6.68 - Removed unused variable
 
 ### 1.4 Debug Console.log Statements
 **Location:** `settings.js` - in `registerPlayerModeSettings()`
@@ -166,9 +169,9 @@ This document identifies code that can be simplified, removed, or consolidated d
 
 | Category | Item | Est. Lines Saved | Priority |
 |----------|------|------------------|----------|
-| Dead Code | DiceLinkResolver class | ~115 | HIGH |
-| Dead Code | executeDirectRoll function | ~50 | HIGH |
-| Dead Code | pendingRollConfig variable | ~5 | HIGH |
+| Dead Code | DiceLinkResolver class | ~115 | DONE (v1.0.6.68) |
+| Dead Code | executeDirectRoll function | ~50 | DONE (v1.0.6.68) |
+| Dead Code | pendingRollConfig variable | ~5 | DONE (v1.0.6.68) |
 | Dead Code | Debug console.logs | ~10 | DONE (v1.0.6.67) |
 | Redundant | Dice types array (4x) | ~20 | MEDIUM |
 | Redundant | Element normalization (2x) | ~15 | MEDIUM |
