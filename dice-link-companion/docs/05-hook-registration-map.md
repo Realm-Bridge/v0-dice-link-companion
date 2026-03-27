@@ -84,6 +84,8 @@ Foundry hooks are the lifecycle events that trigger DLC functionality. This docu
 
 **Redundancy note:** See 01-edge-cases.md Section 1 - may be unnecessary for Foundry v13+
 
+**Cross-reference:** See 02-simplicity-targets.md Section 3.3 - Questions if all four render hooks are redundant
+
 ---
 
 ### Hooks.on("renderDialog") - Dialog Capture (Hook 2 of 4)
@@ -93,6 +95,8 @@ Foundry hooks are the lifecycle events that trigger DLC functionality. This docu
 **Calls:** Same flow as renderApplication hook
 
 **Redundancy note:** See 01-edge-cases.md Section 1 - may be unnecessary for Foundry v13+
+
+**Cross-reference:** See 02-simplicity-targets.md Section 3.3 - Part of the four-hook redundancy question
 
 ---
 
@@ -104,6 +108,8 @@ Foundry hooks are the lifecycle events that trigger DLC functionality. This docu
 
 **Why kept:** Specific targeting for dnd5e modules
 
+**Cross-reference:** See 02-simplicity-targets.md Section 3.3 - Part of the four-hook redundancy question
+
 ---
 
 ### Hooks.on("renderApplicationV2") - Dialog Capture (Hook 4 of 4)
@@ -113,6 +119,8 @@ Foundry hooks are the lifecycle events that trigger DLC functionality. This docu
 **Calls:** Same flow as renderApplication hook
 
 **Likely primary:** Probably the only one needed for Foundry v13+
+
+**Cross-reference:** See 02-simplicity-targets.md Section 3.3 - Questions whether the entire dialog mirroring system is necessary. Also see 03-dependency-map.md "Dialog Mirroring Flow" section for the complete flow and architectural concerns.
 
 ---
 
