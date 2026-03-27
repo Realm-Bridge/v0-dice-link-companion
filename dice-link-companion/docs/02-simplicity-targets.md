@@ -1,7 +1,7 @@
 # Simplicity Targets - Dice Link Companion
 
-**Version: 1.0.6.68 Snapshot**
-**Note:** This document analyzes simplicity targets in v1.0.6.66. When we restructure the code, regenerate this documentation using the same analysis process to reflect the new architecture.
+**Version: 1.0.6.69 Snapshot**
+**Note:** This document analyzes simplicity targets in v1.0.6.69. When we restructure the code, regenerate this documentation using the same analysis process to reflect the new architecture.
 
 ---
 

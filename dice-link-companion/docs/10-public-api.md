@@ -1,6 +1,6 @@
 # 10. Public API - Module Exports & External Interfaces
 
-**Version:** 1.0.6.68 Snapshot  
+**Version:** 1.0.6.69 Snapshot  
 **Purpose:** Catalog all exported functions and global API surface for the Dice Link Companion module  
 **Status:** Complete  
 **Last Updated:** After full API analysis
@@ -329,7 +329,7 @@ Creates approval/denial messages and handles approval button clicks.
 
 ## Access Patterns
 
-### Current Pattern (v1.0.6.66)
+### Current Pattern (v1.0.6.69)
 
 **Within main.mjs and dialog-mirroring.js:**
 ```javascript
