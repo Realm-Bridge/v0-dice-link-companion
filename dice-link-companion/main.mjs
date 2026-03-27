@@ -1,19 +1,24 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.72
+ * Version 1.0.6.73
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  * 
  * LAST KNOWN GOOD VERSION: 1.0.6.53 - Stable after failed UI extraction
  * 
+ * v1.0.6.73 - Phase 1: Extracted constants.js and types.js for foundation setup
  * v1.0.6.72 - Optimized: Reduced async operation delays from 100ms to 40ms, unified into single constant
  * v1.0.6.71 - Fixed: Restored updatePanelWithMirroredDialog (was needed, not duplicate)
  * v1.0.6.70 - Removed duplicate dialog mirroring functions that were dead code (~289 lines)
  */
 
 import { 
-  MODULE_ID, 
+  MODULE_ID,
+  ASYNC_OPERATION_DELAY_MS
+} from "./constants.js";
+
+import { 
   registerCoreSettings, 
   registerPlayerModeSettings,
   getSetting,
@@ -28,9 +33,6 @@ import {
   getCollapsedSections,
   setCollapsedSections
 } from "./settings.js";
-
-// Timing constants
-const ASYNC_OPERATION_DELAY_MS = 40; // Delay for async operations to complete (mirroring, settings registration)
 
 import { 
   createApprovalChatMessage,
