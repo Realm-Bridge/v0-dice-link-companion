@@ -1,6 +1,6 @@
 # 01 - Edge Cases Documentation
-**Version: 1.0.6.69 Snapshot**  
-**Note:** This document analyzes edge cases in v1.0.6.69. Line numbers reference that version only and will change during restructuring. During implementation, refer to function names and section headers instead.
+**Version: 1.0.6.72 Snapshot**  
+**Note:** This document analyzes edge cases in v1.0.6.72. Line numbers reference that version only and will change during restructuring. During implementation, refer to function names and section headers instead.
 
 ---
 
@@ -27,11 +27,11 @@
 
 ### Edge Cases Handled
 - **Early settings access** - Defensive getPlayerMode() checks setting exists, returns "digital" fallback
-- **Initialization timing** - 100ms delay after registerPlayerModeSettings() before dialog hooks fire
+- **Initialization timing** - 40ms delay after registerPlayerModeSettings() before dialog hooks fire (optimized from 100ms in v1.0.6.72)
 - **Defensive getCollapsedSections()** - Merges saved state with defaults to ensure all keys exist
 
 ### Findings
-- ⚠️ **WORKAROUND**: 100ms delay is band-aid for initialization order (documented as WORKAROUND)
+- ✅ **INVESTIGATED (v1.0.6.72)**: 40ms delay is required for async settings registration. Reduced from 100ms for performance. Related to dialog mirroring timing which is also essential (see Section 3 below).
 - ⚠️ **SCATTERED DEFENSIVE CODE**: Multiple defensive checks suggest original architecture didn't properly sequence initialization
 - ✅ **WORKING**: Defensive fallbacks prevent crashes
 

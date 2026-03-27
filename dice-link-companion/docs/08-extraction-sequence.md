@@ -1,6 +1,6 @@
 # 08. Extraction Sequence - Order of Operations for Restructure
 
-**Version:** 1.0.6.69 Snapshot  
+**Version:** 1.0.6.72 Snapshot  
 **Purpose:** Define the order in which modules should be extracted/refactored to minimize risk and circular dependency issues  
 **Status:** Complete  
 **Last Updated:** After full code analysis
@@ -368,8 +368,8 @@ import { initializeLogger } from './logger.js';
 
 **Content:** Only Hooks.once() and Hooks.on() calls that register other modules' functions
 
-**Benefit:** Eliminates 100ms delay (no need - all modules loaded before hooks fire)  
-**Benefit:** Eliminates window.diceLink (direct imports work)  
+> **Benefit:** Async delays optimized to 40ms constant (investigated v1.0.6.72 - both delays are necessary for initialization and dialog mirroring)
+  **Benefit:** Eliminates window.diceLink (direct imports work)
 **Benefit:** Eliminates ~400 lines of logic from main.mjs
 
 **Testing:** Module loads, all functionality works
@@ -415,7 +415,7 @@ import { initializeLogger } from './logger.js';
 ✅ All 9 tiers extracted into separate files  
 ✅ main.mjs reduced to ~150 lines (hook registrations only)  
 ✅ Zero circular dependencies  
-✅ 100ms delay removed  
+✅ Async delays optimized to 40ms constant (investigated v1.0.6.72, both necessary for initialization and dialog button processing)
 ✅ window.diceLink pattern eliminated  
 ✅ All tests pass  
 ✅ All features functional
@@ -468,12 +468,15 @@ All documents are interconnected with cross-references. When a topic is discusse
 
 ## Version Note
 
-These documents analyze the **v1.0.6.69** codebase.
+These documents analyze the **v1.0.6.72** codebase.
 
-Cleanup completed in prior versions:
+Cleanup completed:
 - v1.0.6.67: Removed debug console.log statements (4 lines)
 - v1.0.6.68: Removed dead code - DiceLinkResolver class (~117 lines), executeDirectRoll function (~52 lines), pendingRollConfig variable (~2 lines)
-- v1.0.6.69: Documentation update snapshot
+- v1.0.6.69: Refactored to use Foundry's CONFIG.Dice.terms dynamically instead of hardcoded arrays
+- v1.0.6.70: Removed duplicate dialog mirroring functions (~289 lines)
+- v1.0.6.71: Fixed - Restored updatePanelWithMirroredDialog (was needed, not duplicate)
+- v1.0.6.72: Optimized async operation delays from 100ms to 40ms, unified into single constant (both delays investigated and confirmed necessary)
 
 If the code is restructured, these documents should be regenerated to reflect the new architecture.
 

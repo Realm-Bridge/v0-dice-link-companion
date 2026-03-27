@@ -1,7 +1,7 @@
 # Simplicity Targets - Dice Link Companion
 
-**Version: 1.0.6.69 Snapshot**
-**Note:** This document analyzes simplicity targets in v1.0.6.69. When we restructure the code, regenerate this documentation using the same analysis process to reflect the new architecture.
+**Version: 1.0.6.72 Snapshot**
+**Note:** This document analyzes simplicity targets in v1.0.6.72. When we restructure the code, regenerate this documentation using the same analysis process to reflect the new architecture.
 
 ---
 
@@ -97,10 +97,8 @@ This document identifies code that can be simplified, removed, or consolidated d
 ### 3.3 Dialog Mirroring System
 **Location:** `dialog-mirroring.js` entire file + related functions in `main.mjs`
 **Issue:** Complex system to intercept, hide, and mirror native dialogs
-**Question:** Is this necessary? Could we instead:
-- Let native dialog show and just read its values?
-- Use a simpler approach for manual mode?
-**Action:** EVALUATE during restructure - may be able to simplify significantly
+**Investigation (v1.0.6.72):** REQUIRED - Native dialogs must remain hidden from players. Full mirroring system is necessary to capture, extract data, and present through our custom UI. Cannot be simplified.
+**Decision:** KEEP - Mirroring is essential functionality. Focus future work on optimizing performance, not removing it.
 
 ### 3.4 Video Feed Placeholder
 **Locations:**

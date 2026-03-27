@@ -37,10 +37,13 @@ All documents are interconnected with cross-references. When a topic is discusse
 
 ## Version Note
 
-These documents analyze the **v1.0.6.69** codebase. Cleanup changes implemented:
+These documents analyze the **v1.0.6.72** codebase. Cleanup changes implemented:
 - v1.0.6.67: Removed debug console.log statements (4 lines)
 - v1.0.6.68: Removed dead code - DiceLinkResolver class, executeDirectRoll function, pendingRollConfig variable (~171 lines)
-- v1.0.6.69: Documentation update snapshot
+- v1.0.6.69: Refactored to use Foundry's CONFIG.Dice.terms dynamically instead of hardcoded arrays
+- v1.0.6.70: Removed duplicate dialog mirroring functions (~289 lines)
+- v1.0.6.71: Fixed - Restored updatePanelWithMirroredDialog (was needed, not duplicate)
+- v1.0.6.72: Optimized async operation delays from 100ms to 40ms, unified into single constant
 
 If the code is further restructured, these documents should be regenerated to reflect the new architecture.
 
