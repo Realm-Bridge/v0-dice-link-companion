@@ -1,13 +1,13 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.68
+ * Version 1.0.6.69
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  * 
  * LAST KNOWN GOOD VERSION: 1.0.6.53 - Stable after failed UI extraction
  * 
- * v1.0.6.68 - Removed dead code: executeDirectRoll, DiceLinkResolver class, pendingRollConfig
+ * v1.0.6.69 - Refactored to use Foundry's CONFIG.Dice.terms dynamically instead of hardcoded arrays
  */
 
 import { 
@@ -1961,7 +1961,12 @@ function showDiceEntryUI(denomination, faces, dieNumber, totalDice) {
  * Called when user is set to manual mode.
  */
 function applyDiceLinkFulfillment() {
-  const diceTypes = ["d4", "d6", "d8", "d10", "d12", "d20", "d100"];
+  // Dynamically get available dice types from Foundry's configuration
+  // This adapts to any custom dice Foundry supports (d4, d6, d8, d10, d12, d20, d100, etc.)
+  const diceTypes = Object.keys(CONFIG.Dice.terms).filter(term => {
+    // Filter to only dice terms (matches d4, d6, d8, d10, etc.)
+    return /^d\d+$/.test(term) && CONFIG.Dice.terms[term];
+  });
   
   for (const die of diceTypes) {
     CONFIG.Dice.fulfillment.dice[die] = "dice-link";
@@ -1975,7 +1980,12 @@ function applyDiceLinkFulfillment() {
  * Called when user is set to digital mode.
  */
 function removeDiceLinkFulfillment() {
-  const diceTypes = ["d4", "d6", "d8", "d10", "d12", "d20", "d100"];
+  // Dynamically get available dice types from Foundry's configuration
+  // This adapts to any custom dice Foundry supports
+  const diceTypes = Object.keys(CONFIG.Dice.terms).filter(term => {
+    // Filter to only dice terms (matches d4, d6, d8, d10, etc.)
+    return /^d\d+$/.test(term) && CONFIG.Dice.terms[term];
+  });
   
   for (const die of diceTypes) {
     CONFIG.Dice.fulfillment.dice[die] = "";
