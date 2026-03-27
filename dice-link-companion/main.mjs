@@ -1,18 +1,18 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.82
+ * Version 1.0.6.83
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  * 
  * LAST KNOWN GOOD VERSION: 1.0.6.53 - Stable after failed UI extraction
  * 
+ * v1.0.6.83 - Phase 3 IN PROGRESS: Created ui-templates.js, added import (generate functions removal deferred)
  * v1.0.6.82 - Phase 3 START: Extracted ui-templates.js with all 6 generate functions (615 lines)
  * v1.0.6.81 - Phase 2 COMPLETE: Fixed remaining pendingRollRequest button handler references
- * v1.0.6.80 - Fixed: Removed undefined collapsedSections assignment in ready hook (module load failure)
- * v1.0.6.79 - Created debug.js module for centralized logging (flip DEBUG_ENABLED to disable all logging)
- * v1.0.6.78 - Fixed: Added debug logging to openPanel to trace execution
- * v1.0.6.77 - Phase 2 COMPLETE: Full modularization of state (70+ references updated to use state-management.js)
+ * v1.0.6.74 - Phase 2: Extracted state-management.js for dependency resolution
+ * v1.0.6.73 - Phase 1: Extracted constants.js and types.js for foundation setup
+ * v1.0.6.72 - Optimized: Reduced async operation delays from 100ms to 40ms, unified into single constant
  * v1.0.6.71 - Fixed: Restored updatePanelWithMirroredDialog (was needed, not duplicate)
  * v1.0.6.70 - Removed duplicate dialog mirroring functions that were dead code (~289 lines)
  */
@@ -235,10 +235,49 @@ class DiceLinkCompanionApp extends ApplicationV2 {
   }
 }
 
-/**
- * Custom RollResolver that integrates with our Dice Link panel.
- * This resolver shows our UI instead of Foundry's default manual entry dialog.
- */ 
+// ============================================================================
+// ROLL REQUEST SECTION
+// ============================================================================
+
+function generateDiceTrayHTML() {
+  return `
+    <div class="dlc-dice-tray">
+      <div class="dlc-dice-formula-row">
+        <input type="text" class="dlc-dice-formula-input" placeholder="/r 1d20" value="/r ">
+      </div>
+      <div class="dlc-dice-buttons-row">
+        ${[4, 6, 8, 10, 12, 20, 100].map(die => `
+          <button type="button" class="dlc-dice-btn" data-die="${die}" title="d${die}">
+            <span class="dlc-die-icon">d${die}</span>
+            <span class="dlc-die-count" style="display:none;">0</span>
+          </button>
+        `).join('')}
+      </div>
+      <div class="dlc-dice-controls-row">
+        <button type="button" class="dlc-dice-mod-btn dlc-dice-minus" title="Decrease modifier">−</button>
+        <span class="dlc-dice-modifier">0</span>
+        <button type="button" class="dlc-dice-mod-btn dlc-dice-plus" title="Increase modifier">+</button>
+        <button type="button" class="dlc-dice-adv-btn" data-mode="normal" title="Toggle Advantage/Disadvantage">ADV/DIS</button>
+        <button type="button" class="dlc-dice-roll-btn dlc-btn-success" title="Roll dice">Roll</button>
+      </div>
+    </div>
+  `;
+}
+
+function generatePendingRollHTML(roll) {
+  if (roll.isMirroredDialog && roll.mirrorData) {
+    return generateMirroredDialogHTML(roll.mirrorData);
+  }
+  
+  if (roll.isFulfillment && roll.diceNeeded) {
+    const diceInputs = roll.diceNeeded.map((die, index) => {
+      const faces = die.faces || parseInt((die.type || "d20").replace("d", "")) || 20;
+      const dieLabel = die.type || `d${faces}`;
+      return `
+        <div class="dlc-dice-input-row">
+          <label class="dlc-dice-label">${dieLabel}</label>
+          <input type="number" 
+                 class="dlc-dice-value-input" 
                  data-die-index="${index}" 
                  data-die-faces="${faces}"
                  min="1" 
