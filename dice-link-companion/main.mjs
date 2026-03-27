@@ -1,6 +1,6 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.80
+ * Version 1.0.6.81
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
@@ -1014,7 +1014,8 @@ function attachDiceTrayListeners(html) {
 
   // Mirrored Dialog Button Clicks (v1.0.6.0)
   html.find(".dlc-dialog-btn").click(async function() {
-    if (!pendingRollRequest || !pendingRollRequest.isMirroredDialog) {
+    const currentRollRequest = getPendingRollRequest();
+    if (!currentRollRequest || !currentRollRequest.isMirroredDialog) {
       return;
     }
     
@@ -1035,8 +1036,8 @@ function attachDiceTrayListeners(html) {
     });
     
     // Call onComplete with the form values and button label
-    if (pendingRollRequest.onComplete) {
-      pendingRollRequest.onComplete({
+    if (currentRollRequest.onComplete) {
+      currentRollRequest.onComplete({
         buttonLabel,
         formValues
       });
@@ -1045,7 +1046,8 @@ function attachDiceTrayListeners(html) {
 
   // Advantage / Normal / Disadvantage buttons (Step 1: Configuration)
   html.find(".dlc-roll-action-btn[data-roll-mode]").click(async function() {
-    if (!pendingRollRequest) {
+    const currentRollRequest = getPendingRollRequest();
+    if (!currentRollRequest) {
       return;
     }
     const rollMode = $(this).data("roll-mode");
@@ -1060,14 +1062,15 @@ function attachDiceTrayListeners(html) {
     };
 
     // Call the onComplete callback to resolve the Promise and proceed with the roll
-    if (pendingRollRequest.onComplete) {
-      pendingRollRequest.onComplete(userChoice);
+    if (currentRollRequest.onComplete) {
+      currentRollRequest.onComplete(userChoice);
     }
   });
   
   // Submit Dice Results button (Step 2: Dice Entry)
   html.find(".dlc-submit-dice-btn").click(async function() {
-    if (!pendingRollRequest || !pendingRollRequest.isFulfillment) {
+    const currentRollRequest = getPendingRollRequest();
+    if (!currentRollRequest || !currentRollRequest.isFulfillment) {
       return;
     }
     
@@ -1082,8 +1085,8 @@ function attachDiceTrayListeners(html) {
     });
     
     // Call the onComplete callback with the dice results array directly
-    if (pendingRollRequest.onComplete) {
-      pendingRollRequest.onComplete(diceResults);
+    if (currentRollRequest.onComplete) {
+      currentRollRequest.onComplete(diceResults);
     }
   });
 
