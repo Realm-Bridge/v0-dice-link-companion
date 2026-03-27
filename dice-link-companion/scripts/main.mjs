@@ -2160,9 +2160,8 @@ async function executeDirectRoll(actor, formula, flavor, opts = {}) {
     
     return true;
   } catch (e) {
-    console.error("[Dice Link] Error executing direct roll:", e);
-    ui.notifications.error("Failed to execute roll.");
-    return false;
+    error("Error getting pending requests:", e);
+    return [];
   }
 }
 
