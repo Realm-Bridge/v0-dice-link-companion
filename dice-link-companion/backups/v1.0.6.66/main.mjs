@@ -54,8 +54,6 @@ import {
   executeRollWithValues
 } from "./dice-parsing.js";
 
-import { info, error, log } from "./logger.js";
-
 const REALM_BRIDGE_URL = "https://realmbridge.co.uk";
 const LOGO_URL = "modules/dice-link-companion/assets/logo-header.png";
 const LOGO_SQUARE_URL = "modules/dice-link-companion/assets/logo-square.png";
@@ -972,7 +970,7 @@ function attachDiceTrayListeners(html) {
         resetDiceTray(html, diceCounts);
         advMode = "normal";
       } catch (e) {
-        error("Manual roll error:", e);
+        console.error("[Dice Link] Manual roll error:", e);
         ui.notifications.error("Invalid dice formula.");
       }
       return;
@@ -1259,7 +1257,7 @@ function isRollDialog(app) {
   // Check if this is an excluded dialog - check in full identifier string
   const fullId = `${className} ${appId} ${dialogTitle}`;
   if (excludedPatterns.some(pattern => fullId.includes(pattern))) {
-    info(`Excluding dialog: ${pattern} found in ${fullId}`);
+    console.log(`[Dice Link] Excluding dialog: ${pattern} found in ${fullId}`);
     return false;
   }
   
@@ -1273,7 +1271,7 @@ function isRollDialog(app) {
   ];
   
   if (rollDialogClasses.some(cls => className.includes(cls))) {
-    info(`Matched roll dialog class: ${className}`);
+    console.log(`[Dice Link] Matched roll dialog class: ${className}`);
     return true;
   }
   
@@ -1296,35 +1294,35 @@ function isRollDialog(app) {
   
   // Match dnd5e roll dialogs by title patterns
   if (hasAbility && isCheckDialog) {
-    info(`Matched ability check by title: ${dialogTitle}`);
+    console.log(`[Dice Link] Matched ability check by title: ${dialogTitle}`);
     return true;
   }
   if (hasSkill && isCheckDialog) {
-    info(`Matched skill check by title: ${dialogTitle}`);
+    console.log(`[Dice Link] Matched skill check by title: ${dialogTitle}`);
     return true;
   }
   if ((hasAbility || dialogTitle.includes("ability")) && (isSaveDialog || isCheckDialog)) {
-    info(`Matched ability save/check by title: ${dialogTitle}`);
+    console.log(`[Dice Link] Matched ability save/check by title: ${dialogTitle}`);
     return true;
   }
   if (isAttackDialog) {
-    info(`Matched attack dialog by title: ${dialogTitle}`);
+    console.log(`[Dice Link] Matched attack dialog by title: ${dialogTitle}`);
     return true;
   }
   if (isDamageDialog) {
-    info(`Matched damage dialog by title: ${dialogTitle}`);
+    console.log(`[Dice Link] Matched damage dialog by title: ${dialogTitle}`);
     return true;
   }
   if (isInitiativeDialog) {
-    info(`Matched initiative dialog by title: ${dialogTitle}`);
+    console.log(`[Dice Link] Matched initiative dialog by title: ${dialogTitle}`);
     return true;
   }
   if (isDeathSaveDialog) {
-    info(`Matched death save dialog by title: ${dialogTitle}`);
+    console.log(`[Dice Link] Matched death save dialog by title: ${dialogTitle}`);
     return true;
   }
   if (isConcentrationSave) {
-    info(`Matched concentration save by title: ${dialogTitle}`);
+    console.log(`[Dice Link] Matched concentration save by title: ${dialogTitle}`);
     return true;
   }
   
@@ -1355,7 +1353,7 @@ function mirrorDialogToPanel(app, html, data) {
     updatePanelWithMirroredDialog(formData);
     
   } catch (e) {
-    error("Error mirroring dialog:", e);
+    console.error("[Dice Link] Error mirroring dialog:", e);
   }
 }
 
@@ -1491,7 +1489,7 @@ function updatePanelWithMirroredDialog(formData, app, html) {
 async function submitMirroredDialog(userChoice) {
   const dialogRef = getMirroredDialog();
   if (!dialogRef) {
-    error("No mirrored dialog to submit");
+    console.error("[Dice Link] No mirrored dialog to submit");
     return;
   }
   
@@ -1510,7 +1508,7 @@ async function submitMirroredDialog(userChoice) {
   }
   
   if (!element) {
-    error("Could not find dialog element to submit");
+    console.error("[Dice Link] Could not find dialog element to submit");
     return;
   }
   
@@ -1568,10 +1566,10 @@ async function submitMirroredDialog(userChoice) {
         element.style.display = "none";
       }
     } else {
-      error("Could not find target button:", userChoice.buttonLabel);
+      console.error("[Dice Link] Could not find target button:", userChoice.buttonLabel);
     }
   } catch (e) {
-    error("Error submitting mirrored dialog:", e);
+    console.error("[Dice Link] Error submitting mirrored dialog:", e);
   }
 }
 
@@ -2160,8 +2158,9 @@ async function executeDirectRoll(actor, formula, flavor, opts = {}) {
     
     return true;
   } catch (e) {
-    error("Error getting pending requests:", e);
-    return [];
+    console.error("[Dice Link] Error executing direct roll:", e);
+    ui.notifications.error("Failed to execute roll.");
+    return false;
   }
 }
 

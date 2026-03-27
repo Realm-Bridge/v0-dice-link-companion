@@ -1,0 +1,28 @@
+DICE LINK COMPANION - BACKUP v1.0.6.66
+======================================
+This is a complete, working backup of version 1.0.6.66.
+
+TO RESTORE:
+Copy each file from this directory to its original location:
+
+  main.mjs           -> scripts/main.mjs
+  settings.js        -> scripts/settings.js
+  dialog-mirroring.js -> scripts/dialog-mirroring.js
+  approval.js        -> scripts/approval.js
+  socket.js          -> scripts/socket.js
+  mode-application.js -> scripts/mode-application.js
+  dice-parsing.js    -> scripts/dice-parsing.js
+  chat.js            -> scripts/chat.js
+  module.json        -> module.json
+  main.css           -> styles/main.css
+  en.json            -> lang/en.json
+
+KNOWN ISSUE (harmless):
+- Dialog mirroring logs "mirroredDialog is not defined" error
+- This does NOT break the module, only the mirrored dialog feature
+- Core functionality (icon, panel, dice modes) works correctly
+
+VERSION INFO:
+- Fixed duplicate getMirroredDialog export that broke v64
+- Added try-catch to getCollapsedSections for early init safety
+- All core features working: GM panel, player panel, dice modes, approvals
