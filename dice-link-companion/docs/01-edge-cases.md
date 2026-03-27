@@ -35,6 +35,8 @@
 - ⚠️ **SCATTERED DEFENSIVE CODE**: Multiple defensive checks suggest original architecture didn't properly sequence initialization
 - ✅ **WORKING**: Defensive fallbacks prevent crashes
 
+**Cross-reference:** See 06-settings-registry.md - "Known Issues #2" for detailed timing analysis and recommendations
+
 ---
 
 ## 3. STATE MANAGEMENT ACROSS MODULES

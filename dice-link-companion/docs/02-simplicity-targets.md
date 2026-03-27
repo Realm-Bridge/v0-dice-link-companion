@@ -70,6 +70,8 @@ This document identifies code that can be simplified, removed, or consolidated d
 **Issue:** Same default object repeated, risk of drift
 **Action:** CONSOLIDATE to single source of truth, others reference it
 
+**Cross-reference:** See 06-settings-registry.md "Known Issues #1" for comprehensive analysis of this triple-definition problem and recommendations for consolidation
+
 **Estimated savings:** ~60 lines + reduced maintenance risk
 
 ---
@@ -135,6 +137,8 @@ This document identifies code that can be simplified, removed, or consolidated d
 
 **Issue:** Tight coupling via global, fragile if ready hook order changes
 **Action:** Pass functions as parameters or use proper module exports
+
+**Cross-reference:** See 06-settings-registry.md "Known Issues #4" for detailed analysis of this global dependency pattern and how it affects settings access throughout the system
 
 ---
 

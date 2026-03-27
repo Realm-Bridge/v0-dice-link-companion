@@ -173,6 +173,8 @@ This document catalogs all state variables, their purpose, lifecycle, and access
 - `getPendingRequests()` - reads array
 - `setPendingRequests(requests)` - writes array
 
+**Cross-reference:** See 06-settings-registry.md "Complete Settings Inventory" Section 4 for detailed permissions and pendingRequests handling
+
 ### 3.2 Client-Scoped Settings
 
 #### collapsedSections

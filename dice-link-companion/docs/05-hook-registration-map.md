@@ -43,6 +43,9 @@ Foundry hooks are the lifecycle events that trigger DLC functionality. This docu
 - See 01-edge-cases.md Section 2 - The 100ms delay is documented as a WORKAROUND, not a proper solution
 - See 02-simplicity-targets.md Section 3.3 - Questions whether the entire dialog mirroring system is necessary
 - If dialog mirroring is removed or simplified, this timing requirement may become irrelevant
+- See 06-settings-registry.md "Settings Registration Flow" - Complete initialization sequence diagram with detailed breakdown
+
+**Note:** Refer to 06-settings-registry.md for comprehensive analysis of this flow and architectural recommendations.
 
 ---
 
