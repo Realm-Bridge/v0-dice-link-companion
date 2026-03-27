@@ -1,27 +1,11 @@
 /**
  * Dialog Mirroring Module
  * Handles suppressing dnd5e roll dialogs and mirroring them to our panel UI
- * Version 1.0.6.50
+ * Version 1.0.6.74 - Phase 2: Imports state management from centralized module
  */
 
 import { getPlayerMode, getGlobalOverride } from "./settings.js";
-
-// Mirrored dialog reference - shared with main.mjs
-let mirroredDialog = null;
-
-/**
- * Get the currently mirrored dialog
- */
-export function getMirroredDialog() {
-  return mirroredDialog;
-}
-
-/**
- * Set the currently mirrored dialog
- */
-export function setMirroredDialog(dialog) {
-  mirroredDialog = dialog;
-}
+import { getMirroredDialog, setMirroredDialog } from "./state-management.js";
 
 /**
  * Setup dialog mirroring - hook into ApplicationV2 and Dialog renders
@@ -191,13 +175,13 @@ function mirrorDialogToPanel(app, html, data) {
       return;
     }
     
-    // Store the dialog reference and data
-    mirroredDialog = {
+    // Store the dialog reference and data in state management
+    setMirroredDialog({
       app,
       html,
       data: formData,
       timestamp: Date.now()
-    };
+    });
     
     // Update our panel to show the mirrored dialog UI
     // Pass the full dialog reference so main.mjs can access app/html for submission
@@ -276,5 +260,3 @@ function extractDialogFormData(app, html) {
   
   return data;
 }
-
-// Note: getMirroredDialog() and setMirroredDialog() are exported at the top of this file
