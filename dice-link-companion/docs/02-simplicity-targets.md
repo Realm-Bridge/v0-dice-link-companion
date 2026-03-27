@@ -163,7 +163,8 @@ function isRollDialog(app) {
 - main.mjs lines 653-672 (Player panel)
 
 **Issue:** ~40 lines of HTML for a "Coming Soon" placeholder
-**Action:** SIMPLIFY to single line placeholder, or REMOVE entirely until feature is ready
+**Decision:** KEEP the UI but EXTRACT to separate `video-feed.js` module
+**Rationale:** Feature will be developed later; isolating it now creates a clean module boundary and keeps main.mjs focused. The placeholder UI remains functional while all video-related code lives in its own file ready for future development.
 
 ---
 
