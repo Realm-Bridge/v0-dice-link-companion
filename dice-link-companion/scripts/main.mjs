@@ -1,13 +1,13 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.65
+ * Version 1.0.6.66
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  * 
  * LAST KNOWN GOOD VERSION: 1.0.6.53 - Stable after failed UI extraction
  * 
- * v1.0.6.65 - Made getCollapsedSections defensive with try-catch
+ * v1.0.6.66 - Removed duplicate getMirroredDialog export in dialog-mirroring.js
  */
 
 import { 
