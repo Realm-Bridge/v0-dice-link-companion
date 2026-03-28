@@ -75,7 +75,8 @@ import {
 
 import {
   debug,
-  debugState
+  debugState,
+  debugError
 } from "./debug.js";
 
 import {
@@ -297,8 +298,8 @@ Hooks.once("ready", async () => {
       }
     }
   } catch (error) {
-    console.error("[Dice Link] ERROR in ready hook:", error);
-    console.error("[Dice Link] Stack trace:", error.stack);
+    debugError("ERROR in ready hook:", error);
+    debugError("Stack trace:", error.stack);
   }
 });
 

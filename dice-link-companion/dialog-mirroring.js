@@ -5,6 +5,7 @@
  */
 
 import { getPlayerMode, getGlobalOverride, getCollapsedSections, setCollapsedSections } from "./settings.js";
+import { debug, debugError } from "./debug.js";
 import { getMirroredDialog, setMirroredDialog, getPendingRollRequest, setPendingRollRequest, getCurrentPanelDialog } from "./state-management.js";
 
 /**
@@ -47,7 +48,7 @@ function isUserInManualMode() {
     return myMode === "manual";
   } catch (e) {
     // Settings not ready yet, default to digital mode
-    console.log("[Dice Link] isUserInManualMode: settings not ready, defaulting to false");
+    debug("isUserInManualMode: settings not ready, defaulting to false");
     return false;
   }
 }
@@ -185,7 +186,7 @@ function mirrorDialogToPanel(app, html, data) {
     });
     
   } catch (e) {
-    console.error("[Dice Link] Error mirroring dialog:", e);
+    debugError("Error mirroring dialog:", e);
   }
 }
 

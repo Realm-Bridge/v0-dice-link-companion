@@ -7,7 +7,7 @@
  */
 
 import { MODULE_ID, ROLE_NAMES, ASYNC_OPERATION_DELAY_MS } from "./constants.js";
-import { debug, debugState, debugResolver, debugResolverState } from "./debug.js";
+import { debug, debugState, debugResolver, debugResolverState, debugError } from "./debug.js";
 import {
   getPendingRollRequest,
   setPendingRollRequest,
@@ -424,7 +424,7 @@ export function attachDiceTrayListeners(html) {
         }
         resetDiceTray(html, diceCounts);
       } catch (e) {
-        console.error("[Dice Link] Manual roll error:", e);
+        debugError("Manual roll error:", e);
         ui.notifications.error("Roll execution failed.");
       }
       return;

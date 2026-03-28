@@ -10,7 +10,7 @@
  */
 
 import { ASYNC_OPERATION_DELAY_MS } from "./constants.js";
-import { debugResolver, debugResolverState } from "./debug.js";
+import { debugResolver, debugResolverState, debugFulfillment, debugError } from "./debug.js";
 import {
   getPendingRollRequest,
   setPendingRollRequest,
@@ -77,25 +77,25 @@ export function setupDiceFulfillment() {
  *            Our resolver handles showing all dice at once in our panel
  */
 export async function executeDiceTrayRollManually(formula, flavorText, html) {
-  console.log("[v0] executeDiceTrayRollManually called with formula:", formula);
+  debugFulfillment("executeDiceTrayRollManually called with formula:", formula);
   
   try {
     // Create and evaluate the roll - Foundry handles fulfillment via our resolver
     const roll = new Roll(formula);
     
-    console.log("[v0] Roll created, calling evaluate()");
-    console.log("[v0] CONFIG.Dice.fulfillment:", CONFIG.Dice.fulfillment);
-    console.log("[v0] CONFIG.Dice.fulfillment.methods:", CONFIG.Dice.fulfillment.methods);
-    console.log("[v0] CONFIG.Dice.fulfillment.methods['dice-link']:", CONFIG.Dice.fulfillment.methods["dice-link"]);
-    console.log("[v0] CONFIG.Dice.fulfillment.dice.d20:", CONFIG.Dice.fulfillment.dice.d20);
-    console.log("[v0] CONFIG.Dice.fulfillment.defaultMethod:", CONFIG.Dice.fulfillment.defaultMethod);
-    console.log("[v0] Roll.RESOLVERS:", Roll.RESOLVERS);
+    debugFulfillment("Roll created, calling evaluate()");
+    debugFulfillment("CONFIG.Dice.fulfillment:", CONFIG.Dice.fulfillment);
+    debugFulfillment("CONFIG.Dice.fulfillment.methods:", CONFIG.Dice.fulfillment.methods);
+    debugFulfillment("CONFIG.Dice.fulfillment.methods['dice-link']:", CONFIG.Dice.fulfillment.methods["dice-link"]);
+    debugFulfillment("CONFIG.Dice.fulfillment.dice.d20:", CONFIG.Dice.fulfillment.dice.d20);
+    debugFulfillment("CONFIG.Dice.fulfillment.defaultMethod:", CONFIG.Dice.fulfillment.defaultMethod);
+    debugFulfillment("Roll.RESOLVERS:", Roll.RESOLVERS);
     
     // evaluate() will trigger Foundry's fulfillment system
     // If user is in manual mode, our DiceLinkResolver should be used
     await roll.evaluate();
     
-    console.log("[v0] Roll evaluated, total:", roll.total);
+    debugFulfillment("Roll evaluated, total:", roll.total);
     
     // Send to chat
     await roll.toMessage({ 
@@ -105,7 +105,7 @@ export async function executeDiceTrayRollManually(formula, flavorText, html) {
     
     return "success";
   } catch (e) {
-    console.log("[v0] Roll error:", e.message);
+    debugError("Roll error:", e.message);
     if (e.message.includes("cancelled")) {
       return "cancelled";
     }
@@ -123,7 +123,7 @@ export async function executeDiceTrayRollManually(formula, flavorText, html) {
 export async function submitMirroredDialog(userChoice) {
   const dialogRef = getMirroredDialog();
   if (!dialogRef) {
-    console.error("[Dice Link] No mirrored dialog to submit");
+    debugError("No mirrored dialog to submit");
     return;
   }
   
@@ -142,7 +142,7 @@ export async function submitMirroredDialog(userChoice) {
   }
   
   if (!element) {
-    console.error("[Dice Link] Could not find dialog element to submit");
+    debugError("Could not find dialog element to submit");
     return;
   }
   
@@ -185,6 +185,7 @@ export async function submitMirroredDialog(userChoice) {
     }
     
     if (targetButton?.element) {
+
       // Make dialog visible temporarily so click works
       element.style.display = "block";
       
@@ -200,10 +201,10 @@ export async function submitMirroredDialog(userChoice) {
         element.style.display = "none";
       }
     } else {
-      console.error("[Dice Link] Could not find target button:", userChoice.buttonLabel);
+      debugError("Could not find target button:", userChoice.buttonLabel);
     }
   } catch (e) {
-    console.error("[Dice Link] Error submitting mirrored dialog:", e);
+    debugError("Error submitting mirrored dialog:", e);
   }
 }
 
