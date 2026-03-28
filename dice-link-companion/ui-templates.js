@@ -119,7 +119,7 @@ export function generatePendingRollHTML(roll) {
                    alt="${dieType}" 
                    class="dlc-die-image">
               <svg class="dlc-die-number-overlay" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                <text x="50" y="38" 
+                <text x="50" y="54" 
                       text-anchor="middle" 
                       dominant-baseline="middle"
                       class="dlc-die-face-number">${value}</text>
