@@ -1,14 +1,14 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.91
+ * Version 1.0.6.92
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  * 
  * LAST KNOWN GOOD VERSION: 1.0.6.53 - Stable after failed UI extraction
  * 
+ * v1.0.6.92 - Fixed: dice-panel.js import error (getPendingRequests from settings.js not state-management.js)
  * v1.0.6.91 - Phase 5 Step 5.1: Extracted dice-panel.js (panel listeners, refreshPanel, openPanel)
- * v1.0.6.90 - Phase 4 COMPLETE: Verified mode-application.js is clean (no refactoring needed)
  * v1.0.6.89 - Phase 3 COMPLETE: Added state listener system (onMirroredDialogChange), removed window.diceLink coupling
  * v1.0.6.83 - Phase 3 IN PROGRESS: Created ui-templates.js, added import (generate functions removal deferred)
  * v1.0.6.82 - Phase 3 START: Extracted ui-templates.js with all 6 generate functions (615 lines)
