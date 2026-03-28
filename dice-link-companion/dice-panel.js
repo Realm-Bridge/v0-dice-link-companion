@@ -1,6 +1,6 @@
 /**
  * Dice Panel Module - dice-link-companion
- * Version 1.0.6.93 - Fixed more imports: createApprovalChatMessage from approval.js, playerRequest* from socket.js
+ * Version 1.0.6.94
  * 
  * Handles panel lifecycle (open, close, refresh) and all panel event listeners.
  * This is the primary UI orchestration module.
@@ -36,6 +36,8 @@ import { applyManualDice, applyDigitalDice } from "./mode-application.js";
 import { createApprovalChatMessage } from "./approval.js";
 import { playerRequestManual, playerSwitchToDigital } from "./socket.js";
 import { generateGMPanelContent, generatePlayerPanelContent } from "./ui-templates.js";
+
+debug("dice-panel.js: All imports complete");
 
 // ============================================================================
 // PANEL MANAGEMENT
