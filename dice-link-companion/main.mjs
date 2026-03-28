@@ -138,7 +138,8 @@ class DiceLinkCompanionApp extends ApplicationV2 {
     window: {
       title: "Dice Link Companion",
       resizable: true,
-      minimizable: true
+      minimizable: true,
+      positioned: true
     }
   };
 
@@ -180,18 +181,6 @@ class DiceLinkCompanionApp extends ApplicationV2 {
   async close(options = {}) {
     setCurrentPanelDialog(null);
     return super.close(options);
-  }
-
-  setPosition(options = {}) {
-    // Only set position if element exists and is a valid DOM node
-    // this.element might be an empty jQuery object, so check [0] for actual DOM node
-    if (!this.element || !this.element[0]) {
-      return this;
-    }
-    if (!options.width) {
-      options.width = this._isGM ? 480 : 390;
-    }
-    return super.setPosition(options);
   }
 }
 
