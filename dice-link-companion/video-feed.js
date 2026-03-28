@@ -6,10 +6,8 @@
  * Currently a placeholder for future video integration features.
  */
 
+import { REALM_BRIDGE_URL, LOGO_SQUARE_URL } from "./constants.js";
 import { getCollapsedSections } from "./state-management.js";
-
-const REALM_BRIDGE_URL = "https://realmbridge.co.uk";
-const LOGO_SQUARE_URL = "https://realmbridge.co.uk/images/logos/rb-logo-square.webp";
 
 /**
  * Generate the video feed section HTML
