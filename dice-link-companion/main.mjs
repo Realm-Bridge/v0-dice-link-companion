@@ -1,13 +1,14 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.7.15 - Fixed Colour Scheme + Panel Centering
+ * Version 1.0.7.13 - Cancel Roll Fix + Number Position Adjustment
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  * 
- * v1.0.7.15 - Re-applied Realm Bridge colour scheme, fixed panel centering on open
- * v1.0.7.14 - Updated colour scheme to Realm Bridge branding
  * v1.0.7.13 - Fixed cancel roll triggering random rolls, adjusted die number position
+ *             Added cancelFoundryResolver to properly close hidden resolver on cancel
+ * v1.0.7.12 - Number positioned on top triangle face of die, font size 22px
+ * v1.0.7.11 - Number embedded on die face (SVG overlay), borders removed, d100 manual input
  */
 
 import { 
@@ -132,9 +133,7 @@ class DiceLinkCompanionApp extends ApplicationV2 {
     classes: ["dlc-dialog"],
     position: {
       width: 480,
-      height: "auto",
-      top: 100,
-      left: null  // Will be calculated in _onFirstRender to center
+      height: "auto"
     },
     window: {
       title: "Dice Link Companion",
@@ -161,15 +160,6 @@ class DiceLinkCompanionApp extends ApplicationV2 {
     wrapper.classList.add("window-content");
     wrapper.innerHTML = content;
     return wrapper;
-  }
-
-  _onFirstRender(context, options) {
-    super._onFirstRender(context, options);
-    // Center the window horizontally if left position wasn't set
-    const windowWidth = window.innerWidth;
-    const panelWidth = this.position.width || 480;
-    const leftPos = Math.max(50, (windowWidth - panelWidth) / 2);
-    this.setPosition({ left: leftPos });
   }
 
   _replaceHTML(result, content, options) {
