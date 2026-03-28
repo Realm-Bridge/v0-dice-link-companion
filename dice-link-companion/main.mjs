@@ -1,14 +1,14 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.7.11 - Improved Dice Selection UI
+ * Version 1.0.7.12 - Die Face Number Positioning
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  * 
+ * v1.0.7.12 - Number positioned on top triangle face of die, font size 22px
+ *             Better positioning for d100 manual input and visual dice selection
  * v1.0.7.11 - Number embedded on die face (SVG overlay), borders removed, d100 manual input
- *             Enter key submits active submit button in panel
  * v1.0.7.9 - Fixed setPosition to check this.element[0] for valid DOM node
- * v1.0.7.8 - Removed dead resolver state code and unused imports
  */
 
 import { 
