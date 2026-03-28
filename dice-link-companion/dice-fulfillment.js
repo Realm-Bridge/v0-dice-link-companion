@@ -10,7 +10,7 @@
  */
 
 import { ASYNC_OPERATION_DELAY_MS } from "./constants.js";
-import { debug } from "./debug.js";
+import { debugResolver, debugResolverState } from "./debug.js";
 import {
   getPendingRollRequest,
   setPendingRollRequest,
@@ -29,8 +29,6 @@ import {
 import { refreshPanel } from "./dice-panel.js";
 import { DiceLinkResolver } from "./roll-resolver.js";
 
-debug("dice-fulfillment.js: All imports complete");
-
 // ============================================================================
 // DICE FULFILLMENT SETUP
 // ============================================================================
@@ -41,7 +39,16 @@ debug("dice-fulfillment.js: All imports complete");
  * Using interactive: true with a resolver shows ALL dice at once.
  */
 export function setupDiceFulfillment() {
-  console.log("[v0] setupDiceFulfillment: Registering dice-link fulfillment method with resolver");
+  debugResolverState("setup_fulfillment_starting", {});
+  
+  // Create a callback handler for resolver state changes
+  const onResolverStateChange = (state) => {
+    debugResolverState("resolver_state_change", { state });
+    // When resolver is ready or complete, refresh the panel
+    if (state === 'resolver_ready' || state === 'resolver_complete' || state === 'resolver_cancelled') {
+      refreshPanel();
+    }
+  };
   
   // Register our custom fulfillment method with a resolver class
   // Using interactive: true with resolver ensures we get ALL dice at once
@@ -49,11 +56,13 @@ export function setupDiceFulfillment() {
     label: "Dice Link Companion",
     icon: "fa-dice-d20",
     interactive: true,
-    resolver: DiceLinkResolver
+    resolver: DiceLinkResolver,
+    resolverOptions: {
+      onStateChange: onResolverStateChange
+    }
   };
   
-  debug("setupDiceFulfillment: Registered dice-link fulfillment method with DiceLinkResolver");
-  console.log("[v0] setupDiceFulfillment: Registration complete");
+  debugResolverState("setup_fulfillment_complete", { methodRegistered: true });
 }
 
 // ============================================================================
@@ -213,7 +222,7 @@ async function waitForDiceTrayEntry(denomination, faces, dieNumber, totalDice) {
           const numericValue = parseInt(values[0]);
           setPendingDiceEntry(null);
           setPendingRollRequest(null);
-          window.diceLink?.refreshPanel?.();
+          refreshPanel();
           resolve(numericValue);
         }
       }
@@ -222,7 +231,7 @@ async function waitForDiceTrayEntry(denomination, faces, dieNumber, totalDice) {
     const currentCollapsed = getCollapsedSections();
     currentCollapsed.rollRequest = false;
     setCollapsedSections(currentCollapsed);
-    window.diceLink?.refreshPanel?.();
+    refreshPanel();
   });
 }
 
@@ -341,7 +350,7 @@ export function applyDiceLinkFulfillment() {
   }
   
   CONFIG.Dice.fulfillment.defaultMethod = "dice-link";
-  debug("applyDiceLinkFulfillment: Applied dice-link fulfillment to all dice");
+  debugResolverState("apply_dice_link_fulfillment", { diceTypesCount: diceTypes.length });
 }
 
 /**
@@ -359,5 +368,5 @@ export function removeDiceLinkFulfillment() {
   }
   
   CONFIG.Dice.fulfillment.defaultMethod = "";
-  debug("removeDiceLinkFulfillment: Removed dice-link fulfillment from all dice");
+  debugResolverState("remove_dice_link_fulfillment", { diceTypesCount: diceTypes.length });
 }

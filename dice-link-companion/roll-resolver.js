@@ -5,16 +5,12 @@
  * Custom RollResolver that extends Foundry's RollResolver to show ALL dice at once
  * in our panel UI, rather than one-at-a-time with individual dialogs.
  * 
- * Key differences from handler approach:
- * - Receives ALL unfulfilled dice terms at once via this.fulfillable
- * - Shows our custom UI in the DLC panel with all dice inputs
- * - Submits all values together when user clicks Submit
+ * Uses callback pattern for panel refresh to avoid circular dependencies.
  */
 
-import { debug } from "./debug.js";
+import { debugResolver, debugResolverState } from "./debug.js";
 import {
   setActiveResolver,
-  getActiveResolver,
   setResolverDiceTerms,
   getResolverDiceTerms
 } from "./state-management.js";
@@ -22,13 +18,6 @@ import {
   getCollapsedSections,
   setCollapsedSections
 } from "./settings.js";
-
-// Use window.diceLink.refreshPanel to avoid circular dependency with dice-panel.js
-function refreshPanel() {
-  if (window.diceLink?.refreshPanel) {
-    window.diceLink.refreshPanel();
-  }
-}
 
 /**
  * Custom RollResolver that integrates with our panel UI
@@ -48,7 +37,9 @@ export class DiceLinkResolver extends foundry.applications.dice.RollResolver {
 
   constructor(roll, options = {}) {
     super(roll, options);
-    console.log("[v0] DiceLinkResolver constructor called with roll:", roll);
+    // Store callback for panel refresh - passed in via options to avoid circular dependency
+    this.onStateChangeCallback = options.onStateChange || null;
+    debugResolverState("created", { rolls: roll ? 1 : 0, hasCallback: !!this.onStateChangeCallback });
   }
 
   /**
@@ -56,15 +47,14 @@ export class DiceLinkResolver extends foundry.applications.dice.RollResolver {
    * @override
    */
   async awaitFulfillment() {
-    console.log("[v0] DiceLinkResolver.awaitFulfillment called");
-    console.log("[v0] this.fulfillable:", this.fulfillable);
+    debugResolverState("awaitFulfillment_called", { fulfillableCount: this.fulfillable.size });
     
     // Build array of all dice that need values
     const diceNeeded = [];
     
     // fulfillable is a Map of term id -> {term, method}
     for (const [id, {term, method}] of this.fulfillable) {
-      console.log("[v0] Processing term:", term, "method:", method);
+      debugResolver("Processing term:", { termId: id, type: term.type, faces: term.faces, method });
       
       // Only process dice terms with faces
       if (term.faces) {
@@ -82,10 +72,10 @@ export class DiceLinkResolver extends foundry.applications.dice.RollResolver {
       }
     }
     
-    console.log("[v0] diceNeeded array:", diceNeeded);
+    debugResolverState("dice_array_built", { totalDice: diceNeeded.length });
     
     if (diceNeeded.length === 0) {
-      console.log("[v0] No dice needed, returning");
+      debugResolver("No dice needed - returning");
       return;
     }
     
@@ -93,17 +83,22 @@ export class DiceLinkResolver extends foundry.applications.dice.RollResolver {
     setActiveResolver(this);
     setResolverDiceTerms(diceNeeded);
     
-    // Expand roll request section and refresh panel to show dice inputs
+    // Expand roll request section
     const currentCollapsed = getCollapsedSections();
     currentCollapsed.rollRequest = false;
     setCollapsedSections(currentCollapsed);
-    refreshPanel();
+    
+    // Notify panel that resolver is ready - use callback instead of direct call
+    if (this.onStateChangeCallback) {
+      this.onStateChangeCallback('resolver_ready');
+    }
+    
+    debugResolverState("waiting_for_user_input", {});
     
     // Wait for user to submit values via panel
     return new Promise((resolve, reject) => {
       this._resolvePromise = resolve;
       this._rejectPromise = reject;
-      console.log("[v0] Waiting for user to submit dice values...");
     });
   }
 
@@ -112,11 +107,11 @@ export class DiceLinkResolver extends foundry.applications.dice.RollResolver {
    * Applies all user-entered values to the dice terms
    */
   submitResults(values) {
-    console.log("[v0] DiceLinkResolver.submitResults called with values:", values);
+    debugResolverState("submit_results", { valuesCount: values.length });
     
     const diceTerms = getResolverDiceTerms();
     if (!diceTerms || diceTerms.length !== values.length) {
-      console.error("[v0] Mismatch between dice terms and values");
+      debugResolver("Error: Value count mismatch", { expected: diceTerms?.length, received: values.length });
       this._rejectPromise?.(new Error("Value count mismatch"));
       return;
     }
@@ -135,21 +130,27 @@ export class DiceLinkResolver extends foundry.applications.dice.RollResolver {
     
     // Register results with Foundry's Roll system
     for (const [termId, dieValues] of termValues) {
-      console.log("[v0] Registering result for termId:", termId, "values:", dieValues);
+      debugResolver("Registering results for term:", { termId, values: dieValues });
       
       // Use Roll.registerResult to fulfill the dice
       // This is the Foundry-native way to submit manual dice results
       try {
         foundry.dice.Roll.registerResult(termId, dieValues);
       } catch (e) {
-        console.error("[v0] Error registering result:", e);
+        debugResolver("Error registering result:", e.message);
       }
     }
     
     // Clear state
     setActiveResolver(null);
     setResolverDiceTerms(null);
-    refreshPanel();
+    
+    // Notify panel that resolver is complete
+    if (this.onStateChangeCallback) {
+      this.onStateChangeCallback('resolver_complete');
+    }
+    
+    debugResolverState("submission_successful", {});
     
     // Resolve the promise to complete the roll
     this._resolvePromise?.();
@@ -159,11 +160,15 @@ export class DiceLinkResolver extends foundry.applications.dice.RollResolver {
    * Called when user cancels the roll
    */
   cancel() {
-    console.log("[v0] DiceLinkResolver.cancel called");
+    debugResolverState("cancel_called", {});
     
     setActiveResolver(null);
     setResolverDiceTerms(null);
-    refreshPanel();
+    
+    // Notify panel that resolver was cancelled
+    if (this.onStateChangeCallback) {
+      this.onStateChangeCallback('resolver_cancelled');
+    }
     
     this._rejectPromise?.(new Error("Roll cancelled by user"));
   }
@@ -173,17 +178,10 @@ export class DiceLinkResolver extends foundry.applications.dice.RollResolver {
    * @override
    */
   async _renderHTML(context, options) {
-    console.log("[v0] DiceLinkResolver._renderHTML called - returning empty (using panel UI)");
+    debugResolver("_renderHTML called - suppressing Foundry dialog");
     // Return empty - we don't want Foundry's dialog, we use our panel
     const wrapper = document.createElement("div");
     wrapper.style.display = "none";
     return wrapper;
   }
-}
-
-/**
- * Get the DiceLinkResolver class for registration
- */
-export function getDiceLinkResolverClass() {
-  return DiceLinkResolver;
 }

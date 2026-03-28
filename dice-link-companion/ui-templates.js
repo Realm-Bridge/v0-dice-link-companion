@@ -32,6 +32,7 @@ import {
 } from "./state-management.js";
 
 import { generateVideoFeedSection } from "./video-feed.js";
+import { debugResolver } from "./debug.js";
 
 // ============================================================================
 // DICE TRAY HTML
@@ -82,7 +83,7 @@ export function generatePendingRollHTML(roll) {
   // Check for resolver-based dice entry first (v1.0.7.0 - ALL dice at once)
   const resolverDiceTerms = getResolverDiceTerms();
   if (resolverDiceTerms && resolverDiceTerms.length > 0) {
-    console.log("[v0] generatePendingRollHTML: Rendering resolver dice inputs", resolverDiceTerms);
+    debugResolver("Rendering resolver dice inputs", { count: resolverDiceTerms.length });
     
     const diceInputs = resolverDiceTerms.map((die, index) => {
       const faces = die.faces || 20;

@@ -7,7 +7,7 @@
  */
 
 import { MODULE_ID, ROLE_NAMES, ASYNC_OPERATION_DELAY_MS } from "./constants.js";
-import { debug, debugState } from "./debug.js";
+import { debug, debugState, debugResolver, debugResolverState } from "./debug.js";
 import {
   getPendingRollRequest,
   setPendingRollRequest,
@@ -536,7 +536,7 @@ export function attachDiceTrayListeners(html) {
     // Handle resolver cancellation (v1.0.7.0)
     const resolver = getActiveResolver();
     if (resolver) {
-      console.log("[v0] Cancel button clicked - cancelling resolver");
+      debugResolverState("cancel_button_clicked", { hasResolver: true });
       resolver.cancel();
       ui.notifications.info("Roll cancelled.");
       return;
@@ -566,13 +566,13 @@ export function attachDiceTrayListeners(html) {
 
   // Submit All button for resolver-based dice entry
   html.find(".dlc-submit-resolver-btn").click(function() {
-    console.log("[v0] Submit resolver button clicked");
+    debugResolverState("submit_resolver_clicked", {});
     
     const resolver = getActiveResolver();
     const diceTerms = getResolverDiceTerms();
     
     if (!resolver || !diceTerms) {
-      console.error("[v0] No active resolver or dice terms");
+      debugResolver("Error: No active resolver or dice terms");
       return;
     }
     
@@ -586,7 +586,7 @@ export function attachDiceTrayListeners(html) {
       values.push(clampedValue);
     });
     
-    console.log("[v0] Collected values:", values);
+    debugResolver("Resolver submission values collected", { count: values.length, values });
     
     // Validate all values are filled
     if (values.some(v => v < 1)) {
@@ -600,7 +600,7 @@ export function attachDiceTrayListeners(html) {
 
   // Cancel button for resolver-based dice entry
   html.find(".dlc-cancel-resolver-btn").click(function() {
-    console.log("[v0] Cancel resolver button clicked");
+    debugResolverState("cancel_resolver_clicked", {});
     
     const resolver = getActiveResolver();
     if (resolver) {
