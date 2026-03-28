@@ -109,51 +109,72 @@ async function diceLinkAwaitFulfillment() {
   
   // Store the dice and roll reference in state for the panel to access
   setResolverDiceTerms(diceNeeded);
-  setActiveResolver({ 
-    roll: this, 
-    termMap,
-    submitResults: async (values) => {
-      debugFulfillment("Submitting dice results:", values);
-      
-      // Group values by term
-      const termValues = new Map();
-      for (let i = 0; i < diceNeeded.length; i++) {
-        const dieInfo = diceNeeded[i];
-        const value = values[i];
+  
+  // Create a promise wrapper to wait for the panel to submit results
+  let resolveCallback = null;
+  const submissionPromise = new Promise((resolve, reject) => {
+    resolveCallback = resolve;
+    
+    // Set timeout for cancellation
+    const timeout = setTimeout(() => {
+      reject(new Error("Roll fulfillment timeout"));
+    }, 300000); // 5 minute timeout
+    
+    // Store the resolver with resolve callback so panel can call it
+    setActiveResolver({ 
+      roll: this, 
+      termMap,
+      timeout,
+      resolve: resolveCallback,
+      submitResults: async (values) => {
+        debugFulfillment("Submitting dice results:", values);
         
-        if (!termValues.has(dieInfo.termId)) {
-          termValues.set(dieInfo.termId, []);
+        // Group values by term
+        const termValues = new Map();
+        for (let i = 0; i < diceNeeded.length; i++) {
+          const dieInfo = diceNeeded[i];
+          const value = values[i];
+          
+          if (!termValues.has(dieInfo.termId)) {
+            termValues.set(dieInfo.termId, []);
+          }
+          termValues.get(dieInfo.termId).push(value);
         }
-        termValues.get(dieInfo.termId).push(value);
-      }
-      
-      // Inject values into the roll's dice terms
-      for (const [termId, dieValues] of termValues) {
-        const term = termMap.get(termId);
-        if (term && term.faces) {
-          debugResolver("Setting results for term:", { termId, values: dieValues });
-          
-          // Set results on the term
-          term.results = dieValues.map(val => ({
-            result: val,
-            active: true
-          }));
-          
-          // Mark as evaluated
-          term._evaluated = true;
-          
-          // Apply modifiers if any
-          if (term.modifiers?.length > 0 && typeof term._evaluateModifiers === "function") {
-            term._evaluateModifiers();
+        
+        // Inject values into the roll's dice terms
+        for (const [termId, dieValues] of termValues) {
+          const term = termMap.get(termId);
+          if (term && term.faces) {
+            debugResolver("Setting results for term:", { termId, values: dieValues });
+            
+            // Set results on the term
+            term.results = dieValues.map(val => ({
+              result: val,
+              active: true
+            }));
+            
+            // Mark as evaluated
+            term._evaluated = true;
+            
+            // Apply modifiers if any
+            if (term.modifiers?.length > 0 && typeof term._evaluateModifiers === "function") {
+              term._evaluateModifiers();
+            }
           }
         }
+        
+        // Mark the roll as evaluated
+        this._evaluated = true;
+        
+        // Clear timeout and resolve
+        clearTimeout(timeout);
+        setResolverDiceTerms(null);
+        setActiveResolver(null);
+        
+        debugFulfillment("Roll fulfillment complete");
+        resolveCallback();
       }
-      
-      // Mark the roll as evaluated
-      this._evaluated = true;
-      
-      debugFulfillment("Roll fulfillment complete");
-    }
+    });
   });
   
   // Expand roll request section in panel
@@ -163,31 +184,7 @@ async function diceLinkAwaitFulfillment() {
   refreshPanel();
   
   // Wait for panel to submit results
-  return new Promise((resolve, reject) => {
-    // Store the resolve callback so the panel can call it when user submits
-    const pendingEntry = {
-      resolve,
-      reject,
-      diceNeeded
-    };
-    
-    // Store in a global to be accessible from panel
-    window.diceLinkPendingEntry = pendingEntry;
-    
-    // Set timeout for cancellation
-    const timeout = setTimeout(() => {
-      reject(new Error("Roll fulfillment timeout"));
-    }, 300000); // 5 minute timeout
-    
-    // Override resolve to clear timeout
-    const originalResolve = resolve;
-    const wrappedResolve = () => {
-      clearTimeout(timeout);
-      originalResolve();
-    };
-    
-    window.diceLinkPendingEntry.resolve = wrappedResolve;
-  });
+  return submissionPromise;
 }
 
 // ============================================================================

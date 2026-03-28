@@ -11,7 +11,14 @@ import { debug, debugState, debugResolver, debugResolverState, debugError } from
 import {
   setActiveResolver,
   getActiveResolver,
-  getResolverDiceTerms
+  getResolverDiceTerms,
+  setPendingRollRequest,
+  getPendingRollRequest,
+  getPendingDiceEntry,
+  setPendingDiceEntry,
+  setDiceEntryCancelled,
+  getCurrentPanelDialog,
+  setCurrentPanelDialog
 } from "./state-management.js";
 import {
   setGlobalOverride,
@@ -542,24 +549,13 @@ export function attachDiceTrayListeners(html) {
       return;
     }
     
-    // Call the resolver's submitResults if available (for legacy RollResolver approach)
+    // Get the active resolver and submit results through it
     const resolver = getActiveResolver();
     if (resolver && resolver.submitResults) {
       await resolver.submitResults(diceResults);
-    } else if (resolver && resolver.roll) {
-      // New hooked Roll.awaitFulfillment approach - inject values into roll
-      await resolver.submitResults(diceResults);
-    }
-    
-    // If using the hooked Roll.awaitFulfillment approach, also resolve via pending entry
-    if (window.diceLinkPendingEntry) {
-      await window.diceLinkPendingEntry.resolve();
-      delete window.diceLinkPendingEntry;
     }
     
     setPendingRollRequest(null);
-    setResolverDiceTerms(null);
-    setActiveResolver(null);
     refreshPanel();
   });
 
