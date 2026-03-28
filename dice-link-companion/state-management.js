@@ -8,6 +8,8 @@
  * NOTE: Persistent UI state (collapsed sections) is now managed exclusively by settings.js
  */
 
+import { debugError } from "./debug.js";
+
 // ============================================================================
 // STATE VARIABLES
 // ============================================================================
@@ -150,7 +152,7 @@ export function setMirroredDialog(value) {
     try {
       listener(value);
     } catch (e) {
-      console.error("Dice Link | Error in mirroredDialog listener:", e);
+      debugError("Error in mirroredDialog listener:", e);
     }
   }
 }

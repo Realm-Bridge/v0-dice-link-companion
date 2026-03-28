@@ -7,6 +7,7 @@
  */
 
 import { MODULE_ID, SETTING_DEFAULTS, PLAYER_MODES, GLOBAL_OVERRIDE_MODES } from "./constants.js";
+import { debugError } from "./debug.js";
 
 /**
  * Register core settings during the "init" hook.
@@ -55,7 +56,7 @@ export function registerPlayerModeSettings() {
           default: SETTING_DEFAULTS.playerMode
         });
       } catch (e) {
-        console.error("[Dice Link] Failed to register setting:", fullKey, e);
+        debugError("Failed to register setting:", fullKey, e);
       }
     }
   }

@@ -1,12 +1,12 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.7.3 - Unified Foundry Fulfillment
+ * Version 1.0.7.4 - Debug Fulfillment Structure
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  * 
+ * v1.0.7.4 - Added detailed debug logging to understand fulfillment structure
  * v1.0.7.3 - Dice tray now uses Foundry's native Roll.evaluate() with our resolver
- *            Removed duplicate manual dice entry code - all rolls go through Foundry
  * v1.0.7.2 - Fixed dice tray to show ALL dice inputs at once instead of one-at-a-time
  * v1.0.7.1 - BUG FIX: Restored missing debugState function that was preventing module load
  * v1.0.7.0 - MAJOR: Switched from handler to resolver approach for dice fulfillment
@@ -75,7 +75,8 @@ import {
 
 import {
   debug,
-  debugState
+  debugState,
+  debugError
 } from "./debug.js";
 
 import {
@@ -297,8 +298,8 @@ Hooks.once("ready", async () => {
       }
     }
   } catch (error) {
-    console.error("[Dice Link] ERROR in ready hook:", error);
-    console.error("[Dice Link] Stack trace:", error.stack);
+    debugError("ERROR in ready hook:", error);
+    debugError("Stack trace:", error.stack);
   }
 });
 

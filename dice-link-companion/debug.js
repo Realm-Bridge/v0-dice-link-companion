@@ -68,3 +68,13 @@ export function debugResolverState(event, data) {
     console.log("[Dice Link Resolver State]", event, data);
   }
 }
+
+/**
+ * Log fulfillment-specific debug information
+ * @param {...any} args - Arguments to log
+ */
+export function debugFulfillment(...args) {
+  if (DEBUG_ENABLED) {
+    console.log("[Dice Link Fulfillment]", ...args);
+  }
+}

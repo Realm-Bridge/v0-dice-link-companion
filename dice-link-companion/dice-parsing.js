@@ -6,6 +6,8 @@
  * Uses Foundry's native Roll API for validation to support ALL Foundry dice notation.
  */
 
+import { debugError } from "./debug.js";
+
 /**
  * Validate a dice formula using Foundry's native Roll.validate() method.
  * This ensures we support all Foundry-supported notation (kh, kl, x, r, cs, etc.)
@@ -118,7 +120,7 @@ export async function executeRollWithValues(formula, diceResults, title, subtitl
     });
     
   } catch (e) {
-    console.error("[Dice Link] Error executing roll with values:", e);
+    debugError("Error executing roll with values:", e);
     ui.notifications.error("Failed to execute roll.");
   }
 }
