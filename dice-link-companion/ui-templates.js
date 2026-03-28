@@ -26,13 +26,11 @@ import {
 import { getManualRollsPermissions } from "./settings-helpers.js";
 
 import {
-  getPendingRollRequest,
-  getActiveResolver,
-  getResolverDiceTerms
+  getPendingRollRequest
 } from "./state-management.js";
 
 import { generateVideoFeedSection } from "./video-feed.js";
-import { debugResolver } from "./debug.js";
+
 
 // ============================================================================
 // DICE TRAY HTML
@@ -73,52 +71,12 @@ export function generateDiceTrayHTML() {
 
 /**
  * Generate the pending roll UI
- * Handles four cases:
- * 1. Resolver dice entry (v1.0.7.0 - ALL dice at once from RollResolver)
- * 2. Mirrored native dialog (when player in manual mode and native dialog appears)
- * 3. Dice entry step (legacy - when fulfilling a roll with manual dice entry one at a time)
- * 4. Configuration step (selecting advantage/disadvantage/normal)
+ * Handles three cases:
+ * 1. Mirrored native dialog (when player in manual mode and native dialog appears)
+ * 2. Dice entry (all dice at once from RollResolver mirroring)
+ * 3. Configuration step (selecting advantage/disadvantage/normal)
  */
 export function generatePendingRollHTML(roll) {
-  // Check for resolver-based dice entry first (v1.0.7.0 - ALL dice at once)
-  const resolverDiceTerms = getResolverDiceTerms();
-  if (resolverDiceTerms && resolverDiceTerms.length > 0) {
-    debugResolver("Rendering resolver dice inputs", { count: resolverDiceTerms.length });
-    
-    const diceInputs = resolverDiceTerms.map((die, index) => {
-      const faces = die.faces || 20;
-      const dieLabel = die.type || `d${faces}`;
-      return `
-        <div class="dlc-dice-input-row">
-          <label class="dlc-dice-label">${dieLabel} #${die.index + 1}</label>
-          <input type="number" 
-                 class="dlc-dice-value-input dlc-resolver-input" 
-                 data-die-index="${index}" 
-                 data-die-faces="${faces}"
-                 min="1" 
-                 max="${faces}" 
-                 placeholder="1-${faces}">
-        </div>
-      `;
-    }).join('');
-    
-    return `
-      <div class="dlc-pending-roll dlc-dice-entry-step dlc-resolver-entry">
-        <div class="dlc-pending-roll-header">
-          <h4 class="dlc-pending-roll-title">Enter Dice Results</h4>
-          <p class="dlc-pending-roll-subtitle">${resolverDiceTerms.length} dice to enter</p>
-        </div>
-        <div class="dlc-dice-inputs">
-          ${diceInputs}
-        </div>
-        <div class="dlc-pending-roll-actions">
-          <button type="button" class="dlc-roll-action-btn dlc-submit-resolver-btn dlc-btn-success">SUBMIT ALL</button>
-          <button type="button" class="dlc-roll-action-btn dlc-cancel-resolver-btn dlc-btn-danger">CANCEL</button>
-        </div>
-      </div>
-    `;
-  }
-  
   if (roll.isMirroredDialog && roll.mirrorData) {
     return generateMirroredDialogHTML(roll.mirrorData);
   }
@@ -212,15 +170,9 @@ export function generateRollRequestSection(mode, globalOverride) {
   if (effectiveMode !== "manual") return '';
 
   const currentPendingRoll = getPendingRollRequest();
-  const resolverDiceTerms = getResolverDiceTerms();
-  
-  // Has pending if either legacy pending roll OR resolver dice terms exist
-  const hasPending = currentPendingRoll !== null || (resolverDiceTerms && resolverDiceTerms.length > 0);
+  const hasPending = currentPendingRoll !== null;
   const currentCollapsed = getCollapsedSections();
   const sectionClass = `dlc-section dlc-roll-request-section${hasPending ? ' dlc-roll-request-pending' : ''}`;
-
-  // For resolver-based rolls, pass an empty object - generatePendingRollHTML will check resolver state
-  const rollDataForTemplate = resolverDiceTerms ? {} : currentPendingRoll;
 
   return `
     <div class="${sectionClass} ${currentCollapsed.rollRequest ? 'collapsed' : ''}">
@@ -230,7 +182,7 @@ export function generateRollRequestSection(mode, globalOverride) {
         ${hasPending ? '<button type="button" class="dlc-roll-cancel-btn dlc-header-cancel-btn">Cancel Roll</button>' : ''}
       </div>
       <div class="dlc-section-content">
-        ${hasPending ? generatePendingRollHTML(rollDataForTemplate) : generateDiceTrayHTML()}
+        ${hasPending ? generatePendingRollHTML(currentPendingRoll) : generateDiceTrayHTML()}
       </div>
     </div>
   `;
