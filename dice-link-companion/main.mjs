@@ -1,26 +1,16 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.110 - STABLE CHECKPOINT
+ * Version 1.0.7.0 - Resolver Approach for All-Dice-At-Once
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  * 
- * STABLE CHECKPOINT: v1.0.6.110 - Ready for Phase 6 UI Cleanup
- * All modular refactoring complete, fully Foundry-native dice evaluation, zero global namespace coupling.
- * 
- * v1.0.6.110 - Simplified ADV/DIS: Directly modifies input field to show notation, removed advMode state variable
+ * v1.0.7.0 - MAJOR: Switched from handler to resolver approach for dice fulfillment
+ *            Now shows ALL dice at once instead of one-at-a-time
+ *            Created roll-resolver.js with custom DiceLinkResolver class
+ * v1.0.6.110 - STABLE CHECKPOINT: Ready for Phase 6 UI Cleanup
  * v1.0.6.109 - BUG FIX: Fixed term._evaluated flag and total calculation for all dice modifiers
- * v1.0.6.89 - Phase 3 COMPLETE: Added state listener system (onMirroredDialogChange), removed window.diceLink coupling
- * v1.0.6.83 - Phase 3 IN PROGRESS: Created ui-templates.js, added import (generate functions removal deferred)
- * v1.0.6.82 - Phase 3 START: Extracted ui-templates.js with all 6 generate functions (615 lines)
- * v1.0.6.81 - Phase 2 COMPLETE: Fixed remaining pendingRollRequest button handler references
- * v1.0.6.76 - Fixed: Restored local state variables (state-management.js for external modules only)
- * v1.0.6.75 - Fixed: Resolved import conflicts after Phase 2 extraction
- * v1.0.6.74 - Phase 2: Extracted state-management.js for dependency resolution
- * v1.0.6.73 - Phase 1: Extracted constants.js and types.js for foundation setup
- * v1.0.6.72 - Optimized: Reduced async operation delays from 100ms to 40ms, unified into single constant
- * v1.0.6.71 - Fixed: Restored updatePanelWithMirroredDialog (was needed, not duplicate)
- * v1.0.6.70 - Removed duplicate dialog mirroring functions that were dead code (~289 lines)
+ * v1.0.6.89 - Phase 3 COMPLETE: Added state listener system (onMirroredDialogChange)
  */
 
 import { 

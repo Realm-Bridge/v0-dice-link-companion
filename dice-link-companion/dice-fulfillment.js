@@ -1,10 +1,12 @@
 /**
  * Dice Fulfillment Module - dice-link-companion
- * Version 1.0.6.109
+ * Version 1.0.7.0
  * 
- * Handles Foundry VTT dice fulfillment integration and manual dice entry.
- * This module registers our custom fulfillment method and manages the dice entry workflow.
- * Uses Foundry's _evaluateModifiers() and term.total for ALL dice modifiers including count successes.
+ * Handles Foundry VTT dice fulfillment integration using a custom RollResolver.
+ * Uses Foundry's _evaluateModifiers() and term.total for ALL dice modifiers.
+ * 
+ * v1.0.7.0 - MAJOR CHANGE: Switched from handler to resolver approach
+ *            This allows showing ALL dice at once instead of one-at-a-time.
  */
 
 import { ASYNC_OPERATION_DELAY_MS } from "./constants.js";
@@ -16,13 +18,16 @@ import {
   setPendingDiceEntry,
   getDiceEntryCancelled,
   setDiceEntryCancelled,
-  getMirroredDialog
+  getMirroredDialog,
+  getActiveResolver,
+  getResolverDiceTerms
 } from "./state-management.js";
 import {
   getCollapsedSections,
   setCollapsedSections
 } from "./settings.js";
 import { refreshPanel } from "./dice-panel.js";
+import { DiceLinkResolver } from "./roll-resolver.js";
 
 debug("dice-fulfillment.js: All imports complete");
 
@@ -32,120 +37,23 @@ debug("dice-fulfillment.js: All imports complete");
 
 /**
  * Setup the Dice Link fulfillment method.
- * Registers our custom method with Foundry's dice system.
- * We use a non-interactive handler that waits for our panel UI.
+ * Registers our custom resolver with Foundry's dice system.
+ * Using interactive: true with a resolver shows ALL dice at once.
  */
 export function setupDiceFulfillment() {
-  // Register our custom fulfillment method with a handler function
-  // Using a handler (non-interactive) instead of a resolver ensures we control the UI
+  console.log("[v0] setupDiceFulfillment: Registering dice-link fulfillment method with resolver");
+  
+  // Register our custom fulfillment method with a resolver class
+  // Using interactive: true with resolver ensures we get ALL dice at once
   CONFIG.Dice.fulfillment.methods["dice-link"] = {
     label: "Dice Link Companion",
     icon: "fa-dice-d20",
-    interactive: false,
-    handler: diceLinkFulfillmentHandler
+    interactive: true,
+    resolver: DiceLinkResolver
   };
-  debug("setupDiceFulfillment: Registered dice-link fulfillment method");
-}
-
-/**
- * Handler function for dice-link fulfillment.
- * According to Foundry's API, this is called ONCE PER DIE, not once per term.
- * For 2d20kh, it will be called twice - once for each d20.
- * We return a single number each time.
- */
-export async function diceLinkFulfillmentHandler(term, index) {
-  // Get the denomination (d4, d6, d8, d10, d12, d20, d100)
-  const faces = term.faces;
-  const denomination = `d${faces}`;
-  const count = term.number || 1;
   
-  // Index tells us which die in the term we're fulfilling (0-based)
-  // Make sure index is a number - sometimes Foundry passes an object or other type
-  let dieIndex = 0;
-  if (typeof index === "number") {
-    dieIndex = index;
-  } else if (typeof index === "object" && index !== null && typeof index.index === "number") {
-    dieIndex = index.index;
-  }
-  const dieNumber = dieIndex + 1;
-  
-  // Reset cancellation flag on first die of a new roll
-  if (dieNumber === 1) {
-    setDiceEntryCancelled(false);
-  }
-  
-  // Wait for user to enter this single die result
-  const result = await waitForDiceResult(denomination, faces, dieNumber, count);
-  
-  // Handle null result (cancelled) - throw error to abort the roll
-  if (result === null) {
-    throw new Error("Roll cancelled by user");
-  }
-  
-  return result;
-}
-
-// ============================================================================
-// DICE ENTRY UI
-// ============================================================================
-
-/**
- * Wait for user to enter a die result via our panel UI.
- */
-async function waitForDiceResult(denomination, faces, dieNumber, totalDice) {
-  // Check if entry was cancelled (from a previous die in the same roll)
-  if (getDiceEntryCancelled()) {
-    return null; // Return null to trigger abort
-  }
-  
-  return new Promise((resolve) => {
-    // Store the resolver so our panel can call it when user enters a value
-    setPendingDiceEntry({
-      denomination,
-      faces,
-      dieNumber,
-      totalDice,
-      resolve
-    });
-    
-    // Update our panel to show dice entry UI
-    showDiceEntryUI(denomination, faces, dieNumber, totalDice);
-  });
-}
-
-/**
- * Show the dice entry UI in our panel
- */
-function showDiceEntryUI(denomination, faces, dieNumber, totalDice) {
-  // Set up a pending roll request for dice entry
-  setPendingRollRequest({
-    title: `Enter ${denomination} Result`,
-    subtitle: `Die ${dieNumber} of ${totalDice}`,
-    isFulfillment: true,
-    step: "diceEntry",
-    diceNeeded: [{
-      type: denomination,
-      faces: faces,
-      index: dieNumber - 1,
-      count: 1
-    }],
-    onComplete: (values) => {
-      const currentDiceEntry = getPendingDiceEntry();
-      if (currentDiceEntry && Array.isArray(values) && values.length > 0) {
-        const numericValue = parseInt(values[0]);
-        currentDiceEntry.resolve(numericValue);
-        setPendingDiceEntry(null);
-        setPendingRollRequest(null);
-        refreshPanel();
-      }
-    }
-  });
-  
-  // Expand roll request section and refresh panel
-  const currentCollapsed = getCollapsedSections();
-  currentCollapsed.rollRequest = false;
-  setCollapsedSections(currentCollapsed);
-  refreshPanel();
+  debug("setupDiceFulfillment: Registered dice-link fulfillment method with DiceLinkResolver");
+  console.log("[v0] setupDiceFulfillment: Registration complete");
 }
 
 // ============================================================================
