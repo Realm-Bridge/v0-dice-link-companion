@@ -1,10 +1,11 @@
 /**
  * UI Templates Module - Phase 3: Core UI/UX Functions
- * Version 1.0.6.103
+ * Version 1.0.7.0
  * 
  * Extracts all HTML generation functions from main.mjs
  * Pure template functions with no game logic - only rendering
  * 
+ * v1.0.7.0 - Updated to support resolver approach: shows ALL dice at once
  * Depends on: constants.js, settings.js, settings-helpers.js, state-management.js, video-feed.js
  */
 
@@ -29,6 +30,7 @@ import {
 } from "./state-management.js";
 
 import { generateVideoFeedSection } from "./video-feed.js";
+
 
 // ============================================================================
 // DICE TRAY HTML
@@ -71,7 +73,7 @@ export function generateDiceTrayHTML() {
  * Generate the pending roll UI
  * Handles three cases:
  * 1. Mirrored native dialog (when player in manual mode and native dialog appears)
- * 2. Dice entry step (when fulfilling a roll with manual dice entry)
+ * 2. Dice entry (all dice at once from RollResolver mirroring)
  * 3. Configuration step (selecting advantage/disadvantage/normal)
  */
 export function generatePendingRollHTML(roll) {
@@ -83,11 +85,13 @@ export function generatePendingRollHTML(roll) {
     const diceInputs = roll.diceNeeded.map((die, index) => {
       const faces = die.faces || parseInt((die.type || "d20").replace("d", "")) || 20;
       const dieLabel = die.type || `d${faces}`;
+      // For all-at-once mode, show die number
+      const labelSuffix = roll.isAllAtOnce ? ` #${index + 1}` : '';
       return `
         <div class="dlc-dice-input-row">
-          <label class="dlc-dice-label">${dieLabel}</label>
+          <label class="dlc-dice-label">${dieLabel}${labelSuffix}</label>
           <input type="number" 
-                 class="dlc-dice-value-input" 
+                 class="dlc-dice-value-input${roll.isAllAtOnce ? ' dlc-all-at-once-input' : ''}" 
                  data-die-index="${index}" 
                  data-die-faces="${faces}"
                  min="1" 
@@ -97,8 +101,12 @@ export function generatePendingRollHTML(roll) {
       `;
     }).join('');
     
+    // Use different button class for all-at-once mode
+    const submitBtnClass = roll.isAllAtOnce ? 'dlc-submit-all-dice-btn' : 'dlc-submit-dice-btn';
+    const submitBtnText = roll.isAllAtOnce ? 'SUBMIT ALL' : 'SUBMIT RESULTS';
+    
     return `
-      <div class="dlc-pending-roll dlc-dice-entry-step">
+      <div class="dlc-pending-roll dlc-dice-entry-step${roll.isAllAtOnce ? ' dlc-all-at-once' : ''}">
         <div class="dlc-pending-roll-header">
           <h4 class="dlc-pending-roll-title">${roll.title || "Enter Dice Results"}</h4>
           ${roll.subtitle ? `<p class="dlc-pending-roll-subtitle">${roll.subtitle}</p>` : ''}
@@ -107,7 +115,7 @@ export function generatePendingRollHTML(roll) {
           ${diceInputs}
         </div>
         <div class="dlc-pending-roll-actions">
-          <button type="button" class="dlc-roll-action-btn dlc-submit-dice-btn dlc-btn-success">SUBMIT RESULTS</button>
+          <button type="button" class="dlc-roll-action-btn ${submitBtnClass} dlc-btn-success">${submitBtnText}</button>
         </div>
       </div>
     `;

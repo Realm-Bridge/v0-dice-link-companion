@@ -1,24 +1,21 @@
 /**
  * Dice Panel Module - dice-link-companion
- * Version 1.0.6.100 - Fixed imports: getCollapsedSections/setCollapsedSections now from settings.js
+ * Version 1.0.7.0 - Added resolver submission support for all-dice-at-once
  * 
  * Handles panel lifecycle (open, close, refresh) and all panel event listeners.
  * This is the primary UI orchestration module.
  */
 
 import { MODULE_ID, ROLE_NAMES, ASYNC_OPERATION_DELAY_MS } from "./constants.js";
-import { debug, debugState } from "./debug.js";
+import { debug, debugState, debugError } from "./debug.js";
 import {
-  getPendingRollRequest,
   setPendingRollRequest,
-  getCurrentPanelDialog,
-  setCurrentPanelDialog,
+  getPendingRollRequest,
   getPendingDiceEntry,
   setPendingDiceEntry,
-  getDiceEntryCancelled,
   setDiceEntryCancelled,
-  getMirroredDialog,
-  setMirroredDialog
+  getCurrentPanelDialog,
+  setCurrentPanelDialog
 } from "./state-management.js";
 import {
   setGlobalOverride,
@@ -31,10 +28,13 @@ import {
   getCollapsedSections,
   setCollapsedSections
 } from "./settings.js";
+import { setManualRollsPermission } from "./settings-helpers.js";
 import { applyManualDice, applyDigitalDice } from "./mode-application.js";
 import { createApprovalChatMessage } from "./approval.js";
 import { playerRequestManual, playerSwitchToDigital } from "./socket.js";
 import { generateGMPanelContent, generatePlayerPanelContent } from "./ui-templates.js";
+import { validateDiceFormula } from "./dice-parsing.js";
+import { executeDiceTrayRollManually } from "./dice-fulfillment.js";
 
 debug("dice-panel.js: All imports complete");
 
@@ -125,7 +125,7 @@ export function attachGMPanelListeners(html) {
   html.find(".dlc-role-toggle").change(async function() {
     const role = parseInt($(this).data("role"));
     const enabled = $(this).is(":checked");
-    const success = await window.diceLink.setManualRollsPermission(role, enabled);
+    const success = await setManualRollsPermission(role, enabled);
     if (success) {
       ui.notifications.info(`Manual rolls ${enabled ? 'enabled' : 'disabled'} for ${ROLE_NAMES[role]}.`);
     }
@@ -304,7 +304,6 @@ export function attachDiceTrayListeners(html) {
   // Track dice counts for badges
   const diceCounts = { 4: 0, 6: 0, 8: 0, 10: 0, 12: 0, 20: 0, 100: 0 };
   let currentModifier = 0;
-  let advMode = "normal"; // "normal", "advantage", "disadvantage"
 
   // Dice button left-click - add to formula
   html.find(".dlc-dice-btn").click(function() {
@@ -353,64 +352,81 @@ export function attachDiceTrayListeners(html) {
     updateDiceFormula(html, diceCounts, currentModifier);
   });
 
-  // Advantage/Disadvantage toggle
+  // Advantage/Disadvantage toggle - directly modify the input field to show the notation
   html.find(".dlc-dice-adv-btn").click(function() {
-    if (advMode === "normal") {
-      advMode = "advantage";
-      $(this).text("ADV").addClass("dlc-adv-active");
-    } else if (advMode === "advantage") {
-      advMode = "disadvantage";
+    const input = html.find(".dlc-dice-formula-input");
+    let formula = input.val().replace(/^\/r\s*/, "").trim();
+    
+    // Determine current state from button text
+    const buttonText = $(this).text();
+    let nextState = "advantage"; // Default
+    
+    if (buttonText === "ADV/DIS") {
+      nextState = "advantage";
+    } else if (buttonText === "ADV") {
+      nextState = "disadvantage";
+    } else if (buttonText === "DIS") {
+      nextState = "normal";
+    }
+    
+    // Remove existing kh/kl modifiers from d20 rolls
+    formula = formula.replace(/(\d*)d20(?:kh|kl)/gi, (match, count) => {
+      const num = count || "1";
+      return `${num}d20`;
+    });
+    
+    // Add the appropriate modifier based on next state
+    if (nextState === "advantage") {
+      formula = formula.replace(/(\d*)d20(?!kh|kl)/gi, (match, count) => {
+        const num = count || "1";
+        return `${num}d20kh`;
+      });
+      $(this).text("ADV").removeClass("dlc-dis-active").addClass("dlc-adv-active");
+    } else if (nextState === "disadvantage") {
+      formula = formula.replace(/(\d*)d20(?!kh|kl)/gi, (match, count) => {
+        const num = count || "1";
+        return `${num}d20kl`;
+      });
       $(this).text("DIS").removeClass("dlc-adv-active").addClass("dlc-dis-active");
     } else {
-      advMode = "normal";
-      $(this).text("ADV/DIS").removeClass("dlc-dis-active");
+      $(this).text("ADV/DIS").removeClass("dlc-adv-active dlc-dis-active");
     }
+    
+    // Update the input field to show the modified formula
+    input.val(formula);
   });
 
-  // Roll button - needs access to dice fulfillment functions
-  // We use a callback pattern here since executeDiceTrayRollManually is in dice-fulfillment.js
+  // Roll button - uses the formula as shown in the input field
   html.find(".dlc-dice-roll-btn").click(async function() {
     let formula = html.find(".dlc-dice-formula-input").val().replace(/^\/r\s*/, "").trim();
-    if (!formula) {
-      ui.notifications.warn("Enter a dice formula first.");
+    
+    // Validate formula using Foundry's Roll API (supports ALL Foundry dice notation)
+    const validation = validateDiceFormula(formula);
+    if (!validation.valid) {
+      ui.notifications.warn(validation.error);
       return;
     }
     
-    // Apply advantage/disadvantage to d20 rolls
-    if (advMode === "advantage") {
-      formula = formula.replace(/(\d*)d20/gi, (match, count) => {
-        const num = parseInt(count) || 1;
-        return `${num * 2}d20kh`;
-      });
-    } else if (advMode === "disadvantage") {
-      formula = formula.replace(/(\d*)d20/gi, (match, count) => {
-        const num = parseInt(count) || 1;
-        return `${num * 2}d20kl`;
-      });
-    }
-    
-    const flavorText = advMode !== "normal" 
-      ? `Manual Dice Roll (${advMode === "advantage" ? "Advantage" : "Disadvantage"})` 
-      : "Manual Dice Roll";
+    // Formula already has modifiers applied from ADV/DIS buttons, so just use it as-is
+    const flavorText = "Manual Dice Roll";
     
     // Check mode and execute roll
     if (isUserInManualMode()) {
       try {
         // Call the global dice fulfillment function exposed by main.mjs
-        const result = await window.diceLink.executeDiceTrayRollManually(formula, flavorText, html);
+        const result = await executeDiceTrayRollManually(formula, flavorText, html);
         if (result === "cancelled") {
           return;
         }
         resetDiceTray(html, diceCounts);
-        advMode = "normal";
       } catch (e) {
-        console.error("[Dice Link] Manual roll error:", e);
-        ui.notifications.error("Invalid dice formula.");
+        debugError("Manual roll error:", e);
+        ui.notifications.error("Roll execution failed.");
       }
       return;
     }
     
-    // Digital mode - normal roll
+    // Digital mode - normal roll (formula already validated above)
     try {
       const roll = new Roll(formula);
       await roll.evaluate();
@@ -421,9 +437,8 @@ export function attachDiceTrayListeners(html) {
       });
       
       resetDiceTray(html, diceCounts);
-      advMode = "normal";
     } catch (e) {
-      ui.notifications.error("Invalid dice formula.");
+      ui.notifications.error("Roll execution failed.");
     }
   });
 
@@ -486,7 +501,7 @@ export function attachDiceTrayListeners(html) {
     }
   });
   
-  // Submit Dice Results button (Step 2: Dice Entry)
+  // Submit Dice Results button (Step 2: Dice Entry - single die at a time, legacy)
   html.find(".dlc-submit-dice-btn").click(async function() {
     const currentRollRequest = getPendingRollRequest();
     if (!currentRollRequest || !currentRollRequest.isFulfillment) {
@@ -507,6 +522,38 @@ export function attachDiceTrayListeners(html) {
     if (currentRollRequest.onComplete) {
       currentRollRequest.onComplete(diceResults);
     }
+  });
+
+  // Submit All Dice button (all-at-once mode for RollResolver mirroring)
+  html.find(".dlc-submit-all-dice-btn").click(async function() {
+    const currentRollRequest = getPendingRollRequest();
+    if (!currentRollRequest || !currentRollRequest.isFulfillment || !currentRollRequest.isAllAtOnce) {
+      return;
+    }
+    
+    // Gather ALL dice values from inputs
+    const diceResults = [];
+    html.find(".dlc-all-at-once-input").each(function() {
+      const value = parseInt($(this).val()) || 0;
+      const faces = parseInt($(this).data("die-faces")) || 20;
+      // Clamp to valid range
+      const clampedValue = Math.max(1, Math.min(faces, value));
+      diceResults.push(clampedValue);
+    });
+    
+    // Validate all values are filled
+    if (diceResults.some(v => v < 1)) {
+      ui.notifications.warn("Please enter all dice values.");
+      return;
+    }
+    
+    // Call onComplete to submit values to Foundry's hidden RollResolver
+    if (currentRollRequest.onComplete) {
+      await currentRollRequest.onComplete(diceResults);
+    }
+    
+    // onComplete handles clearing state
+    refreshPanel();
   });
 
   // Cancel roll button

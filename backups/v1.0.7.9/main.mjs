@@ -1,25 +1,14 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.104
+ * Version 1.0.7.9 - Fixed setPosition null check
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  * 
- * LAST KNOWN GOOD VERSION: 1.0.6.53 - Stable after failed UI extraction
- * 
- * v1.0.6.104 - BUG FIX: Added missing getManualRollsPermissions import to ui-templates.js from settings-helpers.js
- * v1.0.6.103 - CLEANUP: Removed TODO comment from ui-templates.js, refactored socket.js to use proper imports
- * v1.0.6.89 - Phase 3 COMPLETE: Added state listener system (onMirroredDialogChange), removed window.diceLink coupling
- * v1.0.6.83 - Phase 3 IN PROGRESS: Created ui-templates.js, added import (generate functions removal deferred)
- * v1.0.6.82 - Phase 3 START: Extracted ui-templates.js with all 6 generate functions (615 lines)
- * v1.0.6.81 - Phase 2 COMPLETE: Fixed remaining pendingRollRequest button handler references
- * v1.0.6.76 - Fixed: Restored local state variables (state-management.js for external modules only)
- * v1.0.6.75 - Fixed: Resolved import conflicts after Phase 2 extraction
- * v1.0.6.74 - Phase 2: Extracted state-management.js for dependency resolution
- * v1.0.6.73 - Phase 1: Extracted constants.js and types.js for foundation setup
- * v1.0.6.72 - Optimized: Reduced async operation delays from 100ms to 40ms, unified into single constant
- * v1.0.6.71 - Fixed: Restored updatePanelWithMirroredDialog (was needed, not duplicate)
- * v1.0.6.70 - Removed duplicate dialog mirroring functions that were dead code (~289 lines)
+ * v1.0.7.9 - Fixed setPosition to check this.element[0] for valid DOM node
+ *            Empty jQuery objects are truthy but don't have DOM nodes
+ * v1.0.7.8 - Removed dead resolver state code and unused imports
+ * v1.0.7.7 - Simplified: RollResolver uses same shadow/mirror pattern as dialogs
  */
 
 import { 
@@ -85,7 +74,8 @@ import {
 
 import {
   debug,
-  debugState
+  debugState,
+  debugError
 } from "./debug.js";
 
 import {
@@ -193,6 +183,11 @@ class DiceLinkCompanionApp extends ApplicationV2 {
   }
 
   setPosition(options = {}) {
+    // Only set position if element exists and is a valid DOM node
+    // this.element might be an empty jQuery object, so check [0] for actual DOM node
+    if (!this.element || !this.element[0]) {
+      return this;
+    }
     if (!options.width) {
       options.width = this._isGM ? 480 : 390;
     }
@@ -271,20 +266,7 @@ Hooks.once("ready", async () => {
     setupDialogMirroring();
     setupDiceFulfillment();
     
-    // Expose core functions on global namespace for modules and dice-panel.js to use
-    window.diceLink = window.diceLink || {};
-    window.diceLink.refreshPanel = refreshPanel;
-    window.diceLink.applyManualDice = applyManualDice;
-    window.diceLink.applyDigitalDice = applyDigitalDice;
-    window.diceLink.isUserInManualMode = isUserInManualMode;
-    window.diceLink.playerRequestManual = playerRequestManual;
-    window.diceLink.playerSwitchToDigital = playerSwitchToDigital;
-    window.diceLink.getPlayerMode = getPlayerMode;
-    window.diceLink.getGlobalOverride = getGlobalOverride;
-    window.diceLink.executeDiceTrayRollManually = executeDiceTrayRollManually;
-    window.diceLink.setManualRollsPermission = setManualRollsPermission;
-    
-    // Register state listener for mirrored dialog changes (replaces window.diceLink.updatePanelWithMirroredDialog)
+    // Register state listener for mirrored dialog changes
     onMirroredDialogChange((dialogData) => {
       if (dialogData && dialogData.data) {
         handleMirroredDialogChange(dialogData, submitMirroredDialog, refreshPanel, openPanel);
@@ -307,8 +289,8 @@ Hooks.once("ready", async () => {
       }
     }
   } catch (error) {
-    console.error("[Dice Link] ERROR in ready hook:", error);
-    console.error("[Dice Link] Stack trace:", error.stack);
+    debugError("ERROR in ready hook:", error);
+    debugError("Stack trace:", error.stack);
   }
 });
 
