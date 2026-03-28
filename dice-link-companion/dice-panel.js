@@ -60,8 +60,8 @@ export function refreshPanel() {
       attachPlayerPanelListeners($element);
     }
 
-    // Recalculate dialog height to fit content after collapse/expand
-    panelDialog.setPosition({ height: "auto" });
+    // Recalculate dialog dimensions to fit content after collapse/expand
+    panelDialog.setPosition({ height: "auto", width: "auto" });
   }
 }
 
