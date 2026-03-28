@@ -1,7 +1,5 @@
 /**
  * Socket.js - Socket communication and player functions
- * Version 1.0.6.102
- * 
  * Handles cross-client communication for dice mode changes
  */
 

@@ -1,7 +1,5 @@
 /**
  * Dice Panel Module - dice-link-companion
- * Version 1.0.7.0 - Added resolver submission support for all-dice-at-once
- * 
  * Handles panel lifecycle (open, close, refresh) and all panel event listeners.
  * This is the primary UI orchestration module.
  */

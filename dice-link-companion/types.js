@@ -1,7 +1,5 @@
 /**
  * Type Definitions - Dice Link Companion
- * Version 1.0.6.73
- * 
  * JSDoc type definitions for better IDE support and documentation.
  * Not executable - purely for type hinting.
  */

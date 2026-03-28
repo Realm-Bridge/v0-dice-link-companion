@@ -1,7 +1,5 @@
 /**
  * Video Feed Module - dice-link-companion
- * Version 1.0.6.101
- * 
  * Handles video feed UI generation for the panel.
  * Currently a placeholder for future video integration features.
  */

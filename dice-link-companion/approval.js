@@ -1,6 +1,5 @@
 /**
  * Approval Module - Handle GM approval/denial of player requests
- * Version 1.0.6.108 - Removed window.diceLink coupling
  * Manages chat buttons and approval workflow
  */
 
