@@ -70,8 +70,10 @@ export function setupDiceFulfillment() {
 // ============================================================================
 
 /**
- * Execute a dice tray roll manually - collect values BEFORE rolling
+ * Execute a dice tray roll manually - collect ALL values at once BEFORE rolling
  * Returns "cancelled" if user cancels, otherwise completes the roll
+ * 
+ * v1.0.7.2 - Fixed to show ALL dice at once instead of one-at-a-time
  */
 export async function executeDiceTrayRollManually(formula, flavorText, html) {
   // Parse the formula to find dice terms
@@ -97,30 +99,40 @@ export async function executeDiceTrayRollManually(formula, flavorText, html) {
     return "success";
   }
   
-  // Collect values for all dice
-  const collectedValues = [];
-  let totalDice = diceTerms.reduce((sum, t) => sum + t.count, 0);
-  let currentDie = 0;
+  // Build array of ALL dice needed for entry at once
+  const allDiceNeeded = [];
+  let dieIndex = 0;
+  for (const term of diceTerms) {
+    for (let i = 0; i < term.count; i++) {
+      allDiceNeeded.push({
+        type: `d${term.faces}`,
+        faces: term.faces,
+        index: dieIndex,
+        termIndex: diceTerms.indexOf(term),
+        dieInTerm: i
+      });
+      dieIndex++;
+    }
+  }
   
   // Reset cancellation flag
   setDiceEntryCancelled(false);
   
+  // Collect ALL values at once
+  const allValues = await waitForAllDiceTrayEntries(allDiceNeeded);
+  
+  if (allValues === null || getDiceEntryCancelled()) {
+    return "cancelled";
+  }
+  
+  // Group values by term for injection
+  const collectedValues = [];
+  let valueIdx = 0;
   for (const term of diceTerms) {
     const termValues = [];
     for (let i = 0; i < term.count; i++) {
-      currentDie++;
-      
-      if (getDiceEntryCancelled()) {
-        return "cancelled";
-      }
-      
-      const value = await waitForDiceTrayEntry(`d${term.faces}`, term.faces, currentDie, totalDice);
-      
-      if (value === null || getDiceEntryCancelled()) {
-        return "cancelled";
-      }
-      
-      termValues.push(value);
+      termValues.push(allValues[valueIdx]);
+      valueIdx++;
     }
     collectedValues.push({ term, values: termValues });
   }
@@ -132,11 +144,11 @@ export async function executeDiceTrayRollManually(formula, flavorText, html) {
   finalRoll.terms; // This triggers term parsing
   
   // Now inject our collected values into the dice terms
-  let valueIndex = 0;
+  let termValueIndex = 0;
   for (const term of finalRoll.terms) {
     if (term.faces) { // It's a dice term
       // Find the matching collected values
-      const collected = collectedValues[valueIndex];
+      const collected = collectedValues[termValueIndex];
       if (collected) {
         // Set the results on this term
         term.results = collected.values.map((val, idx) => ({
@@ -153,7 +165,7 @@ export async function executeDiceTrayRollManually(formula, flavorText, html) {
           term._evaluateModifiers();
         }
         
-        valueIndex++;
+        termValueIndex++;
       }
     }
   }
@@ -187,44 +199,46 @@ export async function executeDiceTrayRollManually(formula, flavorText, html) {
 }
 
 /**
- * Wait for dice tray manual entry (similar to waitForDiceResult but for dice tray)
+ * Wait for ALL dice tray entries at once - shows all dice inputs simultaneously
+ * Returns array of values or null if cancelled
  */
-async function waitForDiceTrayEntry(denomination, faces, dieNumber, totalDice) {
+async function waitForAllDiceTrayEntries(allDiceNeeded) {
   if (getDiceEntryCancelled()) {
     return null;
   }
   
   return new Promise((resolve) => {
+    // Store resolver so panel can call it when user submits ALL values
     setPendingDiceEntry({
-      denomination,
-      faces,
-      dieNumber,
-      totalDice,
+      allDiceNeeded,
       resolve,
-      isDiceTray: true
+      isDiceTray: true,
+      isMultipleDice: true
     });
     
-    // Show dice entry UI
+    // Show dice entry UI with ALL dice at once
     setPendingRollRequest({
-      title: `Enter ${denomination} Result`,
-      subtitle: `Die ${dieNumber} of ${totalDice}`,
+      title: "Enter Dice Results",
+      subtitle: `${allDiceNeeded.length} dice to enter`,
       isFulfillment: true,
       isDiceTray: true,
+      isAllAtOnce: true,
       step: "diceEntry",
-      diceNeeded: [{
-        type: denomination,
-        faces: faces,
-        index: dieNumber - 1,
-        count: 1
-      }],
+      diceNeeded: allDiceNeeded,
       onComplete: (values) => {
-        if (Array.isArray(values) && values.length > 0) {
-          const numericValue = parseInt(values[0]);
+        if (Array.isArray(values) && values.length === allDiceNeeded.length) {
+          const numericValues = values.map(v => parseInt(v));
           setPendingDiceEntry(null);
           setPendingRollRequest(null);
           refreshPanel();
-          resolve(numericValue);
+          resolve(numericValues);
         }
+      },
+      onCancel: () => {
+        setPendingDiceEntry(null);
+        setPendingRollRequest(null);
+        refreshPanel();
+        resolve(null);
       }
     });
     

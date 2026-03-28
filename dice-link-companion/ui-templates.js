@@ -127,11 +127,13 @@ export function generatePendingRollHTML(roll) {
     const diceInputs = roll.diceNeeded.map((die, index) => {
       const faces = die.faces || parseInt((die.type || "d20").replace("d", "")) || 20;
       const dieLabel = die.type || `d${faces}`;
+      // For all-at-once mode, show die number
+      const labelSuffix = roll.isAllAtOnce ? ` #${index + 1}` : '';
       return `
         <div class="dlc-dice-input-row">
-          <label class="dlc-dice-label">${dieLabel}</label>
+          <label class="dlc-dice-label">${dieLabel}${labelSuffix}</label>
           <input type="number" 
-                 class="dlc-dice-value-input" 
+                 class="dlc-dice-value-input${roll.isAllAtOnce ? ' dlc-all-at-once-input' : ''}" 
                  data-die-index="${index}" 
                  data-die-faces="${faces}"
                  min="1" 
@@ -141,8 +143,12 @@ export function generatePendingRollHTML(roll) {
       `;
     }).join('');
     
+    // Use different button class for all-at-once mode
+    const submitBtnClass = roll.isAllAtOnce ? 'dlc-submit-all-dice-btn' : 'dlc-submit-dice-btn';
+    const submitBtnText = roll.isAllAtOnce ? 'SUBMIT ALL' : 'SUBMIT RESULTS';
+    
     return `
-      <div class="dlc-pending-roll dlc-dice-entry-step">
+      <div class="dlc-pending-roll dlc-dice-entry-step${roll.isAllAtOnce ? ' dlc-all-at-once' : ''}">
         <div class="dlc-pending-roll-header">
           <h4 class="dlc-pending-roll-title">${roll.title || "Enter Dice Results"}</h4>
           ${roll.subtitle ? `<p class="dlc-pending-roll-subtitle">${roll.subtitle}</p>` : ''}
@@ -151,7 +157,7 @@ export function generatePendingRollHTML(roll) {
           ${diceInputs}
         </div>
         <div class="dlc-pending-roll-actions">
-          <button type="button" class="dlc-roll-action-btn dlc-submit-dice-btn dlc-btn-success">SUBMIT RESULTS</button>
+          <button type="button" class="dlc-roll-action-btn ${submitBtnClass} dlc-btn-success">${submitBtnText}</button>
         </div>
       </div>
     `;

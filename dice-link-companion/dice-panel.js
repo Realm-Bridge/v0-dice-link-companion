@@ -505,7 +505,7 @@ export function attachDiceTrayListeners(html) {
     }
   });
   
-  // Submit Dice Results button (Step 2: Dice Entry)
+  // Submit Dice Results button (Step 2: Dice Entry - single die at a time, legacy)
   html.find(".dlc-submit-dice-btn").click(async function() {
     const currentRollRequest = getPendingRollRequest();
     if (!currentRollRequest || !currentRollRequest.isFulfillment) {
@@ -523,6 +523,35 @@ export function attachDiceTrayListeners(html) {
     });
     
     // Call the onComplete callback with the dice results array directly
+    if (currentRollRequest.onComplete) {
+      currentRollRequest.onComplete(diceResults);
+    }
+  });
+
+  // Submit All Dice button (all-at-once mode for dice tray)
+  html.find(".dlc-submit-all-dice-btn").click(async function() {
+    const currentRollRequest = getPendingRollRequest();
+    if (!currentRollRequest || !currentRollRequest.isFulfillment || !currentRollRequest.isAllAtOnce) {
+      return;
+    }
+    
+    // Gather ALL dice values from inputs
+    const diceResults = [];
+    html.find(".dlc-all-at-once-input").each(function() {
+      const value = parseInt($(this).val()) || 0;
+      const faces = parseInt($(this).data("die-faces")) || 20;
+      // Clamp to valid range
+      const clampedValue = Math.max(1, Math.min(faces, value));
+      diceResults.push(clampedValue);
+    });
+    
+    // Validate all values are filled
+    if (diceResults.some(v => v < 1)) {
+      ui.notifications.warn("Please enter all dice values.");
+      return;
+    }
+    
+    // Call the onComplete callback with ALL dice results
     if (currentRollRequest.onComplete) {
       currentRollRequest.onComplete(diceResults);
     }
