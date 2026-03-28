@@ -1,7 +1,7 @@
 /**
  * Dialog Mirroring Module
  * Handles suppressing dnd5e roll dialogs and mirroring them to our panel UI
- * Version 1.0.6.74 - Phase 2: Imports state management from centralized module
+ * Version 1.0.6.87 - Phase 3: Removed window.diceLink coupling, panel updates via state listener
  */
 
 import { getPlayerMode, getGlobalOverride } from "./settings.js";
@@ -176,16 +176,13 @@ function mirrorDialogToPanel(app, html, data) {
     }
     
     // Store the dialog reference and data in state management
+    // Panel will update automatically via state listener in main.mjs
     setMirroredDialog({
       app,
       html,
       data: formData,
       timestamp: Date.now()
     });
-    
-    // Update our panel to show the mirrored dialog UI
-    // Pass the full dialog reference so main.mjs can access app/html for submission
-    window.diceLink?.updatePanelWithMirroredDialog?.(formData, app, html);
     
   } catch (e) {
     console.error("[Dice Link] Error mirroring dialog:", e);
