@@ -1,10 +1,10 @@
 /**
  * Dice Fulfillment Module - dice-link-companion
- * Version 1.0.6.106
+ * Version 1.0.6.107
  * 
  * Handles Foundry VTT dice fulfillment integration and manual dice entry.
  * This module registers our custom fulfillment method and manages the dice entry workflow.
- * Uses Foundry's _evaluateModifiers() to support ALL dice modifiers (kh, kl, dh, dl, r, x, cs, etc.)
+ * Uses Foundry's _evaluateModifiers() and _evaluateTotal() for ALL dice modifiers including count successes.
  */
 
 import { ASYNC_OPERATION_DELAY_MS } from "./constants.js";
@@ -237,31 +237,35 @@ export async function executeDiceTrayRollManually(formula, flavorText, html) {
     }
   }
   
-  // Mark as evaluated and calculate total
+  // Mark as evaluated and use Foundry's _evaluateTotal() to calculate the total
+  // This properly handles ALL modifier types including cs (count successes), cf (count failures), etc.
   finalRoll._evaluated = true;
   
-  // Calculate the total manually since we bypassed normal evaluation
-  let total = 0;
-  for (const term of finalRoll.terms) {
-    if (term.faces && term.results) {
-      // Dice term - sum active results only
-      for (const r of term.results) {
-        if (r.active) {
-          total += r.result;
+  // Use Foundry's native total calculation - handles counting modifiers, arithmetic, etc.
+  if (typeof finalRoll._evaluateTotal === "function") {
+    finalRoll._total = finalRoll._evaluateTotal();
+  } else {
+    // Fallback for older Foundry versions - calculate manually
+    let total = 0;
+    for (const term of finalRoll.terms) {
+      if (term.faces && term.results) {
+        // Use term.total if available (handles counting modifiers correctly)
+        if (typeof term.total !== "undefined") {
+          total += term.total;
+        } else {
+          // Manual sum of active results
+          for (const r of term.results) {
+            if (r.active) {
+              total += r.result;
+            }
+          }
         }
+      } else if (term.number !== undefined) {
+        total += term.number;
       }
-    } else if (term.number !== undefined) {
-      // Numeric term (modifier)
-      total += term.number;
-    } else if (term.operator === "+") {
-      // Plus operator - continue adding
-    } else if (term.operator === "-") {
-      // For minus, we need to negate the next term
-      // This is handled by Foundry's term evaluation, but for simple cases
-      // we can check if the term is a NumericTerm with negative sign
     }
+    finalRoll._total = total;
   }
-  finalRoll._total = total;
   
   // Send to chat
   await finalRoll.toMessage({ 
