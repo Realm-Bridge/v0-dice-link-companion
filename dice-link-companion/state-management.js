@@ -1,21 +1,11 @@
 /**
- * State Management Module - Dice Link Companion
- * Version 1.0.6.89 - Phase 3: Added state listener system for mirroredDialog
+ * State Management Module - dice-link-companion
+ * Version 1.0.6.100 - Removed duplicate getCollapsedSections/setCollapsedSections (now only in settings.js)
  * 
- * Centralizes all application state variables and provides clean getter/setter interfaces.
- * This module has zero dependencies beyond constants.js
+ * Manages transient in-memory state for the panel UI
+ * Keeps track of: pending roll requests, dialog references, dice entries, panel dialogs
  * 
- * State managed here:
- * - pendingRollRequest: Current roll dialog being processed
- * - currentPanelDialog: Currently open DLC panel
- * - hasRequestedThisSession: Session tracking for player requests
- * - pendingDiceEntry: Manual dice entry in progress
- * - diceEntryCancelled: Manual dice entry cancellation state
- * - mirroredDialog: Reference to intercepted native dialog
- * - collapsedSections: UI panel collapse state
- * 
- * Listeners:
- * - mirroredDialogListeners: Called when mirroredDialog state changes
+ * NOTE: Persistent UI state (collapsed sections) is now managed exclusively by settings.js
  */
 
 import { SETTING_DEFAULTS } from "./constants.js";
@@ -88,23 +78,11 @@ export function getMirroredDialog() {
 }
 
 /**
- * Get collapsed sections state
- * @returns {Object} Current collapsed sections state
+ * Get the mirrored dialog (if one is currently being mirrored)
+ * @returns {Object|null} The mirrored dialog object or null
  */
-export function getCollapsedSections() {
-  return { ...collapsedSections };
-}
-
-// ============================================================================
-// SETTERS
-// ============================================================================
-
-/**
- * Set the pending roll request
- * @param {Object|null} value - The roll request to set
- */
-export function setPendingRollRequest(value) {
-  pendingRollRequest = value;
+export function getMirroredDialog() {
+  return mirroredDialog;
 }
 
 /**
@@ -157,18 +135,6 @@ export function setMirroredDialog(value) {
 }
 
 /**
- * Set collapsed sections state
- * @param {Object} value - The collapsed sections state
- */
-export function setCollapsedSections(value) {
-  collapsedSections = { ...value };
-}
-
-// ============================================================================
-// COMPOUND OPERATIONS
-// ============================================================================
-
-/**
  * Clear all application state
  * Used when session ends or panel closes
  */
@@ -179,7 +145,6 @@ export function clearAllState() {
   pendingDiceEntry = null;
   diceEntryCancelled = false;
   mirroredDialog = null;
-  collapsedSections = { ...SETTING_DEFAULTS.collapsedSections };
 }
 
 /**
@@ -190,7 +155,6 @@ export function resetUIState() {
   currentPanelDialog = null;
   pendingDiceEntry = null;
   diceEntryCancelled = false;
-  collapsedSections = { ...SETTING_DEFAULTS.collapsedSections };
 }
 
 /**

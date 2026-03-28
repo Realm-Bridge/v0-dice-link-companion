@@ -1,6 +1,6 @@
 /**
  * Dice Fulfillment Module - dice-link-companion
- * Version 1.0.6.96
+ * Version 1.0.6.100
  * 
  * Handles Foundry VTT dice fulfillment integration and manual dice entry.
  * This module registers our custom fulfillment method and manages the dice entry workflow.
@@ -15,10 +15,12 @@ import {
   setPendingDiceEntry,
   getDiceEntryCancelled,
   setDiceEntryCancelled,
-  getMirroredDialog,
+  getMirroredDialog
+} from "./state-management.js";
+import {
   getCollapsedSections,
   setCollapsedSections
-} from "./state-management.js";
+} from "./settings.js";
 
 debug("dice-fulfillment.js: All imports complete");
 
