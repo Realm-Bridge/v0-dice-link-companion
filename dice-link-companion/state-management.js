@@ -1,6 +1,6 @@
 /**
  * State Management Module - Dice Link Companion
- * Version 1.0.6.73 - Phase 2: Dependency Resolution
+ * Version 1.0.6.89 - Phase 3: Added state listener system for mirroredDialog
  * 
  * Centralizes all application state variables and provides clean getter/setter interfaces.
  * This module has zero dependencies beyond constants.js
@@ -13,6 +13,9 @@
  * - diceEntryCancelled: Manual dice entry cancellation state
  * - mirroredDialog: Reference to intercepted native dialog
  * - collapsedSections: UI panel collapse state
+ * 
+ * Listeners:
+ * - mirroredDialogListeners: Called when mirroredDialog state changes
  */
 
 import { SETTING_DEFAULTS } from "./constants.js";
@@ -28,6 +31,9 @@ let pendingDiceEntry = null;
 let diceEntryCancelled = false;
 let mirroredDialog = null;
 let collapsedSections = { ...SETTING_DEFAULTS.collapsedSections };
+
+// State change listeners
+const mirroredDialogListeners = [];
 
 // ============================================================================
 // GETTERS
@@ -135,10 +141,19 @@ export function setDiceEntryCancelled(value) {
 
 /**
  * Set the mirrored dialog reference
+ * Notifies all registered listeners when value changes
  * @param {Object|null} value - The mirrored dialog to set
  */
 export function setMirroredDialog(value) {
   mirroredDialog = value;
+  // Notify all listeners of the state change
+  for (const listener of mirroredDialogListeners) {
+    try {
+      listener(value);
+    } catch (e) {
+      console.error("Dice Link | Error in mirroredDialog listener:", e);
+    }
+  }
 }
 
 /**
@@ -184,4 +199,23 @@ export function resetUIState() {
  */
 export function hasPendingOperations() {
   return pendingRollRequest !== null || pendingDiceEntry !== null;
+}
+
+// ============================================================================
+// STATE LISTENERS
+// ============================================================================
+
+/**
+ * Register a listener for mirroredDialog state changes
+ * @param {Function} callback - Called with new value when mirroredDialog changes
+ * @returns {Function} Unsubscribe function
+ */
+export function onMirroredDialogChange(callback) {
+  mirroredDialogListeners.push(callback);
+  return () => {
+    const index = mirroredDialogListeners.indexOf(callback);
+    if (index > -1) {
+      mirroredDialogListeners.splice(index, 1);
+    }
+  };
 }

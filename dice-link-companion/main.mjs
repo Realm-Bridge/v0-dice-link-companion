@@ -1,14 +1,14 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.88
+ * Version 1.0.6.89
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  * 
  * LAST KNOWN GOOD VERSION: 1.0.6.53 - Stable after failed UI extraction
  * 
- * v1.0.6.88 - Fixed: Restored window.diceLink.updatePanelWithMirroredDialog call (required, no state listener exists)
- * v1.0.6.87 - Phase 3 (Doc Step 3.1-3.2): REVERTED - wrongly removed required updatePanelWithMirroredDialog call
+ * v1.0.6.89 - Phase 3 COMPLETE: Added state listener system (onMirroredDialogChange), removed window.diceLink coupling
+ * v1.0.6.88 - Phase 3 attempt 2: Temporarily restored window.diceLink call
  * v1.0.6.86 - Backup created, Phase 3 UI templates confirmed working
  * v1.0.6.83 - Phase 3 IN PROGRESS: Created ui-templates.js, added import (generate functions removal deferred)
  * v1.0.6.82 - Phase 3 START: Extracted ui-templates.js with all 6 generate functions (615 lines)
@@ -58,7 +58,8 @@ import {
   setMirroredDialog,
   clearAllState,
   resetUIState,
-  hasPendingOperations
+  hasPendingOperations,
+  onMirroredDialogChange
 } from "./state-management.js";
 
 import { 
@@ -784,20 +785,15 @@ Hooks.on("getSceneControlButtons", (controls) => {
   */
 
 /**
- * Update our panel to display the mirrored dialog UI
- * Called from dialog-mirroring.js via window.diceLink.updatePanelWithMirroredDialog()
+ * Handle mirrored dialog state change - called via state listener when setMirroredDialog is invoked
+ * This replaces the old window.diceLink.updatePanelWithMirroredDialog pattern
+ * @param {Object} dialogData - The full dialog data object from setMirroredDialog
  */
-function updatePanelWithMirroredDialog(formData, app, html) {
+function handleMirroredDialogChange(dialogData) {
+  const { app, html, data: formData } = dialogData;
+  
   // Clear previous pending roll request
   setPendingRollRequest(null);
-  
-  // Store the mirrored dialog reference for submitMirroredDialog to use
-  setMirroredDialog({
-    app,
-    html,
-    data: formData,
-    timestamp: Date.now()
-  });
   
   // Create new pending roll request with mirrored dialog data
   setPendingRollRequest({
@@ -1337,7 +1333,13 @@ Hooks.once("ready", async () => {
     window.diceLink.playerSwitchToDigital = playerSwitchToDigital;
     window.diceLink.getPlayerMode = getPlayerMode;
     window.diceLink.getGlobalOverride = getGlobalOverride;
-    window.diceLink.updatePanelWithMirroredDialog = updatePanelWithMirroredDialog;
+    
+    // Register state listener for mirrored dialog changes (replaces window.diceLink.updatePanelWithMirroredDialog)
+    onMirroredDialogChange((dialogData) => {
+      if (dialogData && dialogData.data) {
+        handleMirroredDialogChange(dialogData);
+      }
+    });
 
     // Apply initial dice mode based on settings
     const globalOverride = getGlobalOverride();
