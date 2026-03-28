@@ -1,7 +1,6 @@
 /**
  * Dialog Mirroring Module
  * Handles suppressing dnd5e roll dialogs and mirroring them to our panel UI
- * Version 1.0.6.99 - Added handleMirroredDialogChange (moved from main.mjs)
  */
 
 import { getPlayerMode, getGlobalOverride, getCollapsedSections, setCollapsedSections } from "./settings.js";

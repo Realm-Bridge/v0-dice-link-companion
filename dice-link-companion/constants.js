@@ -1,7 +1,5 @@
 /**
  * Constants Module - Dice Link Companion
- * Version 1.0.6.73
- * 
  * Centralized location for all module constants, defaults, and configuration values.
  * No dependencies on other DLC modules (Tier 1).
  * 

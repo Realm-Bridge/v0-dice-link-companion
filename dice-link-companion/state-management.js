@@ -1,7 +1,5 @@
 /**
  * State Management Module - dice-link-companion
- * Version 1.0.7.7 - Simplified: removed custom resolver state
- * 
  * Manages transient in-memory state for the panel UI
  * Keeps track of: pending roll requests, dialog references, dice entries, panel dialogs
  * 

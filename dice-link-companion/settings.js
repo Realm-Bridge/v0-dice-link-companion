@@ -1,7 +1,5 @@
 /**
  * Dice Link Companion - Settings Module
- * Version 1.0.6.73
- * 
  * Handles all game.settings registration and access.
  * Imports from constants.js for single source of truth on defaults.
  */

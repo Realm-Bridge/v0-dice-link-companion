@@ -1,11 +1,7 @@
 /**
  * Dice Fulfillment Module - dice-link-companion
- * Version 1.0.7.7
- * 
  * Handles dice fulfillment by hiding Foundry's resolver and mirroring to our panel.
  * Uses the same shadow/mirror pattern as dialog mirroring.
- * 
- * v1.0.7.7 - Simplified: No custom resolver, just register as manual method
  *            Dialog mirroring handles hiding/mirroring the RollResolver UI
  */
 

@@ -1,7 +1,5 @@
 /**
  * Settings Helpers Module - dice-link-companion
- * Version 1.0.6.99
- * 
  * Handles Foundry core permission management for manual rolls.
  * Extracted from main.mjs for cleaner module boundaries.
  */

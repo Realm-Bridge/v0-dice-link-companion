@@ -1,7 +1,5 @@
 /**
  * Dice Parsing Utility Module
- * Version 1.0.6.105
- * 
  * Handles parsing dice formulas and executing rolls with user-provided values.
  * Uses Foundry's native Roll API for validation to support ALL Foundry dice notation.
  */

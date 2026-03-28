@@ -1,11 +1,7 @@
 /**
  * UI Templates Module - Phase 3: Core UI/UX Functions
- * Version 1.0.7.0
- * 
  * Extracts all HTML generation functions from main.mjs
  * Pure template functions with no game logic - only rendering
- * 
- * v1.0.7.0 - Updated to support resolver approach: shows ALL dice at once
  * Depends on: constants.js, settings.js, settings-helpers.js, state-management.js, video-feed.js
  */
 
