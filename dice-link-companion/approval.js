@@ -1,10 +1,12 @@
 /**
  * Approval Module - Handle GM approval/denial of player requests
+ * Version 1.0.6.108 - Removed window.diceLink coupling
  * Manages chat buttons and approval workflow
  */
 
 import { MODULE_ID } from "./constants.js";
 import { getPlayerMode, setPlayerMode, getPendingRequests, setPendingRequests } from "./settings.js";
+import { refreshPanel } from "./dice-panel.js";
 
 /**
  * Create a chat message showing approval/denial decision
@@ -69,10 +71,8 @@ export function setupChatButtonHandlers() {
     await createApprovalChatMessage(playerId, player.name, true);
     ui.notifications.info(`Approved manual dice for ${player.name}.`);
     
-    // Notify main.mjs to refresh the panel
-    if (window.diceLink && window.diceLink.refreshPanel) {
-      window.diceLink.refreshPanel();
-    }
+    // Refresh the panel to show updated state
+    refreshPanel();
   });
 
   $(document).on("click", ".dlc-chat-deny", async function(e) {
@@ -111,9 +111,7 @@ export function setupChatButtonHandlers() {
     await createApprovalChatMessage(playerId, player.name, false);
     ui.notifications.info(`Denied manual dice for ${player.name}.`);
     
-    // Notify main.mjs to refresh the panel
-    if (window.diceLink && window.diceLink.refreshPanel) {
-      window.diceLink.refreshPanel();
-    }
+    // Refresh the panel to show updated state
+    refreshPanel();
   });
 }

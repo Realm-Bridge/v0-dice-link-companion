@@ -1,6 +1,6 @@
 /**
  * Dice Panel Module - dice-link-companion
- * Version 1.0.6.105 - Added Foundry Roll API validation for all dice notation
+ * Version 1.0.6.108 - Removed window.diceLink coupling
  * 
  * Handles panel lifecycle (open, close, refresh) and all panel event listeners.
  * This is the primary UI orchestration module.
@@ -31,6 +31,7 @@ import {
   getCollapsedSections,
   setCollapsedSections
 } from "./settings.js";
+import { setManualRollsPermission } from "./settings-helpers.js";
 import { applyManualDice, applyDigitalDice } from "./mode-application.js";
 import { createApprovalChatMessage } from "./approval.js";
 import { playerRequestManual, playerSwitchToDigital } from "./socket.js";
@@ -126,7 +127,7 @@ export function attachGMPanelListeners(html) {
   html.find(".dlc-role-toggle").change(async function() {
     const role = parseInt($(this).data("role"));
     const enabled = $(this).is(":checked");
-    const success = await window.diceLink.setManualRollsPermission(role, enabled);
+    const success = await setManualRollsPermission(role, enabled);
     if (success) {
       ui.notifications.info(`Manual rolls ${enabled ? 'enabled' : 'disabled'} for ${ROLE_NAMES[role]}.`);
     }
