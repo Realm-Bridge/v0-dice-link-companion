@@ -1,13 +1,13 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.7.7 - Unified Shadow/Mirror Pattern
+ * Version 1.0.7.8 - Code Cleanup
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  * 
- * v1.0.7.7 - Simplified: RollResolver now uses same shadow/mirror pattern as dialogs
- *            Deleted custom DiceLinkResolver - we hide Foundry's resolver and mirror it
- *            All rolls flow through Foundry natively, we just shadow the UI
+ * v1.0.7.8 - Removed dead resolver state code and unused imports
+ *            Fixed setPosition error when element not ready
+ * v1.0.7.7 - Simplified: RollResolver uses same shadow/mirror pattern as dialogs
  * v1.0.7.6 - Removed window.diceLink global namespace
  */
 
@@ -183,6 +183,10 @@ class DiceLinkCompanionApp extends ApplicationV2 {
   }
 
   setPosition(options = {}) {
+    // Only set position if element exists (prevents error during initial render)
+    if (!this.element) {
+      return this;
+    }
     if (!options.width) {
       options.width = this._isGM ? 480 : 390;
     }

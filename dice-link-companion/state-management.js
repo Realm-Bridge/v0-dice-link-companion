@@ -1,9 +1,9 @@
 /**
  * State Management Module - dice-link-companion
- * Version 1.0.7.0 - Added resolver state for new RollResolver approach
+ * Version 1.0.7.7 - Simplified: removed custom resolver state
  * 
  * Manages transient in-memory state for the panel UI
- * Keeps track of: pending roll requests, dialog references, dice entries, panel dialogs, resolver
+ * Keeps track of: pending roll requests, dialog references, dice entries, panel dialogs
  * 
  * NOTE: Persistent UI state (collapsed sections) is now managed exclusively by settings.js
  */
@@ -20,10 +20,6 @@ let currentPanelDialog = null;
 let pendingDiceEntry = null;
 let diceEntryCancelled = false;
 let mirroredDialog = null;
-
-// Resolver state (v1.0.7.0) - for showing ALL dice at once
-let activeResolver = null;
-let resolverDiceTerms = null;
 
 // State change listeners
 const mirroredDialogListeners = [];
@@ -78,22 +74,6 @@ export function getDiceEntryCancelled() {
  */
 export function getMirroredDialog() {
   return mirroredDialog;
-}
-
-/**
- * Get the active resolver
- * @returns {Object|null} The active RollResolver or null
- */
-export function getActiveResolver() {
-  return activeResolver;
-}
-
-/**
- * Get the resolver dice terms (all dice needing values)
- * @returns {Array|null} Array of dice term info or null
- */
-export function getResolverDiceTerms() {
-  return resolverDiceTerms;
 }
 
 // ============================================================================
@@ -157,21 +137,7 @@ export function setMirroredDialog(value) {
   }
 }
 
-/**
- * Set the active resolver
- * @param {Object|null} value - The RollResolver to set
- */
-export function setActiveResolver(value) {
-  activeResolver = value;
-}
 
-/**
- * Set the resolver dice terms
- * @param {Array|null} value - Array of dice term info
- */
-export function setResolverDiceTerms(value) {
-  resolverDiceTerms = value;
-}
 
 /**
  * Clear all application state
@@ -184,8 +150,6 @@ export function clearAllState() {
   pendingDiceEntry = null;
   diceEntryCancelled = false;
   mirroredDialog = null;
-  activeResolver = null;
-  resolverDiceTerms = null;
 }
 
 /**
