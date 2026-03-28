@@ -1,11 +1,11 @@
 /**
  * Dialog Mirroring Module
  * Handles suppressing dnd5e roll dialogs and mirroring them to our panel UI
- * Version 1.0.6.89 - Phase 3 COMPLETE: Removed window.diceLink coupling, state listener system now handles panel updates
+ * Version 1.0.6.99 - Added handleMirroredDialogChange (moved from main.mjs)
  */
 
-import { getPlayerMode, getGlobalOverride } from "./settings.js";
-import { getMirroredDialog, setMirroredDialog } from "./state-management.js";
+import { getPlayerMode, getGlobalOverride, getCollapsedSections, setCollapsedSections } from "./settings.js";
+import { getMirroredDialog, setMirroredDialog, getPendingRollRequest, setPendingRollRequest, getCurrentPanelDialog } from "./state-management.js";
 
 /**
  * Setup dialog mirroring - hook into ApplicationV2 and Dialog renders
@@ -256,4 +256,61 @@ function extractDialogFormData(app, html) {
   }
   
   return data;
+}
+
+/**
+ * Handle mirrored dialog state change - called via state listener when setMirroredDialog is invoked
+ * This replaces the old window.diceLink.updatePanelWithMirroredDialog pattern
+ * @param {Object} dialogData - The full dialog data object from setMirroredDialog
+ * @param {Function} submitMirroredDialog - Function to submit the mirrored dialog (from dice-fulfillment.js)
+ * @param {Function} refreshPanel - Function to refresh the panel UI
+ * @param {Function} openPanel - Function to open the panel if not already open
+ */
+export function handleMirroredDialogChange(dialogData, submitMirroredDialog, refreshPanel, openPanel) {
+  const { app, html, data: formData } = dialogData;
+  
+  // Clear previous pending roll request
+  setPendingRollRequest(null);
+  
+  // Create new pending roll request with mirrored dialog data
+  setPendingRollRequest({
+    title: formData.title,
+    subtitle: formData.formula,
+    formula: formData.formula,
+    isMirroredDialog: true,
+    mirrorData: formData,
+    onComplete: async (userChoice) => {
+      if (userChoice === "cancel") {
+        // Close the native dialog
+        const dialogRef = getMirroredDialog();
+        if (dialogRef?.app) {
+          dialogRef.app.close();
+        }
+        setMirroredDialog(null);
+        setPendingRollRequest(null);
+        refreshPanel();
+        return;
+      }
+      
+      // Apply user choices to the hidden dialog and submit it
+      await submitMirroredDialog(userChoice);
+      
+      setMirroredDialog(null);
+      setPendingRollRequest(null);
+      refreshPanel();
+    }
+  });
+  
+  // Expand the roll request section and refresh panel
+  const currentCollapsed = getCollapsedSections();
+  currentCollapsed.rollRequest = false;
+  setCollapsedSections(currentCollapsed);
+  
+  const panelDialog = getCurrentPanelDialog();
+  const panelIsOpen = panelDialog && panelDialog.rendered;
+  if (!panelIsOpen) {
+    openPanel();
+  } else {
+    refreshPanel();
+  }
 }
