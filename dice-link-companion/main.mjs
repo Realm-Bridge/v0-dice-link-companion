@@ -1,14 +1,14 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.94
+ * Version 1.0.6.95
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  * 
  * LAST KNOWN GOOD VERSION: 1.0.6.53 - Stable after failed UI extraction
  * 
+ * v1.0.6.95 - Fixed: setManualRollsPermission is in main.mjs, not settings.js. Exposed on window.diceLink
  * v1.0.6.94 - Added debug logging to dice-panel.js to diagnose silent load failure
- * v1.0.6.93 - Fixed: more import errors (createApprovalChatMessage from approval.js, playerRequest* from socket.js)
  * v1.0.6.89 - Phase 3 COMPLETE: Added state listener system (onMirroredDialogChange), removed window.diceLink coupling
  * v1.0.6.83 - Phase 3 IN PROGRESS: Created ui-templates.js, added import (generate functions removal deferred)
  * v1.0.6.82 - Phase 3 START: Extracted ui-templates.js with all 6 generate functions (615 lines)
@@ -841,6 +841,7 @@ Hooks.once("ready", async () => {
     window.diceLink.getPlayerMode = getPlayerMode;
     window.diceLink.getGlobalOverride = getGlobalOverride;
     window.diceLink.executeDiceTrayRollManually = executeDiceTrayRollManually;
+    window.diceLink.setManualRollsPermission = setManualRollsPermission;
     
     // Register state listener for mirrored dialog changes (replaces window.diceLink.updatePanelWithMirroredDialog)
     onMirroredDialogChange((dialogData) => {

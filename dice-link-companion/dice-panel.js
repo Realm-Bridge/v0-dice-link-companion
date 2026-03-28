@@ -1,6 +1,6 @@
 /**
  * Dice Panel Module - dice-link-companion
- * Version 1.0.6.94
+ * Version 1.0.6.95
  * 
  * Handles panel lifecycle (open, close, refresh) and all panel event listeners.
  * This is the primary UI orchestration module.
@@ -23,7 +23,6 @@ import {
   setMirroredDialog
 } from "./state-management.js";
 import {
-  setManualRollsPermission,
   setGlobalOverride,
   getGlobalOverride,
   setPlayerMode,
@@ -126,7 +125,7 @@ export function attachGMPanelListeners(html) {
   html.find(".dlc-role-toggle").change(async function() {
     const role = parseInt($(this).data("role"));
     const enabled = $(this).is(":checked");
-    const success = await setManualRollsPermission(role, enabled);
+    const success = await window.diceLink.setManualRollsPermission(role, enabled);
     if (success) {
       ui.notifications.info(`Manual rolls ${enabled ? 'enabled' : 'disabled'} for ${ROLE_NAMES[role]}.`);
     }
