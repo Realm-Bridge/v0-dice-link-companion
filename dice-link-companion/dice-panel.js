@@ -1,6 +1,6 @@
 /**
  * Dice Panel Module - dice-link-companion
- * Version 1.0.6.95
+ * Version 1.0.6.100 - Fixed imports: getCollapsedSections/setCollapsedSections now from settings.js
  * 
  * Handles panel lifecycle (open, close, refresh) and all panel event listeners.
  * This is the primary UI orchestration module.
@@ -9,8 +9,6 @@
 import { MODULE_ID, ROLE_NAMES, ASYNC_OPERATION_DELAY_MS } from "./constants.js";
 import { debug, debugState } from "./debug.js";
 import {
-  getCollapsedSections,
-  setCollapsedSections,
   getPendingRollRequest,
   setPendingRollRequest,
   getCurrentPanelDialog,
@@ -29,7 +27,9 @@ import {
   getPlayerMode,
   isUserInManualMode,
   getPendingRequests,
-  setPendingRequests
+  setPendingRequests,
+  getCollapsedSections,
+  setCollapsedSections
 } from "./settings.js";
 import { applyManualDice, applyDigitalDice } from "./mode-application.js";
 import { createApprovalChatMessage } from "./approval.js";
