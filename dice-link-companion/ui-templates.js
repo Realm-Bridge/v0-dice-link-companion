@@ -1,11 +1,11 @@
 /**
  * UI Templates Module - Phase 3: Core UI/UX Functions
- * Version 1.0.6.97
+ * Version 1.0.6.103
  * 
  * Extracts all HTML generation functions from main.mjs
  * Pure template functions with no game logic - only rendering
  * 
- * Depends on: constants.js, settings.js, state-management.js, video-feed.js
+ * Depends on: constants.js, settings.js, settings-helpers.js, state-management.js, video-feed.js
  */
 
 import {
@@ -21,6 +21,8 @@ import {
   getPendingRequests,
   getCollapsedSections
 } from "./settings.js";
+
+import { getManualRollsPermissions } from "./settings-helpers.js";
 
 import {
   getPendingRollRequest
