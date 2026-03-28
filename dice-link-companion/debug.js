@@ -38,12 +38,22 @@ export function debugError(...args) {
 }
 
 /**
- * Log state of a variable with label
- * @param {string} label - Description of what's being logged
- * @param {any} value - Value to log
+ * Log resolver-specific debug information
+ * @param {...any} args - Arguments to log
  */
-export function debugState(label, value) {
+export function debugResolver(...args) {
   if (DEBUG_ENABLED) {
-    console.log("[Dice Link Debug]", label + ":", value);
+    console.log("[Dice Link Resolver]", ...args);
+  }
+}
+
+/**
+ * Log resolver state changes
+ * @param {string} event - Event type (e.g., "created", "fulfillable", "submitted", "cancelled")
+ * @param {any} data - Associated data
+ */
+export function debugResolverState(event, data) {
+  if (DEBUG_ENABLED) {
+    console.log("[Dice Link Resolver State]", event, data);
   }
 }

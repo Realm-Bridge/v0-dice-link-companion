@@ -1,13 +1,13 @@
 /**
  * Dice Panel Module - dice-link-companion
- * Version 1.0.6.110 - Fixed advantage/disadvantage to just add modifier, not double dice count
+ * Version 1.0.7.0 - Added resolver submission support for all-dice-at-once
  * 
  * Handles panel lifecycle (open, close, refresh) and all panel event listeners.
  * This is the primary UI orchestration module.
  */
 
 import { MODULE_ID, ROLE_NAMES, ASYNC_OPERATION_DELAY_MS } from "./constants.js";
-import { debug, debugState } from "./debug.js";
+import { debug, debugState, debugResolver, debugResolverState } from "./debug.js";
 import {
   getPendingRollRequest,
   setPendingRollRequest,
@@ -18,7 +18,9 @@ import {
   getDiceEntryCancelled,
   setDiceEntryCancelled,
   getMirroredDialog,
-  setMirroredDialog
+  setMirroredDialog,
+  getActiveResolver,
+  getResolverDiceTerms
 } from "./state-management.js";
 import {
   setGlobalOverride,
@@ -531,6 +533,15 @@ export function attachDiceTrayListeners(html) {
     // Set cancellation flag to prevent further dice prompts
     setDiceEntryCancelled(true);
     
+    // Handle resolver cancellation (v1.0.7.0)
+    const resolver = getActiveResolver();
+    if (resolver) {
+      debugResolverState("cancel_button_clicked", { hasResolver: true });
+      resolver.cancel();
+      ui.notifications.info("Roll cancelled.");
+      return;
+    }
+    
     // Handle dice entry cancellation
     const currentDiceEntry = getPendingDiceEntry();
     if (currentDiceEntry) {
@@ -547,6 +558,55 @@ export function attachDiceTrayListeners(html) {
     setPendingRollRequest(null);
     refreshPanel();
     ui.notifications.info("Roll cancelled.");
+  });
+
+  // ============================================================================
+  // RESOLVER SUBMISSION HANDLERS (v1.0.7.0)
+  // ============================================================================
+
+  // Submit All button for resolver-based dice entry
+  html.find(".dlc-submit-resolver-btn").click(function() {
+    debugResolverState("submit_resolver_clicked", {});
+    
+    const resolver = getActiveResolver();
+    const diceTerms = getResolverDiceTerms();
+    
+    if (!resolver || !diceTerms) {
+      debugResolver("Error: No active resolver or dice terms");
+      return;
+    }
+    
+    // Gather all dice values from inputs
+    const values = [];
+    html.find(".dlc-resolver-input").each(function() {
+      const faces = parseInt($(this).data("die-faces")) || 20;
+      const value = parseInt($(this).val()) || 0;
+      // Clamp to valid range
+      const clampedValue = Math.max(1, Math.min(faces, value));
+      values.push(clampedValue);
+    });
+    
+    debugResolver("Resolver submission values collected", { count: values.length, values });
+    
+    // Validate all values are filled
+    if (values.some(v => v < 1)) {
+      ui.notifications.warn("Please enter all dice values.");
+      return;
+    }
+    
+    // Submit to resolver
+    resolver.submitResults(values);
+  });
+
+  // Cancel button for resolver-based dice entry
+  html.find(".dlc-cancel-resolver-btn").click(function() {
+    debugResolverState("cancel_resolver_clicked", {});
+    
+    const resolver = getActiveResolver();
+    if (resolver) {
+      resolver.cancel();
+      ui.notifications.info("Roll cancelled.");
+    }
   });
 }
 
