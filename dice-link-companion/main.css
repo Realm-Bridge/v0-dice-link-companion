@@ -4,20 +4,20 @@
    CSS VARIABLES - Realm Bridge Brand Colors
    ============================================================================ */
 :root {
-  --dlc-bg-dark: #1a1a2e;
-  --dlc-bg-section: #16213e;
-  --dlc-bg-input: #0f0f1a;
-  --dlc-border: #3a3a5c;
-  --dlc-text-primary: #e8e8e8;
+  --dlc-bg-dark: #212a37;
+  --dlc-bg-section: #2a3547;
+  --dlc-bg-input: #181f2b;
+  --dlc-border: #6f2e9a;
+  --dlc-text-primary: #e7f6ff;
   --dlc-text-secondary: #a0a0b0;
   --dlc-text-muted: #6c6c7c;
-  --dlc-accent: #7c3aed;
-  --dlc-accent-hover: #8b5cf6;
-  --dlc-accent-glow: rgba(124, 58, 237, 0.3);
+  --dlc-accent: #6f2e9a;
+  --dlc-accent-hover: #5d9eca;
+  --dlc-accent-glow: rgba(111, 46, 154, 0.3);
   --dlc-success: #10b981;
   --dlc-success-hover: #34d399;
-  --dlc-warning: #f59e0b;
-  --dlc-warning-hover: #fbbf24;
+  --dlc-warning: #D5D5D6;
+  --dlc-warning-hover: #e8e8e8;
   --dlc-danger: #ef4444;
   --dlc-danger-hover: #f87171;
   --dlc-digital: #6366f1;
