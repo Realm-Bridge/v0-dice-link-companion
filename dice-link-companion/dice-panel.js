@@ -537,43 +537,63 @@ export function attachDiceTrayListeners(html) {
     $this.addClass("selected");
   });
   
-  // Submit Visual Dice button - gather selected values from each row
-  html.find(".dlc-submit-visual-dice-btn").click(async function() {
+  // Helper - gather all dice results from the visual dice rows
+  async function submitVisualDice() {
     const currentRollRequest = getPendingRollRequest();
-    if (!currentRollRequest || !currentRollRequest.isFulfillment) {
-      return;
-    }
+    if (!currentRollRequest || !currentRollRequest.isFulfillment) return;
     
-    // Gather selected values from each row
     const diceResults = [];
     const rows = html.find(".dlc-dice-row");
     let allSelected = true;
     
     rows.each(function() {
       const $row = $(this);
-      const $selected = $row.find(".dlc-die-option.selected");
+      const faces = parseInt($row.data("faces"));
       
+      // d100 rows use a manual input
+      if (faces === 100) {
+        const val = parseInt($row.find(".dlc-dice-manual-input").val()) || 0;
+        if (val < 1 || val > 100) {
+          allSelected = false;
+          diceResults.push(0);
+        } else {
+          diceResults.push(val);
+        }
+        return;
+      }
+      
+      // All other dice use the clickable selection
+      const $selected = $row.find(".dlc-die-option.selected");
       if ($selected.length > 0) {
         diceResults.push(parseInt($selected.data("value")));
       } else {
         allSelected = false;
-        diceResults.push(0); // Placeholder for unselected
+        diceResults.push(0);
       }
     });
     
-    // Validate all rows have a selection
     if (!allSelected) {
       ui.notifications.warn("Please select a value for each die.");
       return;
     }
     
-    // Call onComplete to submit values to Foundry's hidden RollResolver
     if (currentRollRequest.onComplete) {
       await currentRollRequest.onComplete(diceResults);
     }
-    
-    // onComplete handles clearing state
     refreshPanel();
+  }
+
+  // Submit Visual Dice button click
+  html.find(".dlc-submit-visual-dice-btn").click(submitVisualDice);
+
+  // Enter key submits the active submit button in the panel
+  html.on("keydown", function(e) {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    
+    // Find whichever submit button is currently visible and click it
+    const $submitBtn = html.find(".dlc-btn-success:visible").first();
+    if ($submitBtn.length) $submitBtn.click();
   });
 
   // Cancel roll button

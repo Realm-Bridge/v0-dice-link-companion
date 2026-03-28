@@ -1561,55 +1561,89 @@
 
 .dlc-die-option {
   position: relative;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   padding: 0;
-  border: 2px solid var(--dlc-border);
-  border-radius: 6px;
-  background: var(--dlc-bg-input);
+  border: none;
+  background: transparent;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s ease;
+  transition: transform 0.15s ease, filter 0.15s ease;
   flex-shrink: 0;
 }
 
 .dlc-die-option:hover {
-  border-color: var(--dlc-accent);
-  background: var(--dlc-bg-section);
-  transform: scale(1.05);
+  transform: scale(1.12);
+  filter: brightness(1.3);
 }
 
 .dlc-die-option.selected {
-  border-color: var(--dlc-success);
-  background: rgba(16, 185, 129, 0.15);
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+  filter: brightness(1.4) drop-shadow(0 0 6px var(--dlc-success));
+}
+
+/* Container that stacks the die image and number SVG */
+.dlc-die-face {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .dlc-die-image {
-  width: 24px;
-  height: 24px;
-  opacity: 0.7;
+  width: 44px;
+  height: 44px;
+  display: block;
   pointer-events: none;
 }
 
-.dlc-die-option:hover .dlc-die-image,
-.dlc-die-option.selected .dlc-die-image {
-  opacity: 1;
-}
-
-.dlc-die-value {
+/* SVG overlay that positions the number on the die face */
+.dlc-die-number-overlay {
   position: absolute;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--dlc-text-primary);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
 }
 
-.dlc-die-option.selected .dlc-die-value {
-  color: var(--dlc-success);
+.dlc-die-face-number {
+  font-family: Arial, sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  fill: var(--dlc-text-primary);
+  paint-order: stroke fill;
+  stroke: rgba(0, 0, 0, 0.6);
+  stroke-width: 6px;
+  stroke-linejoin: round;
+}
+
+.dlc-die-option.selected .dlc-die-face-number {
+  fill: var(--dlc-success);
+}
+
+/* d100 manual text input */
+.dlc-dice-row-manual {
+  gap: 12px;
+}
+
+.dlc-dice-manual-input {
+  width: 80px;
+  padding: 6px 10px;
+  background: var(--dlc-bg-input);
+  border: 1px solid var(--dlc-border);
+  border-radius: 4px;
+  color: var(--dlc-text-primary);
+  font-size: 14px;
+  text-align: center;
+}
+
+.dlc-dice-manual-input:focus {
+  outline: none;
+  border-color: var(--dlc-accent);
 }
 
 .dlc-submit-visual-dice-btn {

@@ -87,9 +87,26 @@ export function generatePendingRollHTML(roll) {
       const faces = die.faces || parseInt((die.type || "d20").replace("d", "")) || 20;
       const dieType = `d${faces}`;
       
-      // Generate clickable dice for each possible value (1 to faces)
+      // d100 is impractical to show as 100 buttons - use a manual text input instead
+      if (faces === 100) {
+        return `
+          <div class="dlc-dice-row dlc-dice-row-manual" data-row="${rowIndex}" data-faces="${faces}">
+            <span class="dlc-dice-row-label">${dieType}${roll.diceNeeded.length > 1 ? ` #${rowIndex + 1}` : ''}</span>
+            <input type="number" 
+                   class="dlc-dice-manual-input" 
+                   data-row="${rowIndex}"
+                   data-faces="${faces}"
+                   min="1" max="100" 
+                   placeholder="1-100">
+          </div>
+        `;
+      }
+      
+      // Generate clickable dice SVGs with the number embedded on the die face
       const diceOptions = [];
       for (let value = 1; value <= faces; value++) {
+        // Embed the number directly into an inline SVG layered over the die image
+        // so it appears as part of the die face rather than floating over it
         diceOptions.push(`
           <button type="button" 
                   class="dlc-die-option" 
@@ -97,10 +114,17 @@ export function generatePendingRollHTML(roll) {
                   data-value="${value}" 
                   data-faces="${faces}"
                   title="${dieType}: ${value}">
-            <img src="modules/dice-link-companion/assets/${dieType}.svg" 
-                 alt="${dieType}" 
-                 class="dlc-die-image">
-            <span class="dlc-die-value">${value}</span>
+            <div class="dlc-die-face">
+              <img src="modules/dice-link-companion/assets/${dieType}.svg" 
+                   alt="${dieType}" 
+                   class="dlc-die-image">
+              <svg class="dlc-die-number-overlay" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <text x="50" y="62" 
+                      text-anchor="middle" 
+                      dominant-baseline="middle"
+                      class="dlc-die-face-number">${value}</text>
+              </svg>
+            </div>
           </button>
         `);
       }
