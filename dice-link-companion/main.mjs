@@ -1,13 +1,7 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.7.17 - Cleaned up version sync
- * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
- * 
- * v1.0.7.17 - Synced version numbers across all files
- * v1.0.7.13 - Fixed cancel roll triggering random rolls, adjusted die number position
- * v1.0.7.12 - Number positioned on top triangle face of die, font size 22px
  */
 
 import { 
