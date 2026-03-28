@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- D6 placeholder - square/cube face -->
+  <rect x="10" y="10" width="80" height="80" rx="8"
+        fill="white" stroke="black" stroke-width="3"/>
+  <text x="50" y="58" text-anchor="middle" font-family="Arial, sans-serif" 
+        font-size="24" font-weight="bold" fill="black">6</text>
+</svg>
