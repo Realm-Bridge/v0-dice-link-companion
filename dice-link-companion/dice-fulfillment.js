@@ -84,8 +84,12 @@ export async function executeDiceTrayRollManually(formula, flavorText, html) {
     const roll = new Roll(formula);
     
     console.log("[v0] Roll created, calling evaluate()");
-    console.log("[v0] CONFIG.Dice.fulfillment.dice:", CONFIG.Dice.fulfillment.dice);
+    console.log("[v0] CONFIG.Dice.fulfillment:", CONFIG.Dice.fulfillment);
+    console.log("[v0] CONFIG.Dice.fulfillment.methods:", CONFIG.Dice.fulfillment.methods);
+    console.log("[v0] CONFIG.Dice.fulfillment.methods['dice-link']:", CONFIG.Dice.fulfillment.methods["dice-link"]);
+    console.log("[v0] CONFIG.Dice.fulfillment.dice.d20:", CONFIG.Dice.fulfillment.dice.d20);
     console.log("[v0] CONFIG.Dice.fulfillment.defaultMethod:", CONFIG.Dice.fulfillment.defaultMethod);
+    console.log("[v0] Roll.RESOLVERS:", Roll.RESOLVERS);
     
     // evaluate() will trigger Foundry's fulfillment system
     // If user is in manual mode, our DiceLinkResolver should be used
