@@ -1,14 +1,14 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.7.6 - Removed window.diceLink global
+ * Version 1.0.7.7 - Unified Shadow/Mirror Pattern
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  * 
- * v1.0.7.6 - Removed window.diceLink global namespace and now use ES6 module imports
- * v1.0.7.5 - Changed fulfillment to hook Roll.prototype.awaitFulfillment() directly
- * v1.0.7.4 - Added detailed debug logging to understand fulfillment structure
- * v1.0.7.3 - Dice tray now uses Foundry's native Roll.evaluate() with our resolver
+ * v1.0.7.7 - Simplified: RollResolver now uses same shadow/mirror pattern as dialogs
+ *            Deleted custom DiceLinkResolver - we hide Foundry's resolver and mirror it
+ *            All rolls flow through Foundry natively, we just shadow the UI
+ * v1.0.7.6 - Removed window.diceLink global namespace
  */
 
 import { 

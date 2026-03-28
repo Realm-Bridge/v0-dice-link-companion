@@ -527,7 +527,7 @@ export function attachDiceTrayListeners(html) {
     }
   });
 
-  // Submit All Dice button (all-at-once mode for dice tray)
+  // Submit All Dice button (all-at-once mode for RollResolver mirroring)
   html.find(".dlc-submit-all-dice-btn").click(async function() {
     const currentRollRequest = getPendingRollRequest();
     if (!currentRollRequest || !currentRollRequest.isFulfillment || !currentRollRequest.isAllAtOnce) {
@@ -550,13 +550,12 @@ export function attachDiceTrayListeners(html) {
       return;
     }
     
-    // Get the active resolver and submit results through it
-    const resolver = getActiveResolver();
-    if (resolver && resolver.submitResults) {
-      await resolver.submitResults(diceResults);
+    // Call onComplete to submit values to Foundry's hidden RollResolver
+    if (currentRollRequest.onComplete) {
+      await currentRollRequest.onComplete(diceResults);
     }
     
-    setPendingRollRequest(null);
+    // onComplete handles clearing state
     refreshPanel();
   });
 

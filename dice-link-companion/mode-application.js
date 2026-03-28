@@ -13,8 +13,8 @@
  * This routes all dice rolls through our panel UI for player input.
  */
 async function applyManualDice() {
-  // Use our custom "dice-link" fulfillment method instead of "manual"
-  // This uses our DiceLinkResolver which shows our panel UI
+  // Use our "dice-link" fulfillment method instead of "manual"
+  // Our dialog-mirroring.js hides Foundry's RollResolver and mirrors it to our panel
   if (CONFIG.Dice.fulfillment) {
     CONFIG.Dice.fulfillment.defaultMethod = "dice-link";
     if (CONFIG.Dice.fulfillment.dice) {
