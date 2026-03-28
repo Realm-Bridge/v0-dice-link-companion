@@ -1,10 +1,11 @@
 /**
  * UI Templates Module - Phase 3: Core UI/UX Functions
- * Version 1.0.6.103
+ * Version 1.0.7.0
  * 
  * Extracts all HTML generation functions from main.mjs
  * Pure template functions with no game logic - only rendering
  * 
+ * v1.0.7.0 - Updated to support resolver approach: shows ALL dice at once
  * Depends on: constants.js, settings.js, settings-helpers.js, state-management.js, video-feed.js
  */
 
@@ -29,6 +30,7 @@ import {
 } from "./state-management.js";
 
 import { generateVideoFeedSection } from "./video-feed.js";
+
 
 // ============================================================================
 // DICE TRAY HTML
@@ -71,7 +73,7 @@ export function generateDiceTrayHTML() {
  * Generate the pending roll UI
  * Handles three cases:
  * 1. Mirrored native dialog (when player in manual mode and native dialog appears)
- * 2. Dice entry step (when fulfilling a roll with manual dice entry)
+ * 2. Dice entry (all dice at once from RollResolver mirroring)
  * 3. Configuration step (selecting advantage/disadvantage/normal)
  */
 export function generatePendingRollHTML(roll) {
@@ -80,34 +82,74 @@ export function generatePendingRollHTML(roll) {
   }
   
   if (roll.isFulfillment && roll.diceNeeded) {
-    const diceInputs = roll.diceNeeded.map((die, index) => {
+    // Generate clickable dice rows - each row shows all possible values for one die
+    const diceRows = roll.diceNeeded.map((die, rowIndex) => {
       const faces = die.faces || parseInt((die.type || "d20").replace("d", "")) || 20;
-      const dieLabel = die.type || `d${faces}`;
+      const dieType = `d${faces}`;
+      
+      // d100 is impractical to show as 100 buttons - use a manual text input instead
+      if (faces === 100) {
+        return `
+          <div class="dlc-dice-row dlc-dice-row-manual" data-row="${rowIndex}" data-faces="${faces}">
+            <span class="dlc-dice-row-label">${dieType}${roll.diceNeeded.length > 1 ? ` #${rowIndex + 1}` : ''}</span>
+            <input type="number" 
+                   class="dlc-dice-manual-input" 
+                   data-row="${rowIndex}"
+                   data-faces="${faces}"
+                   min="1" max="100" 
+                   placeholder="1-100">
+          </div>
+        `;
+      }
+      
+      // Generate clickable dice SVGs with the number embedded on the die face
+      const diceOptions = [];
+      for (let value = 1; value <= faces; value++) {
+        // Embed the number directly into an inline SVG layered over the die image
+        // so it appears as part of the die face rather than floating over it
+        diceOptions.push(`
+          <button type="button" 
+                  class="dlc-die-option" 
+                  data-row="${rowIndex}" 
+                  data-value="${value}" 
+                  data-faces="${faces}"
+                  title="${dieType}: ${value}">
+            <div class="dlc-die-face">
+              <img src="modules/dice-link-companion/assets/${dieType}.svg" 
+                   alt="${dieType}" 
+                   class="dlc-die-image">
+              <svg class="dlc-die-number-overlay" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <text x="50" y="54" 
+                      text-anchor="middle" 
+                      dominant-baseline="middle"
+                      class="dlc-die-face-number">${value}</text>
+              </svg>
+            </div>
+          </button>
+        `);
+      }
+      
       return `
-        <div class="dlc-dice-input-row">
-          <label class="dlc-dice-label">${dieLabel}</label>
-          <input type="number" 
-                 class="dlc-dice-value-input" 
-                 data-die-index="${index}" 
-                 data-die-faces="${faces}"
-                 min="1" 
-                 max="${faces}" 
-                 placeholder="1-${faces}">
+        <div class="dlc-dice-row" data-row="${rowIndex}" data-faces="${faces}">
+          <span class="dlc-dice-row-label">${dieType}${roll.diceNeeded.length > 1 ? ` #${rowIndex + 1}` : ''}</span>
+          <div class="dlc-dice-options">
+            ${diceOptions.join('')}
+          </div>
         </div>
       `;
     }).join('');
     
     return `
-      <div class="dlc-pending-roll dlc-dice-entry-step">
+      <div class="dlc-pending-roll dlc-dice-entry-step dlc-visual-dice-entry">
         <div class="dlc-pending-roll-header">
           <h4 class="dlc-pending-roll-title">${roll.title || "Enter Dice Results"}</h4>
           ${roll.subtitle ? `<p class="dlc-pending-roll-subtitle">${roll.subtitle}</p>` : ''}
         </div>
-        <div class="dlc-dice-inputs">
-          ${diceInputs}
+        <div class="dlc-dice-rows">
+          ${diceRows}
         </div>
         <div class="dlc-pending-roll-actions">
-          <button type="button" class="dlc-roll-action-btn dlc-submit-dice-btn dlc-btn-success">SUBMIT RESULTS</button>
+          <button type="button" class="dlc-roll-action-btn dlc-submit-visual-dice-btn dlc-btn-success">SUBMIT</button>
         </div>
       </div>
     `;

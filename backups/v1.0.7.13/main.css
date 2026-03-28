@@ -1508,3 +1508,144 @@
 .dlc-submit-dice-btn {
   width: 100%;
 }
+
+/* ============================================================================
+   VISUAL DICE SELECTION UI
+   ============================================================================ */
+.dlc-visual-dice-entry {
+  padding: 12px;
+}
+
+.dlc-dice-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.dlc-dice-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dlc-dice-row-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dlc-text-secondary);
+  min-width: 50px;
+  text-transform: uppercase;
+}
+
+.dlc-dice-options {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  padding: 4px 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--dlc-border) transparent;
+}
+
+.dlc-dice-options::-webkit-scrollbar {
+  height: 6px;
+}
+
+.dlc-dice-options::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dlc-dice-options::-webkit-scrollbar-thumb {
+  background: var(--dlc-border);
+  border-radius: 3px;
+}
+
+.dlc-die-option {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease, filter 0.15s ease;
+  flex-shrink: 0;
+}
+
+.dlc-die-option:hover {
+  transform: scale(1.12);
+  filter: brightness(1.3);
+}
+
+.dlc-die-option.selected {
+  filter: brightness(1.4) drop-shadow(0 0 6px var(--dlc-success));
+}
+
+/* Container that stacks the die image and number SVG */
+.dlc-die-face {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dlc-die-image {
+  width: 44px;
+  height: 44px;
+  display: block;
+  pointer-events: none;
+}
+
+/* SVG overlay that positions the number on the die face */
+.dlc-die-number-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.dlc-die-face-number {
+  font-family: Arial, sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  fill: var(--dlc-text-primary);
+  paint-order: stroke fill;
+  stroke: rgba(0, 0, 0, 0.6);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
+.dlc-die-option.selected .dlc-die-face-number {
+  fill: var(--dlc-success);
+}
+
+/* d100 manual text input */
+.dlc-dice-row-manual {
+  gap: 12px;
+}
+
+.dlc-dice-manual-input {
+  width: 80px;
+  padding: 6px 10px;
+  background: var(--dlc-bg-input);
+  border: 1px solid var(--dlc-border);
+  border-radius: 4px;
+  color: var(--dlc-text-primary);
+  font-size: 14px;
+  text-align: center;
+}
+
+.dlc-dice-manual-input:focus {
+  outline: none;
+  border-color: var(--dlc-accent);
+}
+
+.dlc-submit-visual-dice-btn {
+  width: 100%;
+}

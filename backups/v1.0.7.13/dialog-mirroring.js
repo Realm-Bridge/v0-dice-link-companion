@@ -5,6 +5,7 @@
  */
 
 import { getPlayerMode, getGlobalOverride, getCollapsedSections, setCollapsedSections } from "./settings.js";
+import { debug, debugError } from "./debug.js";
 import { getMirroredDialog, setMirroredDialog, getPendingRollRequest, setPendingRollRequest, getCurrentPanelDialog } from "./state-management.js";
 
 /**
@@ -47,7 +48,7 @@ function isUserInManualMode() {
     return myMode === "manual";
   } catch (e) {
     // Settings not ready yet, default to digital mode
-    console.log("[Dice Link] isUserInManualMode: settings not ready, defaulting to false");
+    debug("isUserInManualMode: settings not ready, defaulting to false");
     return false;
   }
 }
@@ -68,11 +69,14 @@ function handleDialogRender(app, html, data) {
     const htmlElement = html instanceof jQuery ? html[0] : html;
     const elementToHide = htmlElement?.style ? htmlElement : html?.element;
     
-    // Roll Resolution dialogs are handled by our DiceLinkResolver - just hide them
-    if (title.includes("roll resolution") || title.includes("resolver")) {
+    // Roll Resolution dialogs - mirror these too using the same pattern
+    if (title.includes("roll resolution") || title.includes("resolver") || 
+        app.constructor?.name?.toLowerCase().includes("rollresolver")) {
       if (elementToHide?.style) {
         elementToHide.style.display = "none";
       }
+      // Mirror the RollResolver to our panel
+      mirrorRollResolverToPanel(app, html, data);
       return;
     }
     
@@ -185,7 +189,200 @@ function mirrorDialogToPanel(app, html, data) {
     });
     
   } catch (e) {
-    console.error("[Dice Link] Error mirroring dialog:", e);
+    debugError("Error mirroring dialog:", e);
+  }
+}
+
+/**
+ * Mirror Foundry's RollResolver to our panel
+ * Same pattern as dialog mirroring - hide theirs, show ours, submit to theirs
+ */
+function mirrorRollResolverToPanel(app, html, data) {
+  try {
+    // Normalize html to a DOM element
+    let element;
+    if (html instanceof jQuery) {
+      element = html[0];
+    } else if (html?.element) {
+      element = html.element;
+    } else if (html instanceof HTMLElement) {
+      element = html;
+    } else {
+      element = app?.element?.[0] || app?.element;
+    }
+    
+    if (!element) {
+      debug("mirrorRollResolverToPanel: Could not find element");
+      return;
+    }
+    
+    // Extract dice inputs from Foundry's resolver
+    const diceInputs = element.querySelectorAll("input[type='number'], input[data-die]");
+    const diceNeeded = [];
+    
+    diceInputs.forEach((input, index) => {
+      const faces = parseInt(input.max) || parseInt(input.dataset?.faces) || 20;
+      const name = input.name || input.id || `die-${index}`;
+      diceNeeded.push({
+        type: `d${faces}`,
+        faces: faces,
+        index: index,
+        inputName: name,
+        inputElement: input
+      });
+    });
+    
+    if (diceNeeded.length === 0) {
+      debug("mirrorRollResolverToPanel: No dice inputs found");
+      return;
+    }
+    
+    // Store resolver reference and create pending roll request
+    setMirroredDialog({
+      app,
+      html,
+      element,
+      isRollResolver: true,
+      diceNeeded,
+      timestamp: Date.now()
+    });
+    
+    // Create pending roll request for dice entry
+    setPendingRollRequest({
+      title: "Enter Dice Results",
+      subtitle: `${diceNeeded.length} dice to enter`,
+      isFulfillment: true,
+      isAllAtOnce: true,
+      isRollResolver: true,
+      diceNeeded: diceNeeded,
+      onComplete: async (values) => {
+        if (values === "cancel") {
+          await cancelFoundryResolver();
+        } else {
+          await submitToFoundryResolver(values);
+        }
+      }
+    });
+    
+    // Expand roll request section
+    const currentCollapsed = getCollapsedSections();
+    currentCollapsed.rollRequest = false;
+    setCollapsedSections(currentCollapsed);
+    
+    // Refresh panel to show dice entry UI
+    const panelDialog = getCurrentPanelDialog();
+    if (panelDialog && panelDialog.rendered) {
+      panelDialog.render(true);
+    }
+    
+  } catch (e) {
+    debugError("Error mirroring RollResolver:", e);
+  }
+}
+
+/**
+ * Submit dice values to Foundry's hidden RollResolver
+ */
+async function submitToFoundryResolver(values) {
+  const dialogRef = getMirroredDialog();
+  if (!dialogRef || !dialogRef.isRollResolver) {
+    debugError("No mirrored RollResolver to submit to");
+    return;
+  }
+  
+  const { element, diceNeeded, app } = dialogRef;
+  
+  try {
+    // Fill in Foundry's hidden inputs with our values
+    for (let i = 0; i < diceNeeded.length; i++) {
+      const dieInfo = diceNeeded[i];
+      const value = values[i];
+      
+      if (dieInfo.inputElement) {
+        dieInfo.inputElement.value = value;
+        dieInfo.inputElement.dispatchEvent(new Event("change", { bubbles: true }));
+        dieInfo.inputElement.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    }
+    
+    // Make resolver visible temporarily so submit works
+    if (element?.style) {
+      element.style.display = "block";
+    }
+    
+    // Find and click the submit button
+    const submitButton = element.querySelector("button[type='submit'], button[data-action='submit'], .submit-button, button.default");
+    if (submitButton) {
+      submitButton.click();
+    } else {
+      // Try submitting the form directly
+      const form = element.querySelector("form");
+      if (form) {
+        form.requestSubmit();
+      }
+    }
+    
+    // Small delay for processing
+    await new Promise(resolve => setTimeout(resolve, 50));
+    
+    // Hide again if still visible
+    if (element?.style && element.style.display !== "none") {
+      element.style.display = "none";
+    }
+    
+    // Clear state
+    setMirroredDialog(null);
+    setPendingRollRequest(null);
+    
+  } catch (e) {
+    debugError("Error submitting to Foundry resolver:", e);
+  }
+}
+
+/**
+ * Cancel Foundry's hidden RollResolver without submitting values
+ */
+async function cancelFoundryResolver() {
+  const dialogRef = getMirroredDialog();
+  if (!dialogRef || !dialogRef.isRollResolver) {
+    // No resolver to cancel, just clear state
+    setMirroredDialog(null);
+    setPendingRollRequest(null);
+    return;
+  }
+  
+  const { element, app } = dialogRef;
+  
+  try {
+    // Try to find and click a cancel/close button in the resolver
+    const cancelButton = element?.querySelector("button[data-action='cancel'], button.cancel, .close-button, button[type='button']:not([type='submit'])");
+    
+    if (cancelButton) {
+      // Make visible temporarily
+      if (element?.style) {
+        element.style.display = "block";
+      }
+      cancelButton.click();
+      await new Promise(resolve => setTimeout(resolve, 50));
+    } else if (app?.close) {
+      // Fallback: close the application directly
+      await app.close();
+    }
+    
+    // Ensure it's hidden
+    if (element?.style) {
+      element.style.display = "none";
+    }
+    
+    // Clear state
+    setMirroredDialog(null);
+    setPendingRollRequest(null);
+    
+  } catch (e) {
+    debugError("Error cancelling Foundry resolver:", e);
+    // Still clear state on error
+    setMirroredDialog(null);
+    setPendingRollRequest(null);
   }
 }
 

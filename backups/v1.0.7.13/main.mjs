@@ -1,26 +1,14 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.6.110 - STABLE CHECKPOINT
+ * Version 1.0.7.13 - Cancel Roll Fix + Number Position Adjustment
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  * 
- * STABLE CHECKPOINT: v1.0.6.110 - Ready for Phase 6 UI Cleanup
- * All modular refactoring complete, fully Foundry-native dice evaluation, zero global namespace coupling.
- * 
- * v1.0.6.110 - Simplified ADV/DIS: Directly modifies input field to show notation, removed advMode state variable
- * v1.0.6.109 - BUG FIX: Fixed term._evaluated flag and total calculation for all dice modifiers
- * v1.0.6.89 - Phase 3 COMPLETE: Added state listener system (onMirroredDialogChange), removed window.diceLink coupling
- * v1.0.6.83 - Phase 3 IN PROGRESS: Created ui-templates.js, added import (generate functions removal deferred)
- * v1.0.6.82 - Phase 3 START: Extracted ui-templates.js with all 6 generate functions (615 lines)
- * v1.0.6.81 - Phase 2 COMPLETE: Fixed remaining pendingRollRequest button handler references
- * v1.0.6.76 - Fixed: Restored local state variables (state-management.js for external modules only)
- * v1.0.6.75 - Fixed: Resolved import conflicts after Phase 2 extraction
- * v1.0.6.74 - Phase 2: Extracted state-management.js for dependency resolution
- * v1.0.6.73 - Phase 1: Extracted constants.js and types.js for foundation setup
- * v1.0.6.72 - Optimized: Reduced async operation delays from 100ms to 40ms, unified into single constant
- * v1.0.6.71 - Fixed: Restored updatePanelWithMirroredDialog (was needed, not duplicate)
- * v1.0.6.70 - Removed duplicate dialog mirroring functions that were dead code (~289 lines)
+ * v1.0.7.13 - Fixed cancel roll triggering random rolls, adjusted die number position
+ *             Added cancelFoundryResolver to properly close hidden resolver on cancel
+ * v1.0.7.12 - Number positioned on top triangle face of die, font size 22px
+ * v1.0.7.11 - Number embedded on die face (SVG overlay), borders removed, d100 manual input
  */
 
 import { 
@@ -86,7 +74,8 @@ import {
 
 import {
   debug,
-  debugState
+  debugState,
+  debugError
 } from "./debug.js";
 
 import {
@@ -194,6 +183,11 @@ class DiceLinkCompanionApp extends ApplicationV2 {
   }
 
   setPosition(options = {}) {
+    // Only set position if element exists and is a valid DOM node
+    // this.element might be an empty jQuery object, so check [0] for actual DOM node
+    if (!this.element || !this.element[0]) {
+      return this;
+    }
     if (!options.width) {
       options.width = this._isGM ? 480 : 390;
     }
@@ -272,20 +266,7 @@ Hooks.once("ready", async () => {
     setupDialogMirroring();
     setupDiceFulfillment();
     
-    // Expose core functions on global namespace for modules and dice-panel.js to use
-    window.diceLink = window.diceLink || {};
-    window.diceLink.refreshPanel = refreshPanel;
-    window.diceLink.applyManualDice = applyManualDice;
-    window.diceLink.applyDigitalDice = applyDigitalDice;
-    window.diceLink.isUserInManualMode = isUserInManualMode;
-    window.diceLink.playerRequestManual = playerRequestManual;
-    window.diceLink.playerSwitchToDigital = playerSwitchToDigital;
-    window.diceLink.getPlayerMode = getPlayerMode;
-    window.diceLink.getGlobalOverride = getGlobalOverride;
-    window.diceLink.executeDiceTrayRollManually = executeDiceTrayRollManually;
-    window.diceLink.setManualRollsPermission = setManualRollsPermission;
-    
-    // Register state listener for mirrored dialog changes (replaces window.diceLink.updatePanelWithMirroredDialog)
+    // Register state listener for mirrored dialog changes
     onMirroredDialogChange((dialogData) => {
       if (dialogData && dialogData.data) {
         handleMirroredDialogChange(dialogData, submitMirroredDialog, refreshPanel, openPanel);
@@ -308,8 +289,8 @@ Hooks.once("ready", async () => {
       }
     }
   } catch (error) {
-    console.error("[Dice Link] ERROR in ready hook:", error);
-    console.error("[Dice Link] Stack trace:", error.stack);
+    debugError("ERROR in ready hook:", error);
+    debugError("Stack trace:", error.stack);
   }
 });
 

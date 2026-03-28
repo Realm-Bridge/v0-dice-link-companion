@@ -1,24 +1,21 @@
 /**
  * Dice Panel Module - dice-link-companion
- * Version 1.0.6.110 - Fixed advantage/disadvantage to just add modifier, not double dice count
+ * Version 1.0.7.0 - Added resolver submission support for all-dice-at-once
  * 
  * Handles panel lifecycle (open, close, refresh) and all panel event listeners.
  * This is the primary UI orchestration module.
  */
 
 import { MODULE_ID, ROLE_NAMES, ASYNC_OPERATION_DELAY_MS } from "./constants.js";
-import { debug, debugState } from "./debug.js";
+import { debug, debugState, debugError } from "./debug.js";
 import {
-  getPendingRollRequest,
   setPendingRollRequest,
-  getCurrentPanelDialog,
-  setCurrentPanelDialog,
+  getPendingRollRequest,
   getPendingDiceEntry,
   setPendingDiceEntry,
-  getDiceEntryCancelled,
   setDiceEntryCancelled,
-  getMirroredDialog,
-  setMirroredDialog
+  getCurrentPanelDialog,
+  setCurrentPanelDialog
 } from "./state-management.js";
 import {
   setGlobalOverride,
@@ -37,6 +34,7 @@ import { createApprovalChatMessage } from "./approval.js";
 import { playerRequestManual, playerSwitchToDigital } from "./socket.js";
 import { generateGMPanelContent, generatePlayerPanelContent } from "./ui-templates.js";
 import { validateDiceFormula } from "./dice-parsing.js";
+import { executeDiceTrayRollManually } from "./dice-fulfillment.js";
 
 debug("dice-panel.js: All imports complete");
 
@@ -416,13 +414,13 @@ export function attachDiceTrayListeners(html) {
     if (isUserInManualMode()) {
       try {
         // Call the global dice fulfillment function exposed by main.mjs
-        const result = await window.diceLink.executeDiceTrayRollManually(formula, flavorText, html);
+        const result = await executeDiceTrayRollManually(formula, flavorText, html);
         if (result === "cancelled") {
           return;
         }
         resetDiceTray(html, diceCounts);
       } catch (e) {
-        console.error("[Dice Link] Manual roll error:", e);
+        debugError("Manual roll error:", e);
         ui.notifications.error("Roll execution failed.");
       }
       return;
@@ -503,7 +501,7 @@ export function attachDiceTrayListeners(html) {
     }
   });
   
-  // Submit Dice Results button (Step 2: Dice Entry)
+  // Submit Dice Results button (Step 2: Dice Entry - single die at a time, legacy)
   html.find(".dlc-submit-dice-btn").click(async function() {
     const currentRollRequest = getPendingRollRequest();
     if (!currentRollRequest || !currentRollRequest.isFulfillment) {
@@ -524,6 +522,78 @@ export function attachDiceTrayListeners(html) {
     if (currentRollRequest.onComplete) {
       currentRollRequest.onComplete(diceResults);
     }
+  });
+
+  // Visual dice selection - click to select a die value in a row
+  html.find(".dlc-die-option").click(function() {
+    const $this = $(this);
+    const rowIndex = $this.data("row");
+    const value = $this.data("value");
+    
+    // Deselect all other dice in this row
+    html.find(`.dlc-die-option[data-row="${rowIndex}"]`).removeClass("selected");
+    
+    // Select this die
+    $this.addClass("selected");
+  });
+  
+  // Helper - gather all dice results from the visual dice rows
+  async function submitVisualDice() {
+    const currentRollRequest = getPendingRollRequest();
+    if (!currentRollRequest || !currentRollRequest.isFulfillment) return;
+    
+    const diceResults = [];
+    const rows = html.find(".dlc-dice-row");
+    let allSelected = true;
+    
+    rows.each(function() {
+      const $row = $(this);
+      const faces = parseInt($row.data("faces"));
+      
+      // d100 rows use a manual input
+      if (faces === 100) {
+        const val = parseInt($row.find(".dlc-dice-manual-input").val()) || 0;
+        if (val < 1 || val > 100) {
+          allSelected = false;
+          diceResults.push(0);
+        } else {
+          diceResults.push(val);
+        }
+        return;
+      }
+      
+      // All other dice use the clickable selection
+      const $selected = $row.find(".dlc-die-option.selected");
+      if ($selected.length > 0) {
+        diceResults.push(parseInt($selected.data("value")));
+      } else {
+        allSelected = false;
+        diceResults.push(0);
+      }
+    });
+    
+    if (!allSelected) {
+      ui.notifications.warn("Please select a value for each die.");
+      return;
+    }
+    
+    if (currentRollRequest.onComplete) {
+      await currentRollRequest.onComplete(diceResults);
+    }
+    refreshPanel();
+  }
+
+  // Submit Visual Dice button click
+  html.find(".dlc-submit-visual-dice-btn").click(submitVisualDice);
+
+  // Enter key submits the active submit button in the panel
+  html.on("keydown", function(e) {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    
+    // Find whichever submit button is currently visible and click it
+    const $submitBtn = html.find(".dlc-btn-success:visible").first();
+    if ($submitBtn.length) $submitBtn.click();
   });
 
   // Cancel roll button

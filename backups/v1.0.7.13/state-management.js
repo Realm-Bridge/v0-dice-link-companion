@@ -1,12 +1,14 @@
 /**
  * State Management Module - dice-link-companion
- * Version 1.0.6.100 - Removed duplicate getCollapsedSections/setCollapsedSections (now only in settings.js)
+ * Version 1.0.7.7 - Simplified: removed custom resolver state
  * 
  * Manages transient in-memory state for the panel UI
  * Keeps track of: pending roll requests, dialog references, dice entries, panel dialogs
  * 
  * NOTE: Persistent UI state (collapsed sections) is now managed exclusively by settings.js
  */
+
+import { debugError } from "./debug.js";
 
 // ============================================================================
 // STATE VARIABLES
@@ -130,10 +132,12 @@ export function setMirroredDialog(value) {
     try {
       listener(value);
     } catch (e) {
-      console.error("Dice Link | Error in mirroredDialog listener:", e);
+      debugError("Error in mirroredDialog listener:", e);
     }
   }
 }
+
+
 
 /**
  * Clear all application state
