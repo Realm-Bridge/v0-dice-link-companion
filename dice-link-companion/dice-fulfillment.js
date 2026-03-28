@@ -1,10 +1,10 @@
 /**
  * Dice Fulfillment Module - dice-link-companion
- * Version 1.0.6.108
+ * Version 1.0.6.109
  * 
  * Handles Foundry VTT dice fulfillment integration and manual dice entry.
  * This module registers our custom fulfillment method and manages the dice entry workflow.
- * Uses Foundry's _evaluateModifiers() and _evaluateTotal() for ALL dice modifiers including count successes.
+ * Uses Foundry's _evaluateModifiers() and term.total for ALL dice modifiers including count successes.
  */
 
 import { ASYNC_OPERATION_DELAY_MS } from "./constants.js";
@@ -227,6 +227,9 @@ export async function executeDiceTrayRollManually(formula, flavorText, html) {
           active: true
         }));
         
+        // Mark the term as evaluated so its total getter works
+        term._evaluated = true;
+        
         // Use Foundry's _evaluateModifiers() to handle ALL modifiers (kh, kl, dh, dl, r, x, cs, etc.)
         // This ensures we support all Foundry dice notation without maintaining our own modifier logic
         if (term.modifiers?.length > 0 && typeof term._evaluateModifiers === "function") {
@@ -238,35 +241,24 @@ export async function executeDiceTrayRollManually(formula, flavorText, html) {
     }
   }
   
-  // Mark as evaluated and use Foundry's _evaluateTotal() to calculate the total
-  // This properly handles ALL modifier types including cs (count successes), cf (count failures), etc.
+  // Mark the Roll as evaluated
   finalRoll._evaluated = true;
   
-  // Use Foundry's native total calculation - handles counting modifiers, arithmetic, etc.
-  if (typeof finalRoll._evaluateTotal === "function") {
-    finalRoll._total = finalRoll._evaluateTotal();
-  } else {
-    // Fallback for older Foundry versions - calculate manually
-    let total = 0;
-    for (const term of finalRoll.terms) {
-      if (term.faces && term.results) {
-        // Use term.total if available (handles counting modifiers correctly)
-        if (typeof term.total !== "undefined") {
-          total += term.total;
-        } else {
-          // Manual sum of active results
-          for (const r of term.results) {
-            if (r.active) {
-              total += r.result;
-            }
-          }
-        }
-      } else if (term.number !== undefined) {
-        total += term.number;
-      }
+  // Calculate total - use each term's total property which handles all modifier types correctly
+  let total = 0;
+  for (const term of finalRoll.terms) {
+    if (term.faces && term.results) {
+      // term.total handles counting modifiers (cs, cf) and keep/drop (kh, kl, dh, dl) correctly
+      total += term.total;
+    } else if (term.number !== undefined) {
+      // Numeric term (modifier like +5)
+      total += term.number;
+    } else if (term.operator === "-") {
+      // Subtraction operator - negate the next numeric term
+      // This is handled by the NumericTerm having a negative number
     }
-    finalRoll._total = total;
   }
+  finalRoll._total = total;
   
   // Send to chat
   await finalRoll.toMessage({ 
