@@ -256,7 +256,11 @@ function mirrorRollResolverToPanel(app, html, data) {
       isRollResolver: true,
       diceNeeded: diceNeeded,
       onComplete: async (values) => {
-        await submitToFoundryResolver(values);
+        if (values === "cancel") {
+          await cancelFoundryResolver();
+        } else {
+          await submitToFoundryResolver(values);
+        }
       }
     });
     
@@ -332,6 +336,53 @@ async function submitToFoundryResolver(values) {
     
   } catch (e) {
     debugError("Error submitting to Foundry resolver:", e);
+  }
+}
+
+/**
+ * Cancel Foundry's hidden RollResolver without submitting values
+ */
+async function cancelFoundryResolver() {
+  const dialogRef = getMirroredDialog();
+  if (!dialogRef || !dialogRef.isRollResolver) {
+    // No resolver to cancel, just clear state
+    setMirroredDialog(null);
+    setPendingRollRequest(null);
+    return;
+  }
+  
+  const { element, app } = dialogRef;
+  
+  try {
+    // Try to find and click a cancel/close button in the resolver
+    const cancelButton = element?.querySelector("button[data-action='cancel'], button.cancel, .close-button, button[type='button']:not([type='submit'])");
+    
+    if (cancelButton) {
+      // Make visible temporarily
+      if (element?.style) {
+        element.style.display = "block";
+      }
+      cancelButton.click();
+      await new Promise(resolve => setTimeout(resolve, 50));
+    } else if (app?.close) {
+      // Fallback: close the application directly
+      await app.close();
+    }
+    
+    // Ensure it's hidden
+    if (element?.style) {
+      element.style.display = "none";
+    }
+    
+    // Clear state
+    setMirroredDialog(null);
+    setPendingRollRequest(null);
+    
+  } catch (e) {
+    debugError("Error cancelling Foundry resolver:", e);
+    // Still clear state on error
+    setMirroredDialog(null);
+    setPendingRollRequest(null);
   }
 }
 
