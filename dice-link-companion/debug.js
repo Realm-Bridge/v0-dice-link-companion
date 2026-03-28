@@ -38,6 +38,17 @@ export function debugError(...args) {
 }
 
 /**
+ * Log state of a variable with label
+ * @param {string} label - Description of what's being logged
+ * @param {any} value - Value to log
+ */
+export function debugState(label, value) {
+  if (DEBUG_ENABLED) {
+    console.log("[Dice Link Debug]", label + ":", value);
+  }
+}
+
+/**
  * Log resolver-specific debug information
  * @param {...any} args - Arguments to log
  */

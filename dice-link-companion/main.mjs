@@ -1,16 +1,15 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.7.0 - Resolver Approach for All-Dice-At-Once
+ * Version 1.0.7.1 - Bug Fix: Restored missing debugState function
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  * 
+ * v1.0.7.1 - BUG FIX: Restored missing debugState function that was preventing module load
  * v1.0.7.0 - MAJOR: Switched from handler to resolver approach for dice fulfillment
  *            Now shows ALL dice at once instead of one-at-a-time
  *            Created roll-resolver.js with custom DiceLinkResolver class
  * v1.0.6.110 - STABLE CHECKPOINT: Ready for Phase 6 UI Cleanup
- * v1.0.6.109 - BUG FIX: Fixed term._evaluated flag and total calculation for all dice modifiers
- * v1.0.6.89 - Phase 3 COMPLETE: Added state listener system (onMirroredDialogChange)
  */
 
 import { 
