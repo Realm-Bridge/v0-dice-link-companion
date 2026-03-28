@@ -1,14 +1,14 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.7.15 - Visual Dice Selection UI + Fixes
+ * Version 1.0.7.16 - Panel Position Fix
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  * 
+ * v1.0.7.16 - Fixed panel locked to top-left, added explicit position defaults and centering
  * v1.0.7.15 - Stable release with visual dice selection, d100 manual input, 
  *             numbered die faces, cancel roll fix, Enter key submission
  * v1.0.7.13 - Fixed cancel roll triggering random rolls, adjusted die number position
- * v1.0.7.12 - Number positioned on top triangle face of die, font size 22px
  */
 
 import { 
