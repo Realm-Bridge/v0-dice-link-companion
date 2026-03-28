@@ -444,7 +444,7 @@ export function attachDiceTrayListeners(html) {
   // PENDING ROLL ACTION LISTENERS
   // ============================================================================
 
-  // Mirrored Dialog Button Clicks (v1.0.6.0)
+  // Mirrored Dialog Button Clicks
   html.find(".dlc-dialog-btn").click(async function() {
     const currentRollRequest = getPendingRollRequest();
     if (!currentRollRequest || !currentRollRequest.isMirroredDialog) {
