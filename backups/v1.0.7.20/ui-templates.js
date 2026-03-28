@@ -1,5 +1,5 @@
 /**
- * UI Templates Module
+ * UI Templates Module - Phase 3: Core UI/UX Functions
  * Extracts all HTML generation functions from main.mjs
  * Pure template functions with no game logic - only rendering
  * Depends on: constants.js, settings.js, settings-helpers.js, state-management.js, video-feed.js
