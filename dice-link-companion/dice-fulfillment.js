@@ -66,173 +66,47 @@ export function setupDiceFulfillment() {
 }
 
 // ============================================================================
-// DICE TRAY MANUAL ROLL
+// DICE TRAY ROLL - Uses Foundry's Native Fulfillment System
 // ============================================================================
 
 /**
- * Execute a dice tray roll manually - collect values BEFORE rolling
- * Returns "cancelled" if user cancels, otherwise completes the roll
+ * Execute a dice tray roll using Foundry's native fulfillment system.
+ * When user is in manual mode, Foundry will use our DiceLinkResolver.
+ * 
+ * v1.0.7.3 - Simplified to use Foundry's native Roll.evaluate()
+ *            Our resolver handles showing all dice at once in our panel
  */
 export async function executeDiceTrayRollManually(formula, flavorText, html) {
-  // Parse the formula to find dice terms
-  const roll = new Roll(formula);
+  console.log("[v0] executeDiceTrayRollManually called with formula:", formula);
   
-  // We need to identify all dice in the formula and collect manual values
-  // Parse dice patterns like 2d20kh, 1d6, 3d8, etc.
-  const dicePattern = /(\d*)d(\d+)(kh\d*|kl\d*)?/gi;
-  const diceTerms = [];
-  let match;
-  
-  while ((match = dicePattern.exec(formula)) !== null) {
-    const count = parseInt(match[1]) || 1;
-    const faces = parseInt(match[2]);
-    const modifier = match[3] || ""; // kh, kl, etc.
-    diceTerms.push({ count, faces, modifier, fullMatch: match[0] });
-  }
-  
-  if (diceTerms.length === 0) {
-    // No dice in formula, just evaluate as-is (probably just modifiers)
+  try {
+    // Create and evaluate the roll - Foundry handles fulfillment via our resolver
+    const roll = new Roll(formula);
+    
+    console.log("[v0] Roll created, calling evaluate()");
+    console.log("[v0] CONFIG.Dice.fulfillment.dice:", CONFIG.Dice.fulfillment.dice);
+    console.log("[v0] CONFIG.Dice.fulfillment.defaultMethod:", CONFIG.Dice.fulfillment.defaultMethod);
+    
+    // evaluate() will trigger Foundry's fulfillment system
+    // If user is in manual mode, our DiceLinkResolver should be used
     await roll.evaluate();
-    await roll.toMessage({ speaker: ChatMessage.getSpeaker(), flavor: flavorText });
+    
+    console.log("[v0] Roll evaluated, total:", roll.total);
+    
+    // Send to chat
+    await roll.toMessage({ 
+      speaker: ChatMessage.getSpeaker(), 
+      flavor: flavorText 
+    });
+    
     return "success";
-  }
-  
-  // Collect values for all dice
-  const collectedValues = [];
-  let totalDice = diceTerms.reduce((sum, t) => sum + t.count, 0);
-  let currentDie = 0;
-  
-  // Reset cancellation flag
-  setDiceEntryCancelled(false);
-  
-  for (const term of diceTerms) {
-    const termValues = [];
-    for (let i = 0; i < term.count; i++) {
-      currentDie++;
-      
-      if (getDiceEntryCancelled()) {
-        return "cancelled";
-      }
-      
-      const value = await waitForDiceTrayEntry(`d${term.faces}`, term.faces, currentDie, totalDice);
-      
-      if (value === null || getDiceEntryCancelled()) {
-        return "cancelled";
-      }
-      
-      termValues.push(value);
+  } catch (e) {
+    console.log("[v0] Roll error:", e.message);
+    if (e.message.includes("cancelled")) {
+      return "cancelled";
     }
-    collectedValues.push({ term, values: termValues });
+    throw e;
   }
-  
-  // Create the roll with the original formula, then inject our values
-  const finalRoll = new Roll(formula);
-  
-  // Parse the roll to get the terms
-  finalRoll.terms; // This triggers term parsing
-  
-  // Now inject our collected values into the dice terms
-  let valueIndex = 0;
-  for (const term of finalRoll.terms) {
-    if (term.faces) { // It's a dice term
-      // Find the matching collected values
-      const collected = collectedValues[valueIndex];
-      if (collected) {
-        // Set the results on this term
-        term.results = collected.values.map((val, idx) => ({
-          result: val,
-          active: true
-        }));
-        
-        // Mark the term as evaluated so its total getter works
-        term._evaluated = true;
-        
-        // Use Foundry's _evaluateModifiers() to handle ALL modifiers (kh, kl, dh, dl, r, x, cs, etc.)
-        // This ensures we support all Foundry dice notation without maintaining our own modifier logic
-        if (term.modifiers?.length > 0 && typeof term._evaluateModifiers === "function") {
-          term._evaluateModifiers();
-        }
-        
-        valueIndex++;
-      }
-    }
-  }
-  
-  // Mark the Roll as evaluated
-  finalRoll._evaluated = true;
-  
-  // Calculate total - use each term's total property which handles all modifier types correctly
-  let total = 0;
-  for (const term of finalRoll.terms) {
-    if (term.faces && term.results) {
-      // term.total handles counting modifiers (cs, cf) and keep/drop (kh, kl, dh, dl) correctly
-      total += term.total;
-    } else if (term.number !== undefined) {
-      // Numeric term (modifier like +5)
-      total += term.number;
-    } else if (term.operator === "-") {
-      // Subtraction operator - negate the next numeric term
-      // This is handled by the NumericTerm having a negative number
-    }
-  }
-  finalRoll._total = total;
-  
-  // Send to chat
-  await finalRoll.toMessage({ 
-    speaker: ChatMessage.getSpeaker(), 
-    flavor: flavorText 
-  });
-  
-  return "success";
-}
-
-/**
- * Wait for dice tray manual entry (similar to waitForDiceResult but for dice tray)
- */
-async function waitForDiceTrayEntry(denomination, faces, dieNumber, totalDice) {
-  if (getDiceEntryCancelled()) {
-    return null;
-  }
-  
-  return new Promise((resolve) => {
-    setPendingDiceEntry({
-      denomination,
-      faces,
-      dieNumber,
-      totalDice,
-      resolve,
-      isDiceTray: true
-    });
-    
-    // Show dice entry UI
-    setPendingRollRequest({
-      title: `Enter ${denomination} Result`,
-      subtitle: `Die ${dieNumber} of ${totalDice}`,
-      isFulfillment: true,
-      isDiceTray: true,
-      step: "diceEntry",
-      diceNeeded: [{
-        type: denomination,
-        faces: faces,
-        index: dieNumber - 1,
-        count: 1
-      }],
-      onComplete: (values) => {
-        if (Array.isArray(values) && values.length > 0) {
-          const numericValue = parseInt(values[0]);
-          setPendingDiceEntry(null);
-          setPendingRollRequest(null);
-          refreshPanel();
-          resolve(numericValue);
-        }
-      }
-    });
-    
-    const currentCollapsed = getCollapsedSections();
-    currentCollapsed.rollRequest = false;
-    setCollapsedSections(currentCollapsed);
-    refreshPanel();
-  });
 }
 
 // ============================================================================
