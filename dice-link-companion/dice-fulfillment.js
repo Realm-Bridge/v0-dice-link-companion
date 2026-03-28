@@ -1,9 +1,10 @@
 /**
  * Dice Fulfillment Module - dice-link-companion
- * Version 1.0.6.100
+ * Version 1.0.6.106
  * 
  * Handles Foundry VTT dice fulfillment integration and manual dice entry.
  * This module registers our custom fulfillment method and manages the dice entry workflow.
+ * Uses Foundry's _evaluateModifiers() to support ALL dice modifiers (kh, kl, dh, dl, r, x, cs, etc.)
  */
 
 import { ASYNC_OPERATION_DELAY_MS } from "./constants.js";
@@ -225,20 +226,10 @@ export async function executeDiceTrayRollManually(formula, flavorText, html) {
           active: true
         }));
         
-        // Handle kh/kl modifiers - mark inactive dice
-        if (term.modifiers?.length > 0) {
-          const modifier = term.modifiers.find(m => m.startsWith("kh") || m.startsWith("kl"));
-          if (modifier) {
-            const keepCount = parseInt(modifier.slice(2)) || 1;
-            const sorted = [...term.results].sort((a, b) => 
-              modifier.startsWith("kh") ? b.result - a.result : a.result - b.result
-            );
-            // Mark dice that should be dropped as inactive
-            const keptResults = sorted.slice(0, keepCount);
-            for (const r of term.results) {
-              r.active = keptResults.includes(r);
-            }
-          }
+        // Use Foundry's _evaluateModifiers() to handle ALL modifiers (kh, kl, dh, dl, r, x, cs, etc.)
+        // This ensures we support all Foundry dice notation without maintaining our own modifier logic
+        if (term.modifiers?.length > 0 && typeof term._evaluateModifiers === "function") {
+          term._evaluateModifiers();
         }
         
         valueIndex++;
