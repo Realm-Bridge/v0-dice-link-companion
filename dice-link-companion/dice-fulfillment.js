@@ -35,156 +35,22 @@ import { DiceLinkResolver } from "./roll-resolver.js";
 
 /**
  * Setup the Dice Link fulfillment method.
- * Instead of using a resolver, we hook directly into Roll.awaitFulfillment() 
- * to intercept manual rolls and show our panel UI.
+ * Registers our DiceLinkResolver with Foundry's native fulfillment system.
+ * Uses Foundry's CONFIG.Dice.fulfillment.methods to properly integrate.
  */
 export function setupDiceFulfillment() {
   debugResolverState("setup_fulfillment_starting", {});
   
-  // Hook into Roll.awaitFulfillment to intercept manual fulfillment
-  const originalAwaitFulfillment = Roll.prototype.awaitFulfillment;
-  
-  Roll.prototype.awaitFulfillment = async function() {
-    debugFulfillment("Roll.awaitFulfillment called, checking fulfillment method");
-    
-    // Check if user has manual fulfillment enabled
-    const fulfillmentMethod = CONFIG.Dice.fulfillment.defaultMethod;
-    debugFulfillment("Current fulfillment method:", fulfillmentMethod);
-    
-    // If it's our method, use our custom panel UI
-    if (fulfillmentMethod === "dice-link") {
-      return diceLinkAwaitFulfillment.call(this);
-    }
-    
-    // Otherwise use Foundry's default
-    return originalAwaitFulfillment.call(this);
+  // Register our custom fulfillment method with Foundry's system
+  // Using interactive: true with a resolver class lets Foundry manage the flow
+  CONFIG.Dice.fulfillment.methods["dice-link"] = {
+    label: "Dice Link Companion",
+    icon: "fa-dice-d20",
+    interactive: true,
+    resolver: DiceLinkResolver
   };
   
-  debugResolverState("setup_fulfillment_complete", { fulfillmentHooked: true });
-}
-
-/**
- * Custom fulfillment flow that shows all dice in our panel
- */
-async function diceLinkAwaitFulfillment() {
-  debugFulfillment("diceLinkAwaitFulfillment called");
-  
-  // Check if there are any unfulfilled dice
-  if (this.fulfillable.size === 0) {
-    debugFulfillment("No unfulfilled dice, returning");
-    return;
-  }
-  
-  // Build array of all dice that need values
-  const diceNeeded = [];
-  const termMap = new Map(); // Track term id -> term for later registration
-  
-  for (const [id, {term, method}] of this.fulfillable) {
-    debugResolver("Processing term:", { termId: id, type: term.type, faces: term.faces, number: term.number });
-    
-    if (term.faces) {
-      const count = term.number || 1;
-      for (let i = 0; i < count; i++) {
-        diceNeeded.push({
-          termId: id,
-          term: term,
-          type: `d${term.faces}`,
-          faces: term.faces,
-          index: i,
-          count: count
-        });
-      }
-      if (!termMap.has(id)) {
-        termMap.set(id, term);
-      }
-    }
-  }
-  
-  debugResolverState("dice_array_built", { totalDice: diceNeeded.length });
-  
-  if (diceNeeded.length === 0) {
-    debugResolver("No dice to resolve");
-    return;
-  }
-  
-  // Store the dice and roll reference in state for the panel to access
-  setResolverDiceTerms(diceNeeded);
-  
-  // Create a promise wrapper to wait for the panel to submit results
-  let resolveCallback = null;
-  const submissionPromise = new Promise((resolve, reject) => {
-    resolveCallback = resolve;
-    
-    // Set timeout for cancellation
-    const timeout = setTimeout(() => {
-      reject(new Error("Roll fulfillment timeout"));
-    }, 300000); // 5 minute timeout
-    
-    // Store the resolver with resolve callback so panel can call it
-    setActiveResolver({ 
-      roll: this, 
-      termMap,
-      timeout,
-      resolve: resolveCallback,
-      submitResults: async (values) => {
-        debugFulfillment("Submitting dice results:", values);
-        
-        // Group values by term
-        const termValues = new Map();
-        for (let i = 0; i < diceNeeded.length; i++) {
-          const dieInfo = diceNeeded[i];
-          const value = values[i];
-          
-          if (!termValues.has(dieInfo.termId)) {
-            termValues.set(dieInfo.termId, []);
-          }
-          termValues.get(dieInfo.termId).push(value);
-        }
-        
-        // Inject values into the roll's dice terms
-        for (const [termId, dieValues] of termValues) {
-          const term = termMap.get(termId);
-          if (term && term.faces) {
-            debugResolver("Setting results for term:", { termId, values: dieValues });
-            
-            // Set results on the term
-            term.results = dieValues.map(val => ({
-              result: val,
-              active: true
-            }));
-            
-            // Mark as evaluated
-            term._evaluated = true;
-            
-            // Apply modifiers if any
-            if (term.modifiers?.length > 0 && typeof term._evaluateModifiers === "function") {
-              term._evaluateModifiers();
-            }
-          }
-        }
-        
-        // Mark the roll as evaluated
-        this._evaluated = true;
-        
-        // Clear timeout and resolve
-        clearTimeout(timeout);
-        setResolverDiceTerms(null);
-        setActiveResolver(null);
-        
-        debugFulfillment("Roll fulfillment complete");
-        resolveCallback();
-      }
-    });
-  });
-  
-  // Expand roll request section in panel
-  const currentCollapsed = getCollapsedSections();
-  currentCollapsed.rollRequest = false;
-  setCollapsedSections(currentCollapsed);
-  refreshPanel();
-  
-  // Wait for panel to submit results
-  return submissionPromise;
+  debugResolverState("setup_fulfillment_complete", { methodRegistered: true });
 }
 
 // ============================================================================
