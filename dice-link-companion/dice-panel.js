@@ -9,18 +9,16 @@
 import { MODULE_ID, ROLE_NAMES, ASYNC_OPERATION_DELAY_MS } from "./constants.js";
 import { debug, debugState, debugResolver, debugResolverState, debugError } from "./debug.js";
 import {
-  getPendingRollRequest,
+  setActiveResolver,
+  getActiveResolver,
+  getResolverDiceTerms,
   setPendingRollRequest,
-  getCurrentPanelDialog,
-  setCurrentPanelDialog,
+  getPendingRollRequest,
   getPendingDiceEntry,
   setPendingDiceEntry,
-  getDiceEntryCancelled,
   setDiceEntryCancelled,
-  getMirroredDialog,
-  setMirroredDialog,
-  getActiveResolver,
-  getResolverDiceTerms
+  getCurrentPanelDialog,
+  setCurrentPanelDialog
 } from "./state-management.js";
 import {
   setGlobalOverride,
@@ -39,6 +37,7 @@ import { createApprovalChatMessage } from "./approval.js";
 import { playerRequestManual, playerSwitchToDigital } from "./socket.js";
 import { generateGMPanelContent, generatePlayerPanelContent } from "./ui-templates.js";
 import { validateDiceFormula } from "./dice-parsing.js";
+import { executeDiceTrayRollManually } from "./dice-fulfillment.js";
 
 debug("dice-panel.js: All imports complete");
 
@@ -418,7 +417,7 @@ export function attachDiceTrayListeners(html) {
     if (isUserInManualMode()) {
       try {
         // Call the global dice fulfillment function exposed by main.mjs
-        const result = await window.diceLink.executeDiceTrayRollManually(formula, flavorText, html);
+        const result = await executeDiceTrayRollManually(formula, flavorText, html);
         if (result === "cancelled") {
           return;
         }
@@ -528,7 +527,7 @@ export function attachDiceTrayListeners(html) {
     }
   });
 
-  // Submit All Dice button (all-at-once mode for dice tray)
+  // Submit All Dice button (all-at-once mode for RollResolver mirroring)
   html.find(".dlc-submit-all-dice-btn").click(async function() {
     const currentRollRequest = getPendingRollRequest();
     if (!currentRollRequest || !currentRollRequest.isFulfillment || !currentRollRequest.isAllAtOnce) {
@@ -551,10 +550,13 @@ export function attachDiceTrayListeners(html) {
       return;
     }
     
-    // Call the onComplete callback with ALL dice results
+    // Call onComplete to submit values to Foundry's hidden RollResolver
     if (currentRollRequest.onComplete) {
-      currentRollRequest.onComplete(diceResults);
+      await currentRollRequest.onComplete(diceResults);
     }
+    
+    // onComplete handles clearing state
+    refreshPanel();
   });
 
   // Cancel roll button

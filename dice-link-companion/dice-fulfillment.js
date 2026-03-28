@@ -1,101 +1,61 @@
 /**
  * Dice Fulfillment Module - dice-link-companion
- * Version 1.0.7.0
+ * Version 1.0.7.7
  * 
- * Handles Foundry VTT dice fulfillment integration using a custom RollResolver.
- * Uses Foundry's _evaluateModifiers() and term.total for ALL dice modifiers.
+ * Handles dice fulfillment by hiding Foundry's resolver and mirroring to our panel.
+ * Uses the same shadow/mirror pattern as dialog mirroring.
  * 
- * v1.0.7.0 - MAJOR CHANGE: Switched from handler to resolver approach
- *            This allows showing ALL dice at once instead of one-at-a-time.
+ * v1.0.7.7 - Simplified: No custom resolver, just register as manual method
+ *            Dialog mirroring handles hiding/mirroring the RollResolver UI
  */
 
 import { ASYNC_OPERATION_DELAY_MS } from "./constants.js";
-import { debugResolver, debugResolverState, debugFulfillment, debugError } from "./debug.js";
-import {
-  getPendingRollRequest,
-  setPendingRollRequest,
-  getPendingDiceEntry,
-  setPendingDiceEntry,
-  getDiceEntryCancelled,
-  setDiceEntryCancelled,
-  getMirroredDialog,
-  getActiveResolver,
-  getResolverDiceTerms
-} from "./state-management.js";
-import {
-  getCollapsedSections,
-  setCollapsedSections
-} from "./settings.js";
-import { refreshPanel } from "./dice-panel.js";
-import { DiceLinkResolver } from "./roll-resolver.js";
+import { debugResolverState, debugFulfillment, debugError } from "./debug.js";
+import { getMirroredDialog } from "./state-management.js";
 
 // ============================================================================
 // DICE FULFILLMENT SETUP
 // ============================================================================
 
 /**
- * Setup the Dice Link fulfillment method.
- * Registers our custom resolver with Foundry's dice system.
- * Using interactive: true with a resolver shows ALL dice at once.
+ * Setup Dice Link as a fulfillment method.
+ * We DON'T register a custom resolver - instead we let Foundry use its native
+ * RollResolver, and our dialog-mirroring.js hooks hide it and mirror to our panel.
+ * This is the same shadow/mirror pattern used for roll dialogs.
  */
 export function setupDiceFulfillment() {
   debugResolverState("setup_fulfillment_starting", {});
   
-  // Create a callback handler for resolver state changes
-  const onResolverStateChange = (state) => {
-    debugResolverState("resolver_state_change", { state });
-    // When resolver is ready or complete, refresh the panel
-    if (state === 'resolver_ready' || state === 'resolver_complete' || state === 'resolver_cancelled') {
-      refreshPanel();
-    }
-  };
-  
-  // Register our custom fulfillment method with a resolver class
-  // Using interactive: true with resolver ensures we get ALL dice at once
+  // Register "dice-link" as an interactive method that uses Foundry's default resolver
+  // Our dialog hooks will hide the resolver and mirror it to our panel
   CONFIG.Dice.fulfillment.methods["dice-link"] = {
     label: "Dice Link Companion",
     icon: "fa-dice-d20",
-    interactive: true,
-    resolver: DiceLinkResolver,
-    resolverOptions: {
-      onStateChange: onResolverStateChange
-    }
+    interactive: true
+    // No custom resolver - we mirror Foundry's default RollResolver instead
   };
   
   debugResolverState("setup_fulfillment_complete", { methodRegistered: true });
 }
 
 // ============================================================================
-// DICE TRAY ROLL - Uses Foundry's Native Fulfillment System
+// DICE TRAY ROLL - Uses Foundry's Native System
 // ============================================================================
 
 /**
- * Execute a dice tray roll using Foundry's native fulfillment system.
- * When user is in manual mode, Foundry will use our DiceLinkResolver.
- * 
- * v1.0.7.3 - Simplified to use Foundry's native Roll.evaluate()
- *            Our resolver handles showing all dice at once in our panel
+ * Execute a dice tray roll using Foundry's native Roll.evaluate().
+ * Foundry will show its RollResolver dialog, which our dialog-mirroring.js
+ * will hide and mirror to our panel using the same shadow/mirror pattern.
  */
 export async function executeDiceTrayRollManually(formula, flavorText, html) {
-  debugFulfillment("executeDiceTrayRollManually called with formula:", formula);
+  debugFulfillment("executeDiceTrayRollManually:", formula);
   
   try {
-    // Create and evaluate the roll - Foundry handles fulfillment via our resolver
     const roll = new Roll(formula);
     
-    debugFulfillment("Roll created, calling evaluate()");
-    debugFulfillment("CONFIG.Dice.fulfillment:", CONFIG.Dice.fulfillment);
-    debugFulfillment("CONFIG.Dice.fulfillment.methods:", CONFIG.Dice.fulfillment.methods);
-    debugFulfillment("CONFIG.Dice.fulfillment.methods['dice-link']:", CONFIG.Dice.fulfillment.methods["dice-link"]);
-    debugFulfillment("CONFIG.Dice.fulfillment.dice.d20:", CONFIG.Dice.fulfillment.dice.d20);
-    debugFulfillment("CONFIG.Dice.fulfillment.defaultMethod:", CONFIG.Dice.fulfillment.defaultMethod);
-    debugFulfillment("Roll.RESOLVERS:", Roll.RESOLVERS);
-    
-    // evaluate() will trigger Foundry's fulfillment system
-    // If user is in manual mode, our DiceLinkResolver should be used
+    // Foundry's evaluate() triggers the fulfillment system
+    // Our dialog hooks hide the RollResolver and mirror it to our panel
     await roll.evaluate();
-    
-    debugFulfillment("Roll evaluated, total:", roll.total);
     
     // Send to chat
     await roll.toMessage({ 
@@ -106,7 +66,7 @@ export async function executeDiceTrayRollManually(formula, flavorText, html) {
     return "success";
   } catch (e) {
     debugError("Roll error:", e.message);
-    if (e.message.includes("cancelled")) {
+    if (e.message?.includes("cancelled")) {
       return "cancelled";
     }
     throw e;
