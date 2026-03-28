@@ -131,7 +131,8 @@ class DiceLinkCompanionApp extends ApplicationV2 {
     window: {
       title: "Dice Link Companion",
       resizable: true,
-      minimizable: true
+      minimizable: true,
+      positioned: true
     }
   };
 
