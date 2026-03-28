@@ -1,13 +1,17 @@
 /**
  * Dice Panel Module - dice-link-companion
- * Version 1.0.6.93 - Fixed more imports: createApprovalChatMessage from approval.js, playerRequest* from socket.js
+ * Version 1.0.6.94 - Added debug logging to diagnose load failure
  * 
  * Handles panel lifecycle (open, close, refresh) and all panel event listeners.
  * This is the primary UI orchestration module.
  */
 
+console.log("[v0] dice-panel.js: Starting to load...");
+
 import { MODULE_ID, ROLE_NAMES, ASYNC_OPERATION_DELAY_MS } from "./constants.js";
+console.log("[v0] dice-panel.js: Loaded constants.js");
 import { debug, debugState } from "./debug.js";
+console.log("[v0] dice-panel.js: Loaded debug.js");
 import {
   getCollapsedSections,
   setCollapsedSections,
@@ -22,6 +26,7 @@ import {
   getMirroredDialog,
   setMirroredDialog
 } from "./state-management.js";
+console.log("[v0] dice-panel.js: Loaded state-management.js");
 import {
   setManualRollsPermission,
   setGlobalOverride,
@@ -32,10 +37,15 @@ import {
   getPendingRequests,
   setPendingRequests
 } from "./settings.js";
+console.log("[v0] dice-panel.js: Loaded settings.js");
 import { applyManualDice, applyDigitalDice } from "./mode-application.js";
+console.log("[v0] dice-panel.js: Loaded mode-application.js");
 import { createApprovalChatMessage } from "./approval.js";
+console.log("[v0] dice-panel.js: Loaded approval.js");
 import { playerRequestManual, playerSwitchToDigital } from "./socket.js";
+console.log("[v0] dice-panel.js: Loaded socket.js");
 import { generateGMPanelContent, generatePlayerPanelContent } from "./ui-templates.js";
+console.log("[v0] dice-panel.js: All imports complete!");
 
 // ============================================================================
 // PANEL MANAGEMENT
