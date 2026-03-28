@@ -82,40 +82,50 @@ export function generatePendingRollHTML(roll) {
   }
   
   if (roll.isFulfillment && roll.diceNeeded) {
-    const diceInputs = roll.diceNeeded.map((die, index) => {
+    // Generate clickable dice rows - each row shows all possible values for one die
+    const diceRows = roll.diceNeeded.map((die, rowIndex) => {
       const faces = die.faces || parseInt((die.type || "d20").replace("d", "")) || 20;
-      const dieLabel = die.type || `d${faces}`;
-      // For all-at-once mode, show die number
-      const labelSuffix = roll.isAllAtOnce ? ` #${index + 1}` : '';
+      const dieType = `d${faces}`;
+      
+      // Generate clickable dice for each possible value (1 to faces)
+      const diceOptions = [];
+      for (let value = 1; value <= faces; value++) {
+        diceOptions.push(`
+          <button type="button" 
+                  class="dlc-die-option" 
+                  data-row="${rowIndex}" 
+                  data-value="${value}" 
+                  data-faces="${faces}"
+                  title="${dieType}: ${value}">
+            <img src="modules/dice-link-companion/assets/${dieType}.svg" 
+                 alt="${dieType}" 
+                 class="dlc-die-image">
+            <span class="dlc-die-value">${value}</span>
+          </button>
+        `);
+      }
+      
       return `
-        <div class="dlc-dice-input-row">
-          <label class="dlc-dice-label">${dieLabel}${labelSuffix}</label>
-          <input type="number" 
-                 class="dlc-dice-value-input${roll.isAllAtOnce ? ' dlc-all-at-once-input' : ''}" 
-                 data-die-index="${index}" 
-                 data-die-faces="${faces}"
-                 min="1" 
-                 max="${faces}" 
-                 placeholder="1-${faces}">
+        <div class="dlc-dice-row" data-row="${rowIndex}" data-faces="${faces}">
+          <span class="dlc-dice-row-label">${dieType}${roll.diceNeeded.length > 1 ? ` #${rowIndex + 1}` : ''}</span>
+          <div class="dlc-dice-options">
+            ${diceOptions.join('')}
+          </div>
         </div>
       `;
     }).join('');
     
-    // Use different button class for all-at-once mode
-    const submitBtnClass = roll.isAllAtOnce ? 'dlc-submit-all-dice-btn' : 'dlc-submit-dice-btn';
-    const submitBtnText = roll.isAllAtOnce ? 'SUBMIT ALL' : 'SUBMIT RESULTS';
-    
     return `
-      <div class="dlc-pending-roll dlc-dice-entry-step${roll.isAllAtOnce ? ' dlc-all-at-once' : ''}">
+      <div class="dlc-pending-roll dlc-dice-entry-step dlc-visual-dice-entry">
         <div class="dlc-pending-roll-header">
           <h4 class="dlc-pending-roll-title">${roll.title || "Enter Dice Results"}</h4>
           ${roll.subtitle ? `<p class="dlc-pending-roll-subtitle">${roll.subtitle}</p>` : ''}
         </div>
-        <div class="dlc-dice-inputs">
-          ${diceInputs}
+        <div class="dlc-dice-rows">
+          ${diceRows}
         </div>
         <div class="dlc-pending-roll-actions">
-          <button type="button" class="dlc-roll-action-btn ${submitBtnClass} dlc-btn-success">${submitBtnText}</button>
+          <button type="button" class="dlc-roll-action-btn dlc-submit-visual-dice-btn dlc-btn-success">SUBMIT</button>
         </div>
       </div>
     `;

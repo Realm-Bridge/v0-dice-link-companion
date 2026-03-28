@@ -524,26 +524,46 @@ export function attachDiceTrayListeners(html) {
     }
   });
 
-  // Submit All Dice button (all-at-once mode for RollResolver mirroring)
-  html.find(".dlc-submit-all-dice-btn").click(async function() {
+  // Visual dice selection - click to select a die value in a row
+  html.find(".dlc-die-option").click(function() {
+    const $this = $(this);
+    const rowIndex = $this.data("row");
+    const value = $this.data("value");
+    
+    // Deselect all other dice in this row
+    html.find(`.dlc-die-option[data-row="${rowIndex}"]`).removeClass("selected");
+    
+    // Select this die
+    $this.addClass("selected");
+  });
+  
+  // Submit Visual Dice button - gather selected values from each row
+  html.find(".dlc-submit-visual-dice-btn").click(async function() {
     const currentRollRequest = getPendingRollRequest();
-    if (!currentRollRequest || !currentRollRequest.isFulfillment || !currentRollRequest.isAllAtOnce) {
+    if (!currentRollRequest || !currentRollRequest.isFulfillment) {
       return;
     }
     
-    // Gather ALL dice values from inputs
+    // Gather selected values from each row
     const diceResults = [];
-    html.find(".dlc-all-at-once-input").each(function() {
-      const value = parseInt($(this).val()) || 0;
-      const faces = parseInt($(this).data("die-faces")) || 20;
-      // Clamp to valid range
-      const clampedValue = Math.max(1, Math.min(faces, value));
-      diceResults.push(clampedValue);
+    const rows = html.find(".dlc-dice-row");
+    let allSelected = true;
+    
+    rows.each(function() {
+      const $row = $(this);
+      const $selected = $row.find(".dlc-die-option.selected");
+      
+      if ($selected.length > 0) {
+        diceResults.push(parseInt($selected.data("value")));
+      } else {
+        allSelected = false;
+        diceResults.push(0); // Placeholder for unselected
+      }
     });
     
-    // Validate all values are filled
-    if (diceResults.some(v => v < 1)) {
-      ui.notifications.warn("Please enter all dice values.");
+    // Validate all rows have a selection
+    if (!allSelected) {
+      ui.notifications.warn("Please select a value for each die.");
       return;
     }
     
