@@ -1,9 +1,11 @@
 /**
  * Mode Application Module - dice-link-companion
- * Version 1.0.6.69
+ * Version 1.0.6.90 - Phase 4 verified: No refactoring needed, module is already clean
  * 
  * Handles applying manual/digital dice modes to the Foundry dice fulfillment system.
  * These functions control whether players use our custom panel UI or Foundry's digital dice.
+ * 
+ * Note: This module intentionally has no imports - it only uses Foundry's CONFIG API directly.
  */
 
 /**
