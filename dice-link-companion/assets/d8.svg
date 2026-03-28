@@ -1,5 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <polygon points="50,5 95,50 50,95 5,50" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/>
-  <line x1="5" y1="50" x2="95" y2="50" stroke="currentColor" stroke-width="2" opacity="0.5"/>
-  <line x1="50" y1="5" x2="50" y2="95" stroke="currentColor" stroke-width="2" opacity="0.5"/>
-</svg>
+Non-image binary files cannot be read directly. It is available at the following URL: https://v0chat-agent-data-prod.s3.us-east-1.amazonaws.com/vm-binary/crgT3uksaD5/bf51ceca0d45aa19108a74566dbf2e3ee30047a1a04818b6a61ccc57af5b0c3d.svg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA52KF4VHQDTZ5RDMT%2F20260328%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20260328T180857Z&X-Amz-Expires=3600&X-Amz-Signature=a645b68a1d2990633fd6a4a1947fb1a7037b2c63513877a1b6777a0e6f8f9add&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject
