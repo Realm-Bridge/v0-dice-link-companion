@@ -1,7 +1,14 @@
 /**
  * Dice Link Companion - Foundry VTT v13
+ * Version 1.0.7.13 - Cancel Roll Fix + Number Position Adjustment
+ * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
+ * 
+ * v1.0.7.13 - Fixed cancel roll triggering random rolls, adjusted die number position
+ *             Added cancelFoundryResolver to properly close hidden resolver on cancel
+ * v1.0.7.12 - Number positioned on top triangle face of die, font size 22px
+ * v1.0.7.11 - Number embedded on die face (SVG overlay), borders removed, d100 manual input
  */
 
 import { 
@@ -174,18 +181,6 @@ class DiceLinkCompanionApp extends ApplicationV2 {
   async close(options = {}) {
     setCurrentPanelDialog(null);
     return super.close(options);
-  }
-
-  setPosition(options = {}) {
-    // Only set position if element exists and is a valid DOM node
-    // this.element might be an empty jQuery object, so check [0] for actual DOM node
-    if (!this.element || !this.element[0]) {
-      return this;
-    }
-    if (!options.width) {
-      options.width = this._isGM ? 480 : 390;
-    }
-    return super.setPosition(options);
   }
 }
 
