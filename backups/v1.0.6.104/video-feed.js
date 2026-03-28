@@ -1,13 +1,13 @@
 /**
  * Video Feed Module - dice-link-companion
- * Version 1.0.6.97
+ * Version 1.0.6.101
  * 
  * Handles video feed UI generation for the panel.
  * Currently a placeholder for future video integration features.
  */
 
 import { REALM_BRIDGE_URL, LOGO_SQUARE_URL } from "./constants.js";
-import { getCollapsedSections } from "./state-management.js";
+import { getCollapsedSections } from "./settings.js";
 
 /**
  * Generate the video feed section HTML

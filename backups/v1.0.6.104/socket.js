@@ -1,5 +1,7 @@
 /**
  * Socket.js - Socket communication and player functions
+ * Version 1.0.6.102
+ * 
  * Handles cross-client communication for dice mode changes
  */
 
@@ -15,6 +17,9 @@ import {
 } from "./settings.js";
 
 import { createRequestChatMessage } from "./chat.js";
+import { refreshPanel } from "./dice-panel.js";
+import { applyManualDice, applyDigitalDice } from "./mode-application.js";
+import { setHasRequestedThisSession } from "./state-management.js";
 
 // ============================================================================
 // SOCKET LISTENERS
@@ -32,64 +37,64 @@ export function setupSocketListeners() {
 
       await createRequestChatMessage(data.playerId, data.playerName);
       ui.notifications.warn(`${data.playerName} requested manual dice mode.`);
-      window.diceLink.refreshPanel();
+      refreshPanel();
     }
 
     if (game.user.isGM && data.action === "playerSwitchToDigital") {
       await setPlayerMode(data.playerId, "digital");
-      window.diceLink.refreshPanel();
+      refreshPanel();
     } else if (data.action === "playerSwitchToDigital") {
       // Another player switched to digital, refresh our panel to see the update
-      window.diceLink.refreshPanel();
+      refreshPanel();
     }
 
     if (data.action === "applyMode" && data.playerId === game.user.id) {
       if (data.mode === "manual") {
-        window.diceLink.applyManualDice();
-        window.diceLink.hasRequestedThisSession = false;
+        applyManualDice();
+        setHasRequestedThisSession(false);
         ui.notifications.info("Manual dice mode activated!");
       } else {
-        window.diceLink.applyDigitalDice();
+        applyDigitalDice();
         ui.notifications.info("Digital dice mode activated!");
       }
-      window.diceLink.refreshPanel();
+      refreshPanel();
     } else if (data.action === "applyMode") {
       // Another player's mode changed, refresh our panel to see the update
-      window.diceLink.refreshPanel();
+      refreshPanel();
     }
 
     if (data.action === "globalOverride") {
       if (data.mode === "forceAllManual") {
-        window.diceLink.applyManualDice();
+        applyManualDice();
         ui.notifications.info("GM has forced manual dice for everyone.");
       } else if (data.mode === "forceAllDigital") {
-        window.diceLink.applyDigitalDice();
+        applyDigitalDice();
         ui.notifications.info("GM has forced digital dice for everyone.");
       } else if (data.mode === "individual") {
         // Revert to player's own stored mode
         const myMode = getPlayerMode();
         if (myMode === "manual") {
-          window.diceLink.applyManualDice();
+          applyManualDice();
         } else {
-          window.diceLink.applyDigitalDice();
+          applyDigitalDice();
         }
         ui.notifications.info("GM has returned to individual control.");
       }
-      window.diceLink.refreshPanel();
+      refreshPanel();
     }
 
     if (data.action === "revokeMode" && data.playerId === game.user.id) {
-      window.diceLink.applyDigitalDice();
-      window.diceLink.hasRequestedThisSession = false;
+      applyDigitalDice();
+      setHasRequestedThisSession(false);
       ui.notifications.warn("GM has revoked your manual dice mode.");
-      window.diceLink.refreshPanel();
+      refreshPanel();
     } else if (data.action === "revokeMode") {
       // Another player's mode was revoked, refresh our panel to see the update
-      window.diceLink.refreshPanel();
+      refreshPanel();
     }
 
     if (data.action === "requestDenied" && data.playerId === game.user.id) {
-      window.diceLink.hasRequestedThisSession = false;
+      setHasRequestedThisSession(false);
     }
   });
 }
@@ -110,18 +115,12 @@ export function playerRequestManual() {
     return;
   }
 
-  if (window.diceLink.hasRequestedThisSession) {
-    ui.notifications.warn("You have already sent a request. Please wait for GM response.");
-    return;
-  }
-
   game.socket.emit(`module.${MODULE_ID}`, {
     action: "playerRequestManual",
     playerId: game.user.id,
     playerName: game.user.name
   });
 
-  window.diceLink.hasRequestedThisSession = true;
   ui.notifications.info("Manual dice request sent to GM.");
 }
 
@@ -138,7 +137,7 @@ export function playerSwitchToDigital() {
     playerId: game.user.id
   });
 
-  window.diceLink.applyDigitalDice();
-  window.diceLink.hasRequestedThisSession = false;
+  applyDigitalDice();
+  setHasRequestedThisSession(false);
   ui.notifications.info("Switched to digital dice.");
 }
