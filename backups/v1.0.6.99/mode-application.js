@@ -1,9 +1,11 @@
 /**
  * Mode Application Module - dice-link-companion
- * Version 1.0.6.50
+ * Version 1.0.6.90 - Phase 4 verified: No refactoring needed, module is already clean
  * 
  * Handles applying manual/digital dice modes to the Foundry dice fulfillment system.
  * These functions control whether players use our custom panel UI or Foundry's digital dice.
+ * 
+ * Note: This module intentionally has no imports - it only uses Foundry's CONFIG API directly.
  */
 
 /**
@@ -16,13 +18,15 @@ async function applyManualDice() {
   if (CONFIG.Dice.fulfillment) {
     CONFIG.Dice.fulfillment.defaultMethod = "dice-link";
     if (CONFIG.Dice.fulfillment.dice) {
-      CONFIG.Dice.fulfillment.dice.d4 = "dice-link";
-      CONFIG.Dice.fulfillment.dice.d6 = "dice-link";
-      CONFIG.Dice.fulfillment.dice.d8 = "dice-link";
-      CONFIG.Dice.fulfillment.dice.d10 = "dice-link";
-      CONFIG.Dice.fulfillment.dice.d12 = "dice-link";
-      CONFIG.Dice.fulfillment.dice.d20 = "dice-link";
-      CONFIG.Dice.fulfillment.dice.d100 = "dice-link";
+      // Dynamically get available dice types from Foundry's configuration
+      // This adapts to any custom dice Foundry supports
+      const diceTypes = Object.keys(CONFIG.Dice.terms).filter(term => {
+        return /^d\d+$/.test(term) && CONFIG.Dice.terms[term];
+      });
+      
+      for (const die of diceTypes) {
+        CONFIG.Dice.fulfillment.dice[die] = "dice-link";
+      }
     }
   }
 }
@@ -36,13 +40,15 @@ async function applyDigitalDice() {
   if (CONFIG.Dice.fulfillment) {
     CONFIG.Dice.fulfillment.defaultMethod = "";
     if (CONFIG.Dice.fulfillment.dice) {
-      CONFIG.Dice.fulfillment.dice.d4 = "";
-      CONFIG.Dice.fulfillment.dice.d6 = "";
-      CONFIG.Dice.fulfillment.dice.d8 = "";
-      CONFIG.Dice.fulfillment.dice.d10 = "";
-      CONFIG.Dice.fulfillment.dice.d12 = "";
-      CONFIG.Dice.fulfillment.dice.d20 = "";
-      CONFIG.Dice.fulfillment.dice.d100 = "";
+      // Dynamically get available dice types from Foundry's configuration
+      // This adapts to any custom dice Foundry supports
+      const diceTypes = Object.keys(CONFIG.Dice.terms).filter(term => {
+        return /^d\d+$/.test(term) && CONFIG.Dice.terms[term];
+      });
+      
+      for (const die of diceTypes) {
+        CONFIG.Dice.fulfillment.dice[die] = "";
+      }
     }
   }
   

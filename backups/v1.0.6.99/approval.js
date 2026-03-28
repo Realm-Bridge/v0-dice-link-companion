@@ -3,7 +3,8 @@
  * Manages chat buttons and approval workflow
  */
 
-import { MODULE_ID, getPlayerMode, setPlayerMode, getPendingRequests, setPendingRequests } from "./settings.js";
+import { MODULE_ID } from "./constants.js";
+import { getPlayerMode, setPlayerMode, getPendingRequests, setPendingRequests } from "./settings.js";
 
 /**
  * Create a chat message showing approval/denial decision

@@ -1,9 +1,12 @@
 /**
  * Dice Link Companion - Settings Module
- * Handles all game.settings registration
+ * Version 1.0.6.73
+ * 
+ * Handles all game.settings registration and access.
+ * Imports from constants.js for single source of truth on defaults.
  */
 
-export const MODULE_ID = "dice-link-companion";
+import { MODULE_ID, SETTING_DEFAULTS, PLAYER_MODES, GLOBAL_OVERRIDE_MODES } from "./constants.js";
 
 /**
  * Register core settings during the "init" hook.
@@ -15,7 +18,7 @@ export function registerCoreSettings() {
     scope: "world",
     config: false,
     type: String,
-    default: "individual"
+    default: SETTING_DEFAULTS.globalOverride
   });
 
   // Pending approval requests storage
@@ -31,15 +34,7 @@ export function registerCoreSettings() {
     scope: "client",
     config: false,
     type: Object,
-    default: {
-      rollRequest: false,
-      globalOverride: true,
-      playerModes: true,
-      permissions: true,
-      videoFeed: true,
-      pending: false,
-      topRow: false
-    }
+    default: SETTING_DEFAULTS.collapsedSections
   });
 }
 
@@ -48,26 +43,22 @@ export function registerCoreSettings() {
  * This runs after users are loaded so we can iterate over them.
  */
 export function registerPlayerModeSettings() {
-  console.log("[v0] registerPlayerModeSettings called, users:", game.users?.size);
   for (const user of game.users) {
     const key = `playerMode_${user.id}`;
     const fullKey = `${MODULE_ID}.${key}`;
-    console.log("[v0] Checking setting:", fullKey, "exists:", game.settings.settings.has(fullKey));
     if (!game.settings.settings.has(fullKey)) {
       try {
         game.settings.register(MODULE_ID, key, {
           scope: "world",
           config: false,
           type: String,
-          default: "digital"
+          default: SETTING_DEFAULTS.playerMode
         });
-        console.log("[v0] Registered setting:", fullKey);
       } catch (e) {
-        console.error("[v0] Failed to register setting:", fullKey, e);
+        console.error("[Dice Link] Failed to register setting:", fullKey, e);
       }
     }
   }
-  console.log("[v0] registerPlayerModeSettings complete");
 }
 
 /**
@@ -97,13 +88,13 @@ export function getPlayerMode(userId = game.user.id) {
   // Check if setting exists before trying to get it
   if (!game.settings.settings.has(`${MODULE_ID}.${key}`)) {
     // Setting not registered yet, return default
-    return "digital";
+    return SETTING_DEFAULTS.playerMode;
   }
   try {
-    return getSetting(key) || "digital";
+    return getSetting(key) || SETTING_DEFAULTS.playerMode;
   } catch (e) {
     // Fallback if setting somehow fails
-    return "digital";
+    return SETTING_DEFAULTS.playerMode;
   }
 }
 
@@ -153,25 +144,15 @@ export async function setPendingRequests(requests) {
  * @returns {Object} Current collapsed sections state
  */
 export function getCollapsedSections() {
-  const defaults = {
-    rollRequest: false,
-    globalOverride: true,
-    playerModes: true,
-    permissions: true,
-    videoFeed: true,
-    pending: false,
-    topRow: false
-  };
-  
   try {
     const saved = getSetting("collapsedSections");
-    if (!saved) return defaults;
+    if (!saved) return { ...SETTING_DEFAULTS.collapsedSections };
     
     // Merge with defaults to ensure all keys exist
-    return { ...defaults, ...saved };
+    return { ...SETTING_DEFAULTS.collapsedSections, ...saved };
   } catch (e) {
     // Setting not registered yet
-    return defaults;
+    return { ...SETTING_DEFAULTS.collapsedSections };
   }
 }
 
@@ -190,8 +171,8 @@ export async function setCollapsedSections(sections) {
  */
 export function isUserInManualMode() {
   const globalOverride = getGlobalOverride();
-  if (globalOverride === "forceAllManual") return true;
-  if (globalOverride === "forceAllDigital") return false;
+  if (globalOverride === GLOBAL_OVERRIDE_MODES.FORCE_ALL_MANUAL) return true;
+  if (globalOverride === GLOBAL_OVERRIDE_MODES.FORCE_ALL_DIGITAL) return false;
   const myMode = getPlayerMode();
-  return myMode === "manual";
+  return myMode === PLAYER_MODES.MANUAL;
 }
