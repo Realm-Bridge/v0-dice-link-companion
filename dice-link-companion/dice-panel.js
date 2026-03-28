@@ -1,6 +1,6 @@
 /**
  * Dice Panel Module - dice-link-companion
- * Version 1.0.6.108 - Removed window.diceLink coupling
+ * Version 1.0.6.110 - Fixed advantage/disadvantage to just add modifier, not double dice count
  * 
  * Handles panel lifecycle (open, close, refresh) and all panel event listeners.
  * This is the primary UI orchestration module.
@@ -381,16 +381,17 @@ export function attachDiceTrayListeners(html) {
       return;
     }
     
-    // Apply advantage/disadvantage to d20 rolls
+    // Apply advantage/disadvantage modifier to d20 rolls
+    // Just add the kh/kl modifier - Foundry handles the evaluation
     if (advMode === "advantage") {
-      formula = formula.replace(/(\d*)d20/gi, (match, count) => {
-        const num = parseInt(count) || 1;
-        return `${num * 2}d20kh`;
+      formula = formula.replace(/(\d*)d20(?!kh|kl)/gi, (match, count) => {
+        const num = count || "1";
+        return `${num}d20kh`;
       });
     } else if (advMode === "disadvantage") {
-      formula = formula.replace(/(\d*)d20/gi, (match, count) => {
-        const num = parseInt(count) || 1;
-        return `${num * 2}d20kl`;
+      formula = formula.replace(/(\d*)d20(?!kh|kl)/gi, (match, count) => {
+        const num = count || "1";
+        return `${num}d20kl`;
       });
     }
     
