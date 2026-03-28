@@ -562,15 +562,6 @@ export function generateMirroredDialogHTML(mirrorData) {
 }
 
 // ============================================================================
-// HELPER - Get Manual Rolls Permissions
 // ============================================================================
-
-/**
- * Get the manual rolls permissions from settings
- * Returns object with role => boolean mapping
- * TODO: Move this to settings.js when permissions refactoring happens
- */
-function getManualRollsPermissions() {
-  // Placeholder - will be filled in by main.mjs import
-  return { 1: true, 2: true, 3: false };
-}
+// TEMPLATE EXPORTS
+// ============================================================================
