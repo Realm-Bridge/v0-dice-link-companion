@@ -1,6 +1,6 @@
 /**
  * Dice Panel Module - dice-link-companion
- * Version 1.0.6.92 - Fixed import paths (getPendingRequests from settings.js)
+ * Version 1.0.6.93 - Fixed more imports: createApprovalChatMessage from approval.js, playerRequest* from socket.js
  * 
  * Handles panel lifecycle (open, close, refresh) and all panel event listeners.
  * This is the primary UI orchestration module.
@@ -33,8 +33,8 @@ import {
   setPendingRequests
 } from "./settings.js";
 import { applyManualDice, applyDigitalDice } from "./mode-application.js";
-import { createApprovalChatMessage } from "./chat.js";
-import { playerRequestManual, playerSwitchToDigital } from "./approval.js";
+import { createApprovalChatMessage } from "./approval.js";
+import { playerRequestManual, playerSwitchToDigital } from "./socket.js";
 import { generateGMPanelContent, generatePlayerPanelContent } from "./ui-templates.js";
 
 // ============================================================================
