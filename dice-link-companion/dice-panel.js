@@ -37,6 +37,7 @@ import { createApprovalChatMessage } from "./approval.js";
 import { playerRequestManual, playerSwitchToDigital } from "./socket.js";
 import { generateGMPanelContent, generatePlayerPanelContent } from "./ui-templates.js";
 import { validateDiceFormula } from "./dice-parsing.js";
+import { executeDiceTrayRollManually } from "./dice-fulfillment.js";
 
 debug("dice-panel.js: All imports complete");
 
@@ -416,7 +417,7 @@ export function attachDiceTrayListeners(html) {
     if (isUserInManualMode()) {
       try {
         // Call the global dice fulfillment function exposed by main.mjs
-        const result = await window.diceLink.executeDiceTrayRollManually(formula, flavorText, html);
+        const result = await executeDiceTrayRollManually(formula, flavorText, html);
         if (result === "cancelled") {
           return;
         }

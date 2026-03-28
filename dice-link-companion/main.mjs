@@ -1,17 +1,14 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.7.5 - Hooked Roll.awaitFulfillment
+ * Version 1.0.7.6 - Removed window.diceLink global
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  * 
+ * v1.0.7.6 - Removed window.diceLink global namespace and now use ES6 module imports
  * v1.0.7.5 - Changed fulfillment to hook Roll.prototype.awaitFulfillment() directly
- *            Shows all dice at once in our panel instead of Foundry's default resolver dialog
  * v1.0.7.4 - Added detailed debug logging to understand fulfillment structure
  * v1.0.7.3 - Dice tray now uses Foundry's native Roll.evaluate() with our resolver
- * v1.0.7.2 - Fixed dice tray to show ALL dice inputs at once instead of one-at-a-time
- * v1.0.7.1 - BUG FIX: Restored missing debugState function that was preventing module load
- * v1.0.7.0 - MAJOR: Switched from handler to resolver approach for dice fulfillment
  */
 
 import { 
@@ -264,20 +261,7 @@ Hooks.once("ready", async () => {
     setupDialogMirroring();
     setupDiceFulfillment();
     
-    // Expose core functions on global namespace for modules and dice-panel.js to use
-    window.diceLink = window.diceLink || {};
-    window.diceLink.refreshPanel = refreshPanel;
-    window.diceLink.applyManualDice = applyManualDice;
-    window.diceLink.applyDigitalDice = applyDigitalDice;
-    window.diceLink.isUserInManualMode = isUserInManualMode;
-    window.diceLink.playerRequestManual = playerRequestManual;
-    window.diceLink.playerSwitchToDigital = playerSwitchToDigital;
-    window.diceLink.getPlayerMode = getPlayerMode;
-    window.diceLink.getGlobalOverride = getGlobalOverride;
-    window.diceLink.executeDiceTrayRollManually = executeDiceTrayRollManually;
-    window.diceLink.setManualRollsPermission = setManualRollsPermission;
-    
-    // Register state listener for mirrored dialog changes (replaces window.diceLink.updatePanelWithMirroredDialog)
+    // Register state listener for mirrored dialog changes
     onMirroredDialogChange((dialogData) => {
       if (dialogData && dialogData.data) {
         handleMirroredDialogChange(dialogData, submitMirroredDialog, refreshPanel, openPanel);
