@@ -1,10 +1,12 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.7.4 - Debug Fulfillment Structure
+ * Version 1.0.7.5 - Hooked Roll.awaitFulfillment
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  * 
+ * v1.0.7.5 - Changed fulfillment to hook Roll.prototype.awaitFulfillment() directly
+ *            Shows all dice at once in our panel instead of Foundry's default resolver dialog
  * v1.0.7.4 - Added detailed debug logging to understand fulfillment structure
  * v1.0.7.3 - Dice tray now uses Foundry's native Roll.evaluate() with our resolver
  * v1.0.7.2 - Fixed dice tray to show ALL dice inputs at once instead of one-at-a-time

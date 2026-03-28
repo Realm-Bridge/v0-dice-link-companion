@@ -9,16 +9,7 @@
 import { MODULE_ID, ROLE_NAMES, ASYNC_OPERATION_DELAY_MS } from "./constants.js";
 import { debug, debugState, debugResolver, debugResolverState, debugError } from "./debug.js";
 import {
-  getPendingRollRequest,
-  setPendingRollRequest,
-  getCurrentPanelDialog,
-  setCurrentPanelDialog,
-  getPendingDiceEntry,
-  setPendingDiceEntry,
-  getDiceEntryCancelled,
-  setDiceEntryCancelled,
-  getMirroredDialog,
-  setMirroredDialog,
+  setActiveResolver,
   getActiveResolver,
   getResolverDiceTerms
 } from "./state-management.js";
@@ -551,10 +542,25 @@ export function attachDiceTrayListeners(html) {
       return;
     }
     
-    // Call the onComplete callback with ALL dice results
-    if (currentRollRequest.onComplete) {
-      currentRollRequest.onComplete(diceResults);
+    // Call the resolver's submitResults if available (for legacy RollResolver approach)
+    const resolver = getActiveResolver();
+    if (resolver && resolver.submitResults) {
+      await resolver.submitResults(diceResults);
+    } else if (resolver && resolver.roll) {
+      // New hooked Roll.awaitFulfillment approach - inject values into roll
+      await resolver.submitResults(diceResults);
     }
+    
+    // If using the hooked Roll.awaitFulfillment approach, also resolve via pending entry
+    if (window.diceLinkPendingEntry) {
+      await window.diceLinkPendingEntry.resolve();
+      delete window.diceLinkPendingEntry;
+    }
+    
+    setPendingRollRequest(null);
+    setResolverDiceTerms(null);
+    setActiveResolver(null);
+    refreshPanel();
   });
 
   // Cancel roll button
