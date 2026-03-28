@@ -133,7 +133,9 @@ class DiceLinkCompanionApp extends ApplicationV2 {
     classes: ["dlc-dialog"],
     position: {
       width: 480,
-      height: "auto"
+      height: "auto",
+      top: 100,
+      left: null  // Will be centered on first render
     },
     window: {
       title: "Dice Link Companion",
@@ -164,6 +166,16 @@ class DiceLinkCompanionApp extends ApplicationV2 {
 
   _replaceHTML(result, content, options) {
     content.replaceChildren(result);
+  }
+
+  _onFirstRender(context, options) {
+    // Center the window horizontally if left wasn't set
+    if (this.position.left === null) {
+      const windowWidth = window.innerWidth;
+      const panelWidth = this.position.width || 480;
+      const leftPos = Math.max(50, (windowWidth - panelWidth) / 2);
+      this.setPosition({ left: leftPos });
+    }
   }
 
   _onRender(context, options) {
