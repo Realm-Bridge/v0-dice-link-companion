@@ -175,18 +175,6 @@ class DiceLinkCompanionApp extends ApplicationV2 {
     setCurrentPanelDialog(null);
     return super.close(options);
   }
-
-  setPosition(options = {}) {
-    // Only set position if element exists and is a valid DOM node
-    // this.element might be an empty jQuery object, so check [0] for actual DOM node
-    if (!this.element || !this.element[0]) {
-      return this;
-    }
-    if (!options.width) {
-      options.width = this._isGM ? 480 : 390;
-    }
-    return super.setPosition(options);
-  }
 }
 
 // UI Template functions now imported from ui-templates.js
