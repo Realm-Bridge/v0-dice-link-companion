@@ -8,8 +8,6 @@
  * NOTE: Persistent UI state (collapsed sections) is now managed exclusively by settings.js
  */
 
-import { SETTING_DEFAULTS } from "./constants.js";
-
 // ============================================================================
 // STATE VARIABLES
 // ============================================================================
@@ -20,7 +18,6 @@ let currentPanelDialog = null;
 let pendingDiceEntry = null;
 let diceEntryCancelled = false;
 let mirroredDialog = null;
-let collapsedSections = { ...SETTING_DEFAULTS.collapsedSections };
 
 // State change listeners
 const mirroredDialogListeners = [];
@@ -77,12 +74,16 @@ export function getMirroredDialog() {
   return mirroredDialog;
 }
 
+// ============================================================================
+// SETTERS
+// ============================================================================
+
 /**
- * Get the mirrored dialog (if one is currently being mirrored)
- * @returns {Object|null} The mirrored dialog object or null
+ * Set the pending roll request
+ * @param {Object|null} value - The roll request to set
  */
-export function getMirroredDialog() {
-  return mirroredDialog;
+export function setPendingRollRequest(value) {
+  pendingRollRequest = value;
 }
 
 /**
