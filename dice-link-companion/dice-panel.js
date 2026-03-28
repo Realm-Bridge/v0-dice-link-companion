@@ -1,6 +1,6 @@
 /**
  * Dice Panel Module - dice-link-companion
- * Version 1.0.6.91 - Phase 5 Step 5.1: Extracted panel management from main.mjs
+ * Version 1.0.6.92 - Fixed import paths (getPendingRequests from settings.js)
  * 
  * Handles panel lifecycle (open, close, refresh) and all panel event listeners.
  * This is the primary UI orchestration module.
@@ -11,8 +11,6 @@ import { debug, debugState } from "./debug.js";
 import {
   getCollapsedSections,
   setCollapsedSections,
-  getPendingRequests,
-  setPendingRequests,
   getPendingRollRequest,
   setPendingRollRequest,
   getCurrentPanelDialog,
@@ -30,7 +28,9 @@ import {
   getGlobalOverride,
   setPlayerMode,
   getPlayerMode,
-  isUserInManualMode
+  isUserInManualMode,
+  getPendingRequests,
+  setPendingRequests
 } from "./settings.js";
 import { applyManualDice, applyDigitalDice } from "./mode-application.js";
 import { createApprovalChatMessage } from "./chat.js";
