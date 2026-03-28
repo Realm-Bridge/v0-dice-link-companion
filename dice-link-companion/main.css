@@ -1508,3 +1508,110 @@
 .dlc-submit-dice-btn {
   width: 100%;
 }
+
+/* ============================================================================
+   VISUAL DICE SELECTION UI
+   ============================================================================ */
+.dlc-visual-dice-entry {
+  padding: 12px;
+}
+
+.dlc-dice-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.dlc-dice-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dlc-dice-row-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dlc-text-secondary);
+  min-width: 50px;
+  text-transform: uppercase;
+}
+
+.dlc-dice-options {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  padding: 4px 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--dlc-border) transparent;
+}
+
+.dlc-dice-options::-webkit-scrollbar {
+  height: 6px;
+}
+
+.dlc-dice-options::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dlc-dice-options::-webkit-scrollbar-thumb {
+  background: var(--dlc-border);
+  border-radius: 3px;
+}
+
+.dlc-die-option {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 2px solid var(--dlc-border);
+  border-radius: 6px;
+  background: var(--dlc-bg-input);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.dlc-die-option:hover {
+  border-color: var(--dlc-accent);
+  background: var(--dlc-bg-section);
+  transform: scale(1.05);
+}
+
+.dlc-die-option.selected {
+  border-color: var(--dlc-success);
+  background: rgba(16, 185, 129, 0.15);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+}
+
+.dlc-die-image {
+  width: 24px;
+  height: 24px;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.dlc-die-option:hover .dlc-die-image,
+.dlc-die-option.selected .dlc-die-image {
+  opacity: 1;
+}
+
+.dlc-die-value {
+  position: absolute;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--dlc-text-primary);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+}
+
+.dlc-die-option.selected .dlc-die-value {
+  color: var(--dlc-success);
+}
+
+.dlc-submit-visual-dice-btn {
+  width: 100%;
+}

@@ -1,14 +1,14 @@
 /**
  * Dice Link Companion - Foundry VTT v13
- * Version 1.0.7.9 - Fixed setPosition null check
+ * Version 1.0.7.10 - Visual Dice Selection UI
  * 
  * A player-GM dice mode management system with dialog mirroring.
  * Branded for Realm Bridge - https://realmbridge.co.uk
  * 
+ * v1.0.7.10 - Visual dice selection UI: clickable dice images showing all values
+ *             User clicks to select value, no typing required
  * v1.0.7.9 - Fixed setPosition to check this.element[0] for valid DOM node
- *            Empty jQuery objects are truthy but don't have DOM nodes
  * v1.0.7.8 - Removed dead resolver state code and unused imports
- * v1.0.7.7 - Simplified: RollResolver uses same shadow/mirror pattern as dialogs
  */
 
 import { 

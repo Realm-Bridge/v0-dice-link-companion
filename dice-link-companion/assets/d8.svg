@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- D8 placeholder - octahedron (diamond with horizontal line) -->
+  <polygon points="50,5 90,50 50,95 10,50" 
+           fill="white" stroke="black" stroke-width="3"/>
+  <line x1="10" y1="50" x2="90" y2="50" stroke="black" stroke-width="2"/>
+  <text x="50" y="45" text-anchor="middle" font-family="Arial, sans-serif" 
+        font-size="24" font-weight="bold" fill="black">8</text>
+</svg>
