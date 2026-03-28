@@ -1,6 +1,6 @@
 /**
  * Dice Panel Module - dice-link-companion
- * Version 1.0.6.100 - Fixed imports: getCollapsedSections/setCollapsedSections now from settings.js
+ * Version 1.0.6.105 - Added Foundry Roll API validation for all dice notation
  * 
  * Handles panel lifecycle (open, close, refresh) and all panel event listeners.
  * This is the primary UI orchestration module.
@@ -35,6 +35,7 @@ import { applyManualDice, applyDigitalDice } from "./mode-application.js";
 import { createApprovalChatMessage } from "./approval.js";
 import { playerRequestManual, playerSwitchToDigital } from "./socket.js";
 import { generateGMPanelContent, generatePlayerPanelContent } from "./ui-templates.js";
+import { validateDiceFormula } from "./dice-parsing.js";
 
 debug("dice-panel.js: All imports complete");
 
@@ -371,8 +372,11 @@ export function attachDiceTrayListeners(html) {
   // We use a callback pattern here since executeDiceTrayRollManually is in dice-fulfillment.js
   html.find(".dlc-dice-roll-btn").click(async function() {
     let formula = html.find(".dlc-dice-formula-input").val().replace(/^\/r\s*/, "").trim();
-    if (!formula) {
-      ui.notifications.warn("Enter a dice formula first.");
+    
+    // Validate formula using Foundry's Roll API (supports ALL Foundry dice notation)
+    const validation = validateDiceFormula(formula);
+    if (!validation.valid) {
+      ui.notifications.warn(validation.error);
       return;
     }
     
@@ -405,12 +409,12 @@ export function attachDiceTrayListeners(html) {
         advMode = "normal";
       } catch (e) {
         console.error("[Dice Link] Manual roll error:", e);
-        ui.notifications.error("Invalid dice formula.");
+        ui.notifications.error("Roll execution failed.");
       }
       return;
     }
     
-    // Digital mode - normal roll
+    // Digital mode - normal roll (formula already validated above)
     try {
       const roll = new Roll(formula);
       await roll.evaluate();
@@ -423,7 +427,7 @@ export function attachDiceTrayListeners(html) {
       resetDiceTray(html, diceCounts);
       advMode = "normal";
     } catch (e) {
-      ui.notifications.error("Invalid dice formula.");
+      ui.notifications.error("Roll execution failed.");
     }
   });
 

@@ -1,7 +1,38 @@
 /**
  * Dice Parsing Utility Module
- * Handles parsing dice formulas and executing rolls with user-provided values
+ * Version 1.0.6.105
+ * 
+ * Handles parsing dice formulas and executing rolls with user-provided values.
+ * Uses Foundry's native Roll API for validation to support ALL Foundry dice notation.
  */
+
+/**
+ * Validate a dice formula using Foundry's native Roll.validate() method.
+ * This ensures we support all Foundry-supported notation (kh, kl, x, r, cs, etc.)
+ * without having to maintain our own parser.
+ * 
+ * @param {string} formula - The dice formula to validate
+ * @returns {{valid: boolean, error: string|null}} Validation result
+ */
+export function validateDiceFormula(formula) {
+  // Handle empty/null input
+  if (!formula || typeof formula !== "string" || !formula.trim()) {
+    return { valid: false, error: "Enter a dice formula first." };
+  }
+  
+  const trimmed = formula.trim();
+  
+  // Use Foundry's native Roll.validate() - supports ALL Foundry dice notation
+  try {
+    const isValid = Roll.validate(trimmed);
+    if (!isValid) {
+      return { valid: false, error: "Invalid dice formula. Check your syntax." };
+    }
+    return { valid: true, error: null };
+  } catch (e) {
+    return { valid: false, error: `Invalid formula: ${e.message}` };
+  }
+}
 
 /**
  * Parse dice from a formula string to determine what dice inputs we need
