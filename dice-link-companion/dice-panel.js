@@ -1,6 +1,6 @@
 /**
  * Dice Panel Module - dice-link-companion
- * Version 1.0.6.108 - Removed window.diceLink coupling
+ * Version 1.0.6.110 - Fixed advantage/disadvantage to just add modifier, not double dice count
  * 
  * Handles panel lifecycle (open, close, refresh) and all panel event listeners.
  * This is the primary UI orchestration module.
@@ -306,7 +306,6 @@ export function attachDiceTrayListeners(html) {
   // Track dice counts for badges
   const diceCounts = { 4: 0, 6: 0, 8: 0, 10: 0, 12: 0, 20: 0, 100: 0 };
   let currentModifier = 0;
-  let advMode = "normal"; // "normal", "advantage", "disadvantage"
 
   // Dice button left-click - add to formula
   html.find(".dlc-dice-btn").click(function() {
@@ -355,22 +354,51 @@ export function attachDiceTrayListeners(html) {
     updateDiceFormula(html, diceCounts, currentModifier);
   });
 
-  // Advantage/Disadvantage toggle
+  // Advantage/Disadvantage toggle - directly modify the input field to show the notation
   html.find(".dlc-dice-adv-btn").click(function() {
-    if (advMode === "normal") {
-      advMode = "advantage";
-      $(this).text("ADV").addClass("dlc-adv-active");
-    } else if (advMode === "advantage") {
-      advMode = "disadvantage";
+    const input = html.find(".dlc-dice-formula-input");
+    let formula = input.val().replace(/^\/r\s*/, "").trim();
+    
+    // Determine current state from button text
+    const buttonText = $(this).text();
+    let nextState = "advantage"; // Default
+    
+    if (buttonText === "ADV/DIS") {
+      nextState = "advantage";
+    } else if (buttonText === "ADV") {
+      nextState = "disadvantage";
+    } else if (buttonText === "DIS") {
+      nextState = "normal";
+    }
+    
+    // Remove existing kh/kl modifiers from d20 rolls
+    formula = formula.replace(/(\d*)d20(?:kh|kl)/gi, (match, count) => {
+      const num = count || "1";
+      return `${num}d20`;
+    });
+    
+    // Add the appropriate modifier based on next state
+    if (nextState === "advantage") {
+      formula = formula.replace(/(\d*)d20(?!kh|kl)/gi, (match, count) => {
+        const num = count || "1";
+        return `${num}d20kh`;
+      });
+      $(this).text("ADV").removeClass("dlc-dis-active").addClass("dlc-adv-active");
+    } else if (nextState === "disadvantage") {
+      formula = formula.replace(/(\d*)d20(?!kh|kl)/gi, (match, count) => {
+        const num = count || "1";
+        return `${num}d20kl`;
+      });
       $(this).text("DIS").removeClass("dlc-adv-active").addClass("dlc-dis-active");
     } else {
-      advMode = "normal";
-      $(this).text("ADV/DIS").removeClass("dlc-dis-active");
+      $(this).text("ADV/DIS").removeClass("dlc-adv-active dlc-dis-active");
     }
+    
+    // Update the input field to show the modified formula
+    input.val(formula);
   });
 
-  // Roll button - needs access to dice fulfillment functions
-  // We use a callback pattern here since executeDiceTrayRollManually is in dice-fulfillment.js
+  // Roll button - uses the formula as shown in the input field
   html.find(".dlc-dice-roll-btn").click(async function() {
     let formula = html.find(".dlc-dice-formula-input").val().replace(/^\/r\s*/, "").trim();
     
@@ -381,22 +409,8 @@ export function attachDiceTrayListeners(html) {
       return;
     }
     
-    // Apply advantage/disadvantage to d20 rolls
-    if (advMode === "advantage") {
-      formula = formula.replace(/(\d*)d20/gi, (match, count) => {
-        const num = parseInt(count) || 1;
-        return `${num * 2}d20kh`;
-      });
-    } else if (advMode === "disadvantage") {
-      formula = formula.replace(/(\d*)d20/gi, (match, count) => {
-        const num = parseInt(count) || 1;
-        return `${num * 2}d20kl`;
-      });
-    }
-    
-    const flavorText = advMode !== "normal" 
-      ? `Manual Dice Roll (${advMode === "advantage" ? "Advantage" : "Disadvantage"})` 
-      : "Manual Dice Roll";
+    // Formula already has modifiers applied from ADV/DIS buttons, so just use it as-is
+    const flavorText = "Manual Dice Roll";
     
     // Check mode and execute roll
     if (isUserInManualMode()) {
@@ -407,7 +421,6 @@ export function attachDiceTrayListeners(html) {
           return;
         }
         resetDiceTray(html, diceCounts);
-        advMode = "normal";
       } catch (e) {
         console.error("[Dice Link] Manual roll error:", e);
         ui.notifications.error("Roll execution failed.");
@@ -426,7 +439,6 @@ export function attachDiceTrayListeners(html) {
       });
       
       resetDiceTray(html, diceCounts);
-      advMode = "normal";
     } catch (e) {
       ui.notifications.error("Roll execution failed.");
     }
