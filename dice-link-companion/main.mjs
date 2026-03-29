@@ -62,8 +62,7 @@ import {
 
 import {
   setupDialogMirroring,
-  handleMirroredDialogChange,
-  cancelFoundryResolver
+  handleMirroredDialogChange
 } from "./dialog-mirroring.js";
 
 import {
@@ -178,21 +177,6 @@ class DiceLinkCompanionApp extends ApplicationV2 {
   }
 
   async close(options = {}) {
-    debug("DiceLinkCompanionApp.close() called with options:", options);
-    debugState("Current panel dialog before close", getCurrentPanelDialog());
-    debugState("Current pending roll request", getPendingRollRequest());
-    
-    // Check if there's an active roll request when closing
-    const pendingRoll = getPendingRollRequest();
-    if (pendingRoll) {
-      debugError("WARNING: Closing app while roll is pending!");
-      debugState("Pending roll", pendingRoll);
-      
-      // Properly cancel the Foundry resolver to prevent random rolls
-      debug("Calling cancelFoundryResolver to clean up pending roll");
-      await cancelFoundryResolver();
-    }
-    
     setCurrentPanelDialog(null);
     return super.close(options);
   }
