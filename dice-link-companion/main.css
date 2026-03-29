@@ -1530,6 +1530,11 @@
   flex-direction: column;
   gap: 12px;
   margin-bottom: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--dlc-border) transparent;
+  padding-right: 4px;
 }
 
 .dlc-dice-row {
