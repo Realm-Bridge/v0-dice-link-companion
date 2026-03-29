@@ -79,3 +79,13 @@ export function debugResolverCancel(method, data) {
     console.log("[Dice Link Resolver Cancel]", `Used ${method}:`, data);
   }
 }
+
+/**
+ * Log resolver closure sequence
+ * @param {string} stage - Stage of closure (e.g., "resolveResult called", "closing app")
+ */
+export function debugResolverClosure(stage) {
+  if (DEBUG_ENABLED) {
+    console.log("[Dice Link Resolver Closure]", stage);
+  }
+}
