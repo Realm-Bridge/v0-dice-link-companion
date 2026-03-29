@@ -1617,53 +1617,7 @@
   width: 100%;
   height: 100%;
   pointer-events: none;
-}
-
-.dlc-die-face-number {
-  font-family: Arial, sans-serif;
-  font-size: 16px;
-  font-weight: 700;
-  fill: var(--dlc-text-primary);
-  paint-order: stroke fill;
-  stroke: rgba(0, 0, 0, 0.6);
-  stroke-width: 2.5px;
-  stroke-linejoin: round;
-}
-
-.dlc-die-option.selected .dlc-die-face-number {
-  fill: var(--dlc-success);
-}
-
-.dlc-die-option[data-die="d20"],
-.dlc-die-option[data-die="d20"] .dlc-die-face,
-.dlc-die-option[data-die="d20"] .dlc-die-image {
-  width: 66px;
-  height: 66px;
-}
-
-.dlc-die-face-number-d20 {
-  font-size: 17px;
-  transform: translateY(-8px);
-}
-
-.dlc-die-face-number-d12 {
-  font-size: 18px;
-}
-
-.dlc-die-face-number-d10 {
-  font-size: 18px;
-}
-
-.dlc-die-face-number-d8 {
-  font-size: 20px;
-}
-
-.dlc-die-face-number-d6 {
-  font-size: 20px;
-}
-
-.dlc-die-face-number-d4 {
-  font-size: 22px;
+  display: none;
 }
 
 /* d100 manual text input */
