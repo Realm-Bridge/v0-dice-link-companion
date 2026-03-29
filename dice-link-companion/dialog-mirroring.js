@@ -372,26 +372,41 @@ export async function cancelFoundryResolver() {
   debugState("Element exists", !!element);
   debugState("App exists", !!app);
   
-  // Clear state first to prevent any further processing
-  debug("Clearing mirrored dialog state");
-  setMirroredDialog(null);
-  setPendingRollRequest(null);
-  
   try {
-    // Close the RollResolver application directly - this is the proper way to cancel
-    if (app?.close) {
-      debug("Closing RollResolver app directly");
+    // Try to find and click a cancel/close button in the resolver
+    const cancelButton = element?.querySelector("button[data-action='cancel'], button.cancel, .close-button, button[type='button']:not([type='submit'])");
+    debugState("Cancel button found", !!cancelButton);
+    
+    if (cancelButton) {
+      // Make visible temporarily
+      if (element?.style) {
+        element.style.display = "block";
+      }
+      debug("Clicking cancel button");
+      cancelButton.click();
+      await new Promise(resolve => setTimeout(resolve, 50));
+    } else if (app?.close) {
+      // Fallback: close the application directly
+      debug("No cancel button, closing app directly");
       await app.close();
-      debug("RollResolver app closed");
-    } else if (element) {
-      // Fallback: remove the element from DOM
-      debug("No app.close, removing element from DOM");
-      element.remove();
     }
+    
+    // Ensure it's hidden
+    if (element?.style) {
+      element.style.display = "none";
+    }
+    
+    // Clear state
+    debug("Clearing mirrored dialog state");
+    setMirroredDialog(null);
+    setPendingRollRequest(null);
     
   } catch (e) {
     debugError("Error in cancelFoundryResolver:", e);
     debugError("Stack trace:", e.stack);
+    // Still clear state on error
+    setMirroredDialog(null);
+    setPendingRollRequest(null);
   }
 }
 
