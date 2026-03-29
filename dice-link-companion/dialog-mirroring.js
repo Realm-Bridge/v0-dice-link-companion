@@ -359,7 +359,6 @@ async function submitToFoundryResolver(values) {
 export async function cancelFoundryResolver() {
   debug("cancelFoundryResolver called");
   const dialogRef = getMirroredDialog();
-  debugState("Mirrored dialog ref", dialogRef);
   if (!dialogRef || !dialogRef.isRollResolver) {
     // No resolver to cancel, just clear state
     debug("No roll resolver found, clearing state");
@@ -369,72 +368,12 @@ export async function cancelFoundryResolver() {
   }
   
   const { element, app } = dialogRef;
-  debugState("Element exists", !!element);
-  debugState("App exists", !!app);
-  
-  // Inspect the RollResolver app object to find cancel methods
-  if (app) {
-    debugState("RollResolver app constructor", app?.constructor?.name);
-    debugState("RollResolver app methods", Object.getOwnPropertyNames(Object.getPrototypeOf(app)).filter(m => typeof app[m] === 'function'));
-    debugState("RollResolver app properties", Object.keys(app).slice(0, 20)); // First 20 properties
-    
-    // Look for common cancel/reject/abort methods
-    if (typeof app.reject === 'function') {
-      debugState("Found app.reject method", true);
-    }
-    if (typeof app.cancel === 'function') {
-      debugState("Found app.cancel method", true);
-    }
-    if (typeof app.abort === 'function') {
-      debugState("Found app.abort method", true);
-    }
-    if (app.options?.resolve) {
-      debugState("Found app.options.resolve", true);
-    }
-    if (app.options?.reject) {
-      debugState("Found app.options.reject", true);
-    }
-  }
   
   try {
-    // Primary method: Call resolveResult with null then close the app to fully cancel
-    if (typeof app.resolveResult === 'function') {
-      debugResolverClosure("Calling resolveResult(null)");
-      debug("Calling app.resolveResult(null) to cancel roll");
-      app.resolveResult(null);
-      debugResolverCancel("resolveResult", null);
-      
-      // Wait a moment then close the app to fully terminate the resolver
-      debugResolverClosure("Waiting 50ms before closing app");
-      await new Promise(resolve => setTimeout(resolve, 50));
-      
-      if (app?.close) {
-        debugResolverClosure("Closing RollResolver app");
-        debug("Closing RollResolver app after resolveResult");
-        await app.close();
-        debugResolverClosure("RollResolver app closed successfully");
-        debugResolverCancel("app.close after resolveResult", "called");
-      }
-    } else {
-      // Fallback: Try to find and click a cancel/close button in the resolver
-      const cancelButton = element?.querySelector("button[data-action='cancel'], button.cancel, .close-button, button[type='button']:not([type='submit'])");
-      debugState("Cancel button found", !!cancelButton);
-      
-      if (cancelButton) {
-        // Make visible temporarily
-        if (element?.style) {
-          element.style.display = "block";
-        }
-        debug("Clicking cancel button (fallback)");
-        cancelButton.click();
-        debugResolverCancel("cancelButton", "clicked");
-        await new Promise(resolve => setTimeout(resolve, 50));
-      } else if (app?.close) {
-        // Last resort fallback: close the application directly
-        debug("No cancel button, closing app directly (last resort)");
-        await app.close();
-        debugResolverCancel("app.close", "called");
-      }
+    // Just close the app - don't call resolveResult which triggers random roll
+    if (app?.close) {
+      debug("Closing RollResolver app");
+      await app.close();
     }
     
     // Ensure it's hidden
@@ -449,7 +388,6 @@ export async function cancelFoundryResolver() {
     
   } catch (e) {
     debugError("Error in cancelFoundryResolver:", e);
-    debugError("Stack trace:", e.stack);
     // Still clear state on error
     setMirroredDialog(null);
     setPendingRollRequest(null);
