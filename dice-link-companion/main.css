@@ -1624,9 +1624,16 @@
   fill: var(--dlc-success);
 }
 
+.dlc-die-option[data-die="d20"],
+.dlc-die-option[data-die="d20"] .dlc-die-face,
+.dlc-die-option[data-die="d20"] .dlc-die-image {
+  width: 66px;
+  height: 66px;
+}
+
 .dlc-die-face-number-d20 {
-  font-size: 14px;
-  y: 30;
+  font-size: 17px;
+  y: 26;
 }
 
 .dlc-die-face-number-d12 {

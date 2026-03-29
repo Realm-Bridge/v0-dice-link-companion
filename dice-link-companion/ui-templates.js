@@ -109,6 +109,7 @@ export function generatePendingRollHTML(roll) {
                   data-row="${rowIndex}" 
                   data-value="${value}" 
                   data-faces="${faces}"
+                  data-die="${dieType}"
                   title="${dieType}: ${value}">
             <div class="dlc-die-face">
               <img src="modules/dice-link-companion/assets/${dieType}.svg" 
