@@ -118,7 +118,7 @@ export function generatePendingRollHTML(roll) {
                 <text x="50" y="54" 
                       text-anchor="middle" 
                       dominant-baseline="middle"
-                      class="dlc-die-face-number ${dieType === 'd20' ? 'dlc-die-face-number-d20' : ''}">${value}</text>
+                      class="dlc-die-face-number dlc-die-face-number-${dieType}">${value}</text>
               </svg>
             </div>
           </button>

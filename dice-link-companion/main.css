@@ -1625,7 +1625,28 @@
 }
 
 .dlc-die-face-number-d20 {
+  font-size: 14px;
   y: 30;
+}
+
+.dlc-die-face-number-d12 {
+  font-size: 18px;
+}
+
+.dlc-die-face-number-d10 {
+  font-size: 18px;
+}
+
+.dlc-die-face-number-d8 {
+  font-size: 20px;
+}
+
+.dlc-die-face-number-d6 {
+  font-size: 20px;
+}
+
+.dlc-die-face-number-d4 {
+  font-size: 22px;
 }
 
 /* d100 manual text input */
