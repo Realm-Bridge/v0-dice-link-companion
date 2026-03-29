@@ -356,7 +356,7 @@ async function submitToFoundryResolver(values) {
 /**
  * Cancel Foundry's hidden RollResolver without submitting values
  */
-async function cancelFoundryResolver() {
+export async function cancelFoundryResolver() {
   debug("cancelFoundryResolver called");
   const dialogRef = getMirroredDialog();
   debugState("Mirrored dialog ref", dialogRef);
