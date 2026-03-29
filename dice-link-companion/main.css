@@ -1611,12 +1611,12 @@
 
 .dlc-die-face-number {
   font-family: Arial, sans-serif;
-  font-size: 22px;
+  font-size: 16px;
   font-weight: 700;
   fill: var(--dlc-text-primary);
   paint-order: stroke fill;
   stroke: rgba(0, 0, 0, 0.6);
-  stroke-width: 4px;
+  stroke-width: 2.5px;
   stroke-linejoin: round;
 }
 
@@ -1625,7 +1625,7 @@
 }
 
 .dlc-die-face-number-d20 {
-  y: 38;
+  y: 30;
 }
 
 /* d100 manual text input */
