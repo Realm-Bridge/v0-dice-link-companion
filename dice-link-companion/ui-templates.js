@@ -111,7 +111,7 @@ export function generatePendingRollHTML(roll) {
                   data-faces="${faces}"
                   title="${dieType}: ${value}">
             <div class="dlc-die-face">
-              <img src="modules/dice-link-companion/assets/${dieType}/${dieType}-${value}.svg" 
+              <img src="modules/dice-link-companion/assets/DLC Dice/${dieType.toUpperCase()}/${dieType} - Outline ${value}.svg" 
                    alt="${dieType} ${value}" 
                    class="dlc-die-image">
             </div>
