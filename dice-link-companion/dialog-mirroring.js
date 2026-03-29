@@ -4,7 +4,7 @@
  */
 
 import { getPlayerMode, getGlobalOverride, getCollapsedSections, setCollapsedSections } from "./settings.js";
-import { debug, debugError, debugState } from "./debug.js";
+import { debug, debugError, debugState, debugResolverCancel } from "./debug.js";
 import { getMirroredDialog, setMirroredDialog, getPendingRollRequest, setPendingRollRequest, getCurrentPanelDialog } from "./state-management.js";
 
 /**
@@ -397,22 +397,31 @@ export async function cancelFoundryResolver() {
   }
   
   try {
-    // Try to find and click a cancel/close button in the resolver
-    const cancelButton = element?.querySelector("button[data-action='cancel'], button.cancel, .close-button, button[type='button']:not([type='submit'])");
-    debugState("Cancel button found", !!cancelButton);
-    
-    if (cancelButton) {
-      // Make visible temporarily
-      if (element?.style) {
-        element.style.display = "block";
+    // Primary method: Call resolveResult with null to cancel the roll
+    if (typeof app.resolveResult === 'function') {
+      debug("Calling app.resolveResult(null) to cancel roll");
+      app.resolveResult(null);
+      debugResolverCancel("resolveResult", null);
+    } else {
+      // Fallback: Try to find and click a cancel/close button in the resolver
+      const cancelButton = element?.querySelector("button[data-action='cancel'], button.cancel, .close-button, button[type='button']:not([type='submit'])");
+      debugState("Cancel button found", !!cancelButton);
+      
+      if (cancelButton) {
+        // Make visible temporarily
+        if (element?.style) {
+          element.style.display = "block";
+        }
+        debug("Clicking cancel button (fallback)");
+        cancelButton.click();
+        debugResolverCancel("cancelButton", "clicked");
+        await new Promise(resolve => setTimeout(resolve, 50));
+      } else if (app?.close) {
+        // Last resort fallback: close the application directly
+        debug("No cancel button, closing app directly (last resort)");
+        await app.close();
+        debugResolverCancel("app.close", "called");
       }
-      debug("Clicking cancel button");
-      cancelButton.click();
-      await new Promise(resolve => setTimeout(resolve, 50));
-    } else if (app?.close) {
-      // Fallback: close the application directly
-      debug("No cancel button, closing app directly");
-      await app.close();
     }
     
     // Ensure it's hidden

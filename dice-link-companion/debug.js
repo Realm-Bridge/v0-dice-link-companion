@@ -68,3 +68,14 @@ export function debugFulfillment(...args) {
     console.log("[Dice Link Fulfillment]", ...args);
   }
 }
+
+/**
+ * Log resolver cancellation
+ * @param {string} method - Method used to cancel (e.g., "resolveResult", "reject", etc.)
+ * @param {any} data - Associated data or result
+ */
+export function debugResolverCancel(method, data) {
+  if (DEBUG_ENABLED) {
+    console.log("[Dice Link Resolver Cancel]", `Used ${method}:`, data);
+  }
+}
