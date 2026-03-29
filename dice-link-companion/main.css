@@ -65,6 +65,10 @@
   border-radius: 8px;
   display: flex;
   flex-direction: column;
+  max-height: 90vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--dlc-border) transparent;
 }
 
 /* ============================================================================
@@ -240,6 +244,9 @@
 .dlc-section-content {
   padding: 12px 14px;
   transition: max-height 0.3s ease, padding 0.3s ease;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--dlc-border) transparent;
 }
 
 .dlc-section.collapsed .dlc-section-content {
