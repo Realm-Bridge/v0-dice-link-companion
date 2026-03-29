@@ -1633,7 +1633,7 @@
 
 .dlc-die-face-number-d20 {
   font-size: 17px;
-  y: 5;
+  transform: translateY(-20px);
 }
 
 .dlc-die-face-number-d12 {
