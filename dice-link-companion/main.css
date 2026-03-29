@@ -1560,8 +1560,8 @@
 
 .dlc-die-option {
   position: relative;
-  width: 44px;
-  height: 44px;
+  width: 52px;
+  height: 52px;
   padding: 0;
   border: none;
   background: transparent;
@@ -1585,16 +1585,16 @@
 /* Container that stacks the die image and number SVG */
 .dlc-die-face {
   position: relative;
-  width: 44px;
-  height: 44px;
+  width: 52px;
+  height: 52px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .dlc-die-image {
-  width: 44px;
-  height: 44px;
+  width: 52px;
+  height: 52px;
   display: block;
   pointer-events: none;
 }
@@ -1622,6 +1622,10 @@
 
 .dlc-die-option.selected .dlc-die-face-number {
   fill: var(--dlc-success);
+}
+
+.dlc-die-face-number-d20 {
+  y: 38;
 }
 
 /* d100 manual text input */

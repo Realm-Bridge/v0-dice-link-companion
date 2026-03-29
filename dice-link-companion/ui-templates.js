@@ -87,7 +87,7 @@ export function generatePendingRollHTML(roll) {
       if (faces === 100) {
         return `
           <div class="dlc-dice-row dlc-dice-row-manual" data-row="${rowIndex}" data-faces="${faces}">
-            <span class="dlc-dice-row-label">${dieType}${roll.diceNeeded.length > 1 ? ` #${rowIndex + 1}` : ''}</span>
+            <span class="dlc-dice-row-label">${dieType}</span>
             <input type="number" 
                    class="dlc-dice-manual-input" 
                    data-row="${rowIndex}"
@@ -118,7 +118,7 @@ export function generatePendingRollHTML(roll) {
                 <text x="50" y="54" 
                       text-anchor="middle" 
                       dominant-baseline="middle"
-                      class="dlc-die-face-number">${value}</text>
+                      class="dlc-die-face-number ${dieType === 'd20' ? 'dlc-die-face-number-d20' : ''}">${value}</text>
               </svg>
             </div>
           </button>
@@ -127,7 +127,7 @@ export function generatePendingRollHTML(roll) {
       
       return `
         <div class="dlc-dice-row" data-row="${rowIndex}" data-faces="${faces}">
-          <span class="dlc-dice-row-label">${dieType}${roll.diceNeeded.length > 1 ? ` #${rowIndex + 1}` : ''}</span>
+          <span class="dlc-dice-row-label">${dieType}</span>
           <div class="dlc-dice-options">
             ${diceOptions.join('')}
           </div>
