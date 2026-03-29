@@ -177,15 +177,15 @@ class DiceLinkCompanionApp extends ApplicationV2 {
   }
 
   async close(options = {}) {
-    console.log("[v0] DiceLinkCompanionApp.close() called with options:", options);
-    console.log("[v0] Current panel dialog before close:", getCurrentPanelDialog());
-    console.log("[v0] Current pending roll request:", getPendingRollRequest());
+    debug("DiceLinkCompanionApp.close() called with options:", options);
+    debugState("Current panel dialog before close", getCurrentPanelDialog());
+    debugState("Current pending roll request", getPendingRollRequest());
     
     // Check if there's an active roll request when closing
     const pendingRoll = getPendingRollRequest();
     if (pendingRoll) {
-      console.log("[v0] WARNING: Closing app while roll is pending!");
-      console.log("[v0] Pending roll:", pendingRoll);
+      debugError("WARNING: Closing app while roll is pending!");
+      debugState("Pending roll", pendingRoll);
     }
     
     setCurrentPanelDialog(null);

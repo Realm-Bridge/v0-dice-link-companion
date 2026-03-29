@@ -4,7 +4,7 @@
  */
 
 import { getPlayerMode, getGlobalOverride, getCollapsedSections, setCollapsedSections } from "./settings.js";
-import { debug, debugError } from "./debug.js";
+import { debug, debugError, debugState } from "./debug.js";
 import { getMirroredDialog, setMirroredDialog, getPendingRollRequest, setPendingRollRequest, getCurrentPanelDialog } from "./state-management.js";
 
 /**
@@ -29,16 +29,16 @@ export function setupDialogMirroring() {
   
   // Hook to detect when applications close (including PopOut windows)
   Hooks.on("closeApplication", (app, html) => {
-    console.log("[v0] Application closing:", app?.constructor?.name);
+    debug("Application closing:", app?.constructor?.name);
     const dialogRef = getMirroredDialog();
     if (dialogRef?.app === app) {
-      console.log("[v0] Mirrored roll dialog is closing!");
-      console.log("[v0] Pending roll request at close:", getPendingRollRequest());
+      debugError("Mirrored roll dialog is closing!");
+      debugState("Pending roll request at close", getPendingRollRequest());
       // When the resolver dialog closes unexpectedly (e.g., PopOut window closed),
       // this might be why rolls happen randomly
     }
     if (app?.element?.classList?.contains("dlc-dialog")) {
-      console.log("[v0] DLC dialog is closing");
+      debug("DLC dialog is closing");
     }
   });
   
@@ -357,36 +357,37 @@ async function submitToFoundryResolver(values) {
  * Cancel Foundry's hidden RollResolver without submitting values
  */
 async function cancelFoundryResolver() {
-  console.log("[v0] cancelFoundryResolver called");
+  debug("cancelFoundryResolver called");
   const dialogRef = getMirroredDialog();
-  console.log("[v0] Mirrored dialog ref:", dialogRef);
+  debugState("Mirrored dialog ref", dialogRef);
   if (!dialogRef || !dialogRef.isRollResolver) {
     // No resolver to cancel, just clear state
-    console.log("[v0] No roll resolver found, clearing state");
+    debug("No roll resolver found, clearing state");
     setMirroredDialog(null);
     setPendingRollRequest(null);
     return;
   }
   
   const { element, app } = dialogRef;
-  console.log("[v0] Element exists:", !!element, "App exists:", !!app);
+  debugState("Element exists", !!element);
+  debugState("App exists", !!app);
   
   try {
     // Try to find and click a cancel/close button in the resolver
     const cancelButton = element?.querySelector("button[data-action='cancel'], button.cancel, .close-button, button[type='button']:not([type='submit'])");
-    console.log("[v0] Cancel button found:", !!cancelButton);
+    debugState("Cancel button found", !!cancelButton);
     
     if (cancelButton) {
       // Make visible temporarily
       if (element?.style) {
         element.style.display = "block";
       }
-      console.log("[v0] Clicking cancel button");
+      debug("Clicking cancel button");
       cancelButton.click();
       await new Promise(resolve => setTimeout(resolve, 50));
     } else if (app?.close) {
       // Fallback: close the application directly
-      console.log("[v0] No cancel button, closing app directly");
+      debug("No cancel button, closing app directly");
       await app.close();
     }
     
@@ -396,13 +397,13 @@ async function cancelFoundryResolver() {
     }
     
     // Clear state
-    console.log("[v0] Clearing mirrored dialog state");
+    debug("Clearing mirrored dialog state");
     setMirroredDialog(null);
     setPendingRollRequest(null);
     
   } catch (e) {
-    console.log("[v0] Error in cancelFoundryResolver:", e);
-    debugError("Error cancelling Foundry resolver:", e);
+    debugError("Error in cancelFoundryResolver:", e);
+    debugError("Stack trace:", e.stack);
     // Still clear state on error
     setMirroredDialog(null);
     setPendingRollRequest(null);

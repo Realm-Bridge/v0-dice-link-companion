@@ -596,24 +596,24 @@ export function attachDiceTrayListeners(html) {
 
   // Cancel roll button
   html.find(".dlc-roll-cancel-btn").click( function() {
-    console.log("[v0] Cancel button clicked");
+    debug("Cancel button clicked");
     // Set cancellation flag to prevent further dice prompts
     setDiceEntryCancelled(true);
     
     // Handle dice entry cancellation
     const currentDiceEntry = getPendingDiceEntry();
-    console.log("[v0] Current dice entry:", currentDiceEntry);
+    debugState("Current dice entry", currentDiceEntry);
     if (currentDiceEntry) {
       // Resolve with null to signal cancellation
-      console.log("[v0] Resolving dice entry with null");
+      debug("Resolving dice entry with null");
       currentDiceEntry.resolve(null);
       setPendingDiceEntry(null);
     }
     
     const currentRollRequest = getPendingRollRequest();
-    console.log("[v0] Current roll request:", currentRollRequest);
+    debugState("Current roll request", currentRollRequest);
     if (currentRollRequest?.onComplete) {
-      console.log("[v0] Calling onComplete with 'cancel'");
+      debug("Calling onComplete with 'cancel'");
       currentRollRequest.onComplete("cancel");
     }
     
