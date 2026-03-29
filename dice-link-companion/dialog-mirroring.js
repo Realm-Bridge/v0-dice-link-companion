@@ -4,7 +4,7 @@
  */
 
 import { getPlayerMode, getGlobalOverride, getCollapsedSections, setCollapsedSections } from "./settings.js";
-import { debug, debugError, debugState, debugResolverCancel } from "./debug.js";
+import { debug, debugError, debugState, debugResolverCancel, debugResolverClosure } from "./debug.js";
 import { getMirroredDialog, setMirroredDialog, getPendingRollRequest, setPendingRollRequest, getCurrentPanelDialog } from "./state-management.js";
 
 /**
@@ -397,11 +397,24 @@ export async function cancelFoundryResolver() {
   }
   
   try {
-    // Primary method: Call resolveResult with null to cancel the roll
+    // Primary method: Call resolveResult with null then close the app to fully cancel
     if (typeof app.resolveResult === 'function') {
+      debugResolverClosure("Calling resolveResult(null)");
       debug("Calling app.resolveResult(null) to cancel roll");
       app.resolveResult(null);
       debugResolverCancel("resolveResult", null);
+      
+      // Wait a moment then close the app to fully terminate the resolver
+      debugResolverClosure("Waiting 50ms before closing app");
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      if (app?.close) {
+        debugResolverClosure("Closing RollResolver app");
+        debug("Closing RollResolver app after resolveResult");
+        await app.close();
+        debugResolverClosure("RollResolver app closed successfully");
+        debugResolverCancel("app.close after resolveResult", "called");
+      }
     } else {
       // Fallback: Try to find and click a cancel/close button in the resolver
       const cancelButton = element?.querySelector("button[data-action='cancel'], button.cancel, .close-button, button[type='button']:not([type='submit'])");
