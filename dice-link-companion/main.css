@@ -312,7 +312,10 @@
 .dlc-slider {
   position: absolute;
   cursor: pointer;
-  top: 0; left: 0; right: 0; bottom: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background-color: var(--dlc-bg-input);
   border: 1px solid var(--dlc-border);
   border-radius: 18px;
@@ -331,12 +334,12 @@
   transition: 0.3s;
 }
 
-.dlc-switch input:checked + .dlc-slider {
+.dlc-switch input:checked+.dlc-slider {
   background-color: var(--dlc-success);
   border-color: var(--dlc-success);
 }
 
-.dlc-switch input:checked + .dlc-slider:before {
+.dlc-switch input:checked+.dlc-slider:before {
   transform: translateX(18px);
   background-color: white;
 }
@@ -1268,8 +1271,15 @@
 }
 
 @keyframes dlc-pending-glow {
-  0%, 100% { box-shadow: 0 0 8px rgba(255, 165, 0, 0.3); }
-  50% { box-shadow: 0 0 18px rgba(255, 165, 0, 0.6), 0 0 30px rgba(255, 165, 0, 0.2); }
+
+  0%,
+  100% {
+    box-shadow: 0 0 8px rgba(255, 165, 0, 0.3);
+  }
+
+  50% {
+    box-shadow: 0 0 18px rgba(255, 165, 0, 0.6), 0 0 30px rgba(255, 165, 0, 0.2);
+  }
 }
 
 .dlc-pending-badge {
@@ -1633,7 +1643,7 @@
 
 .dlc-die-face-number-d20 {
   font-size: 17px;
-  transform: translateY(-12px);
+  transform: translateY(-8px);
 }
 
 .dlc-die-face-number-d12 {
