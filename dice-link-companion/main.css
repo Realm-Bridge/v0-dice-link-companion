@@ -1082,6 +1082,10 @@
   border: none !important;
   box-shadow: none !important;
   height: auto !important;
+  max-height: 85vh !important;
+  overflow-y: auto !important;
+  scrollbar-width: thin;
+  scrollbar-color: var(--dlc-border) transparent;
 }
 
 .dlc-dialog .dialog-content {
