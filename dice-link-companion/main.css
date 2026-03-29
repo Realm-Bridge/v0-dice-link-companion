@@ -244,9 +244,6 @@
 .dlc-section-content {
   padding: 12px 14px;
   transition: max-height 0.3s ease, padding 0.3s ease;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--dlc-border) transparent;
 }
 
 .dlc-section.collapsed .dlc-section-content {
