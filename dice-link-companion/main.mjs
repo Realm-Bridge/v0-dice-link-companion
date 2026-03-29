@@ -169,6 +169,11 @@ class DiceLinkCompanionApp extends ApplicationV2 {
     } else {
       attachPlayerPanelListeners($html);
     }
+    
+    // Auto-resize panel after images load (fixes first-open sizing issue)
+    setTimeout(() => {
+      this.setPosition({ height: "auto", width: "auto" });
+    }, 100);
   }
 
   async close(options = {}) {
