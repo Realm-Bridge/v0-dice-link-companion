@@ -102,25 +102,18 @@ export function generatePendingRollHTML(roll) {
       const diceOptions = [];
       for (let value = 1; value <= faces; value++) {
         // Embed the number directly into an inline SVG layered over the die image
-        // so it appears as part of the die face rather than floating over it
+        // Generate die option button
         diceOptions.push(`
           <button type="button" 
                   class="dlc-die-option" 
                   data-row="${rowIndex}" 
                   data-value="${value}" 
                   data-faces="${faces}"
-                  data-die="${dieType}"
                   title="${dieType}: ${value}">
             <div class="dlc-die-face">
-              <img src="modules/dice-link-companion/assets/${dieType}.svg" 
-                   alt="${dieType}" 
+              <img src="modules/dice-link-companion/assets/DLC Dice/${dieType.toUpperCase()}/${dieType} - Outline ${value}.svg" 
+                   alt="${dieType} ${value}" 
                    class="dlc-die-image">
-              <svg class="dlc-die-number-overlay" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                <text x="50" y="54" 
-                      text-anchor="middle" 
-                      dominant-baseline="middle"
-                      class="dlc-die-face-number dlc-die-face-number-${dieType}">${value}</text>
-              </svg>
             </div>
           </button>
         `);
