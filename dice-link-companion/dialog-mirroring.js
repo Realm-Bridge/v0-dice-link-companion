@@ -27,6 +27,21 @@ export function setupDialogMirroring() {
     handleDialogRender(app, html, data);
   });
   
+  // Hook to detect when applications close (including PopOut windows)
+  Hooks.on("closeApplication", (app, html) => {
+    console.log("[v0] Application closing:", app?.constructor?.name);
+    const dialogRef = getMirroredDialog();
+    if (dialogRef?.app === app) {
+      console.log("[v0] Mirrored roll dialog is closing!");
+      console.log("[v0] Pending roll request at close:", getPendingRollRequest());
+      // When the resolver dialog closes unexpectedly (e.g., PopOut window closed),
+      // this might be why rolls happen randomly
+    }
+    if (app?.element?.classList?.contains("dlc-dialog")) {
+      console.log("[v0] DLC dialog is closing");
+    }
+  });
+  
   // Generic hook for any application render - cast wide net
   Hooks.on("renderApplicationV2", (app, html, data) => {
     handleDialogRender(app, html, data);
