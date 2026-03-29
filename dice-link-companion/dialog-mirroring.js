@@ -370,9 +370,21 @@ export async function cancelFoundryResolver() {
   const { element, app } = dialogRef;
   
   try {
-    // Just close the app - don't call resolveResult which triggers random roll
-    if (app?.close) {
-      debug("Closing RollResolver app");
+    // Try to find and click a cancel/close button in the resolver
+    const cancelButton = element?.querySelector("button[data-action='cancel'], button.cancel, .close-button, button[type='button']:not([type='submit'])");
+    debug("Cancel button found:", !!cancelButton);
+    
+    if (cancelButton) {
+      // Make visible temporarily
+      if (element?.style) {
+        element.style.display = "block";
+      }
+      debug("Clicking cancel button");
+      cancelButton.click();
+      await new Promise(resolve => setTimeout(resolve, 50));
+    } else if (app?.close) {
+      // Fallback: close the application directly
+      debug("No cancel button, closing app directly");
       await app.close();
     }
     
