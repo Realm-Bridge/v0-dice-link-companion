@@ -372,6 +372,30 @@ export async function cancelFoundryResolver() {
   debugState("Element exists", !!element);
   debugState("App exists", !!app);
   
+  // Inspect the RollResolver app object to find cancel methods
+  if (app) {
+    debugState("RollResolver app constructor", app?.constructor?.name);
+    debugState("RollResolver app methods", Object.getOwnPropertyNames(Object.getPrototypeOf(app)).filter(m => typeof app[m] === 'function'));
+    debugState("RollResolver app properties", Object.keys(app).slice(0, 20)); // First 20 properties
+    
+    // Look for common cancel/reject/abort methods
+    if (typeof app.reject === 'function') {
+      debugState("Found app.reject method", true);
+    }
+    if (typeof app.cancel === 'function') {
+      debugState("Found app.cancel method", true);
+    }
+    if (typeof app.abort === 'function') {
+      debugState("Found app.abort method", true);
+    }
+    if (app.options?.resolve) {
+      debugState("Found app.options.resolve", true);
+    }
+    if (app.options?.reject) {
+      debugState("Found app.options.reject", true);
+    }
+  }
+  
   try {
     // Try to find and click a cancel/close button in the resolver
     const cancelButton = element?.querySelector("button[data-action='cancel'], button.cancel, .close-button, button[type='button']:not([type='submit'])");
