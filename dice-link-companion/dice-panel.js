@@ -108,7 +108,7 @@ export function openPanel(DiceLinkCompanionApp) {
  */
 export function attachGMPanelListeners(html) {
   // Collapse/expand sections
-  html.find(".dlc-section-header").off("click").on("click", function() {
+  html.find(".dlc-section-header").click( function() {
     const section = $(this).data("section");
     const currentCollapsed = getCollapsedSections();
     if (section && currentCollapsed.hasOwnProperty(section)) {
@@ -131,7 +131,7 @@ export function attachGMPanelListeners(html) {
   });
 
   // Refresh button
-  html.find(".dlc-refresh-btn").off("click").on("click", function() {
+  html.find(".dlc-refresh-btn").click( function() {
     refreshPanel();
     ui.notifications.info("Panel refreshed.");
   });
@@ -186,7 +186,7 @@ export function attachGMPanelListeners(html) {
   });
 
   // Approve buttons
-  html.find(".dlc-panel-approve").off("click").on("click", async function() {
+  html.find(".dlc-panel-approve").click( async function() {
     const playerId = $(this).data("player-id");
     const player = game.users.get(playerId);
     if (!player) return;
@@ -214,7 +214,7 @@ export function attachGMPanelListeners(html) {
   });
 
   // Deny buttons
-  html.find(".dlc-panel-deny").off("click").on("click", async function() {
+  html.find(".dlc-panel-deny").click( async function() {
     const playerId = $(this).data("player-id");
     const player = game.users.get(playerId);
     if (!player) return;
@@ -239,7 +239,7 @@ export function attachGMPanelListeners(html) {
   });
 
   // Revoke buttons
-  html.find(".dlc-panel-revoke").off("click").on("click", async function() {
+  html.find(".dlc-panel-revoke").click( async function() {
     const playerId = $(this).data("player-id");
     const player = game.users.get(playerId);
     if (!player) return;
@@ -264,7 +264,7 @@ export function attachGMPanelListeners(html) {
  */
 export function attachPlayerPanelListeners(html) {
   // Collapse/expand sections
-  html.find(".dlc-section-header").off("click").on("click", function() {
+  html.find(".dlc-section-header").click( function() {
     const section = $(this).data("section");
     const currentCollapsed = getCollapsedSections();
     if (section && currentCollapsed.hasOwnProperty(section)) {
@@ -276,13 +276,13 @@ export function attachPlayerPanelListeners(html) {
   });
 
   // Request manual button
-  html.find(".dlc-player-request").off("click").on("click", function() {
+  html.find(".dlc-player-request").click( function() {
     playerRequestManual();
     refreshPanel();
   });
 
   // Switch to digital button
-  html.find(".dlc-player-digital").off("click").on("click", function() {
+  html.find(".dlc-player-digital").click( function() {
     playerSwitchToDigital();
     refreshPanel();
   });
@@ -304,7 +304,7 @@ export function attachDiceTrayListeners(html) {
   let currentModifier = 0;
 
   // Dice button left-click - add to formula
-  html.find(".dlc-dice-btn").off("click").on("click", function() {
+  html.find(".dlc-dice-btn").click( function() {
     const die = $(this).data("die");
     diceCounts[die]++;
     
@@ -338,20 +338,20 @@ export function attachDiceTrayListeners(html) {
   });
 
   // Modifier buttons
-  html.find(".dlc-dice-minus").off("click").on("click", function() {
+  html.find(".dlc-dice-minus").click( function() {
     currentModifier--;
     html.find(".dlc-dice-modifier").text(currentModifier >= 0 ? currentModifier : currentModifier);
     updateDiceFormula(html, diceCounts, currentModifier);
   });
 
-  html.find(".dlc-dice-plus").off("click").on("click", function() {
+  html.find(".dlc-dice-plus").click( function() {
     currentModifier++;
     html.find(".dlc-dice-modifier").text(currentModifier >= 0 ? currentModifier : currentModifier);
     updateDiceFormula(html, diceCounts, currentModifier);
   });
 
   // Advantage/Disadvantage toggle - directly modify the input field to show the notation
-  html.find(".dlc-dice-adv-btn").off("click").on("click", function() {
+  html.find(".dlc-dice-adv-btn").click( function() {
     const input = html.find(".dlc-dice-formula-input");
     let formula = input.val().replace(/^\/r\s*/, "").trim();
     
@@ -395,7 +395,7 @@ export function attachDiceTrayListeners(html) {
   });
 
   // Roll button - uses the formula as shown in the input field
-  html.find(".dlc-dice-roll-btn").off("click").on("click", async function() {
+  html.find(".dlc-dice-roll-btn").click( async function() {
     let formula = html.find(".dlc-dice-formula-input").val().replace(/^\/r\s*/, "").trim();
     
     // Validate formula using Foundry's Roll API (supports ALL Foundry dice notation)
@@ -445,7 +445,7 @@ export function attachDiceTrayListeners(html) {
   // ============================================================================
 
   // Mirrored Dialog Button Clicks
-  html.find(".dlc-dialog-btn").off("click").on("click", async function() {
+  html.find(".dlc-dialog-btn").click( async function() {
     const currentRollRequest = getPendingRollRequest();
     if (!currentRollRequest || !currentRollRequest.isMirroredDialog) {
       return;
@@ -477,7 +477,7 @@ export function attachDiceTrayListeners(html) {
   });
 
   // Advantage / Normal / Disadvantage buttons (Step 1: Configuration)
-  html.find(".dlc-roll-action-btn[data-roll-mode]").off("click").on("click", async function() {
+  html.find(".dlc-roll-action-btn[data-roll-mode]").click( async function() {
     const currentRollRequest = getPendingRollRequest();
     if (!currentRollRequest) {
       return;
@@ -500,7 +500,7 @@ export function attachDiceTrayListeners(html) {
   });
   
   // Submit Dice Results button (Step 2: Dice Entry - single die at a time, legacy)
-  html.find(".dlc-submit-dice-btn").off("click").on("click", async function() {
+  html.find(".dlc-submit-dice-btn").click( async function() {
     const currentRollRequest = getPendingRollRequest();
     if (!currentRollRequest || !currentRollRequest.isFulfillment) {
       return;
@@ -523,7 +523,7 @@ export function attachDiceTrayListeners(html) {
   });
 
   // Visual dice selection - click to select a die value in a row
-  html.find(".dlc-die-option").off("click").on("click", function() {
+  html.find(".dlc-die-option").click( function() {
     const $this = $(this);
     const rowIndex = $this.data("row");
     const value = $this.data("value");
@@ -582,7 +582,7 @@ export function attachDiceTrayListeners(html) {
   }
 
   // Submit Visual Dice button click
-  html.find(".dlc-submit-visual-dice-btn").off("click").on("click", submitVisualDice);
+  html.find(".dlc-submit-visual-dice-btn").click( submitVisualDice);
 
   // Enter key submits the active submit button in the panel
   html.on("keydown", function(e) {
@@ -595,7 +595,7 @@ export function attachDiceTrayListeners(html) {
   });
 
   // Cancel roll button
-  html.find(".dlc-roll-cancel-btn").off("click").on("click", function() {
+  html.find(".dlc-roll-cancel-btn").click( function() {
     // Set cancellation flag to prevent further dice prompts
     setDiceEntryCancelled(true);
     
