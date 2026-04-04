@@ -58,6 +58,8 @@
    ============================================================================ */
 .dlc-panel {
   min-width: 420px;
+  max-width: 500px;
+  width: 100%;
   padding: 0 0 12px 0;
   font-size: 13px;
   background: var(--dlc-bg-dark);
@@ -65,6 +67,7 @@
   border-radius: 8px;
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
 }
 
 /* ============================================================================
@@ -1708,6 +1711,13 @@
   max-width: 100%;
   box-sizing: border-box;
   overflow: hidden;
+}
+
+/* Override dnd5e flexrow class which can cause stretching */
+.dlc-cloned-system-dialog .flexrow {
+  flex-wrap: wrap !important;
+  width: 100% !important;
+  max-width: 100% !important;
 }
 
 /* Ensure the form fills available width but does not overflow */
