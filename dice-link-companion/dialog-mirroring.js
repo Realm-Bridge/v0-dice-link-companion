@@ -4,7 +4,7 @@
  */
 
 import { getPlayerMode, getGlobalOverride, getCollapsedSections, setCollapsedSections } from "./settings.js";
-import { debug, debugError, debugState, debugResolverCancel, debugResolverClosure, debugCloning } from "./debug.js";
+import { debug, debugError, debugState, debugResolverCancel, debugResolverClosure, debugCloning, debugButtonDetection } from "./debug.js";
 import { getMirroredDialog, setMirroredDialog, getPendingRollRequest, setPendingRollRequest, getCurrentPanelDialog } from "./state-management.js";
 
 /**
@@ -225,33 +225,86 @@ function mirrorDialogToPanel(app, html, data) {
     // We want the .window-content (form and layout) AND the buttons to inject inline
     const windowContent = elementToClone.querySelector('.window-content');
     
+    debugButtonDetection("Searching for buttons/footer", { 
+      windowContentFound: !!windowContent,
+      searchArea: "top-level selectors"
+    });
+    
     // Search for the footer/buttons in multiple locations (different systems place them differently)
     // dnd5e: buttons may be in form-buttons div inside the form
     // Other systems: may be in footer, .window-footer, .form-footer, or .dialog-buttons
-    const windowFooter = elementToClone.querySelector(
-      'footer, .window-footer, .form-footer, .form-buttons, .dialog-buttons, [data-part="footer"]'
-    );
+    const selectors = [
+      'footer',
+      '.window-footer',
+      '.form-footer',
+      '.form-buttons',
+      '.dialog-buttons',
+      '[data-part="footer"]'
+    ];
+    
+    let windowFooter = null;
+    for (const selector of selectors) {
+      const found = elementToClone.querySelector(selector);
+      if (found) {
+        debugButtonDetection(`Selector matched: ${selector}`, {
+          elementTag: found.tagName,
+          elementClass: found.className,
+          elementHTML: found.outerHTML.substring(0, 300)
+        });
+        windowFooter = found;
+        break;
+      } else {
+        debugButtonDetection(`Selector did not match: ${selector}`, {});
+      }
+    }
     
     // Also search within the form for buttons if not found at top level
     let buttonsInForm = null;
     if (windowContent && !windowFooter) {
-      buttonsInForm = windowContent.querySelector(
-        '.form-buttons, .dialog-buttons, [data-part="footer"]'
-      );
+      debugButtonDetection("Top-level buttons not found, searching within window-content", {});
+      
+      const formSelectors = [
+        '.form-buttons',
+        '.dialog-buttons',
+        '[data-part="footer"]'
+      ];
+      
+      for (const selector of formSelectors) {
+        const found = windowContent.querySelector(selector);
+        if (found) {
+          debugButtonDetection(`Found in form with selector: ${selector}`, {
+            elementTag: found.tagName,
+            elementClass: found.className,
+            elementHTML: found.outerHTML.substring(0, 300)
+          });
+          buttonsInForm = found;
+          break;
+        } else {
+          debugButtonDetection(`Not found in form: ${selector}`, {});
+        }
+      }
+      
+      // If still not found, search for ANY buttons in the form
+      if (!buttonsInForm) {
+        debugButtonDetection("No labeled button container found, searching for plain button elements", {});
+        const plainButtons = windowContent.querySelectorAll('button:not(.close):not(.header-control)');
+        if (plainButtons.length > 0) {
+          debugButtonDetection(`Found ${plainButtons.length} plain button elements`, {
+            buttons: Array.from(plainButtons).map(b => ({ 
+              text: b.textContent.trim(), 
+              class: b.className,
+              dataAction: b.dataset?.action
+            }))
+          });
+        } else {
+          debugButtonDetection("No button elements found at all", {
+            windowContentHTML: windowContent.outerHTML.substring(0, 500)
+          });
+        }
+      }
     }
     
     const footerToUse = windowFooter || buttonsInForm;
-    
-    debugCloning("Content to clone selected", {
-      hasWindowContent: !!windowContent,
-      hasFooter: !!windowFooter,
-      hasButtonsInForm: !!buttonsInForm,
-      windowContentTag: windowContent?.tagName,
-      footerTag: windowFooter?.tagName,
-      buttonsInFormTag: buttonsInForm?.tagName,
-      footerClass: windowFooter?.className || buttonsInForm?.className,
-      innerHTML_length: windowContent?.innerHTML?.length
-    });
     
     // Wrap in a div with our identifier class so we can scope CSS overrides later
     const wrapper = document.createElement('div');
@@ -268,13 +321,20 @@ function mirrorDialogToPanel(app, html, data) {
     // Also clone and add the footer/buttons (contains action buttons like Advantage/Normal/Disadvantage)
     if (footerToUse) {
       wrapper.appendChild(footerToUse.cloneNode(true));
-      debugCloning("Footer/buttons cloned", { 
+      debugButtonDetection("Footer/buttons successfully cloned and appended", { 
         footerHTML: footerToUse.outerHTML.substring(0, 300),
-        footerClass: footerToUse.className
+        footerClass: footerToUse.className,
+        footerTag: footerToUse.tagName,
+        buttonCount: footerToUse.querySelectorAll('button').length
       });
     } else {
-      debugCloning("No footer/buttons found in dialog", {
-        dialogHTML: elementToClone.outerHTML.substring(0, 500)
+      debugButtonDetection("CRITICAL: No footer/buttons found - searching entire element for buttons", {
+        entireDialogHTML: elementToClone.outerHTML.substring(0, 1000),
+        allButtons: Array.from(elementToClone.querySelectorAll('button:not(.close):not(.header-control)')).map(b => ({
+          text: b.textContent.trim(),
+          class: b.className,
+          parent: b.parentElement?.className
+        }))
       });
     }
     

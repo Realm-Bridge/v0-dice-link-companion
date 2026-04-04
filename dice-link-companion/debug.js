@@ -100,3 +100,14 @@ export function debugCloning(stage, data) {
     console.log("[Dice Link Cloning]", stage, data);
   }
 }
+
+/**
+ * Log button/footer detection attempts and results
+ * @param {string} stage - Stage of button detection (e.g., "searching", "found", "not found")
+ * @param {any} data - Associated data (selector used, element found, HTML preview, etc.)
+ */
+export function debugButtonDetection(stage, data) {
+  if (DEBUG_ENABLED) {
+    console.log("[Dice Link Button Detection]", stage, data);
+  }
+}
