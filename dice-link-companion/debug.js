@@ -179,3 +179,37 @@ export function debugClonedButtonClick(action, data) {
     console.log(`[Dice Link Cloned Button]`, action, data);
   }
 }
+
+/**
+ * Log element width measurements to debug stretching
+ * @param {string} stage - Stage of measurement (e.g., "content area", "panel", "cloned dialog", "nav")
+ * @param {HTMLElement} element - Element to measure
+ * @param {string} label - Optional label for the element
+ */
+export function debugElementDimensions(stage, element, label = "") {
+  if (DEBUG_ENABLED && element) {
+    const rect = element.getBoundingClientRect();
+    const computed = window.getComputedStyle(element);
+    const inlineStyle = element.getAttribute("style") || "(none)";
+    
+    console.log(`[Dice Link Dimensions] ${stage} ${label}`, {
+      offsetWidth: element.offsetWidth,
+      offsetHeight: element.offsetHeight,
+      clientWidth: element.clientWidth,
+      clientHeight: element.clientHeight,
+      boundingClientRect: {
+        width: rect.width,
+        height: rect.height
+      },
+      computedStyle: {
+        width: computed.width,
+        height: computed.height,
+        maxWidth: computed.maxWidth,
+        overflow: computed.overflow
+      },
+      inlineStyle: inlineStyle,
+      className: element.className,
+      tagName: element.tagName
+    });
+  }
+}
