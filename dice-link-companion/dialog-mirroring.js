@@ -310,15 +310,32 @@ function mirrorDialogToPanel(app, html, data) {
     const wrapper = document.createElement('div');
     wrapper.classList.add('dlc-cloned-system-dialog');
     
-    // Clone and add the main content
+    // Clone the main window-content
     if (windowContent) {
-      wrapper.appendChild(windowContent.cloneNode(true));
+      const windowContentClone = windowContent.cloneNode(true);
+      
+      // Remove any button containers already inside the window-content clone
+      // to prevent duplication when we append footerToUse separately below
+      const buttonSelectorsToStrip = [
+        'nav.dialog-buttons', '.dialog-buttons', '.form-buttons', '.form-footer', 'footer'
+      ];
+      for (const sel of buttonSelectorsToStrip) {
+        const existing = windowContentClone.querySelector(sel);
+        if (existing) {
+          debugButtonDetection(`Stripped duplicate buttons from window-content clone: ${sel}`, {
+            elementClass: existing.className
+          });
+          existing.remove();
+        }
+      }
+      
+      wrapper.appendChild(windowContentClone);
     } else {
       // Fallback: clone the whole element if no window-content found
       wrapper.appendChild(elementToClone.cloneNode(true));
     }
     
-    // Also clone and add the footer/buttons (contains action buttons like Advantage/Normal/Disadvantage)
+    // Append the footer/buttons once, cleanly
     if (footerToUse) {
       wrapper.appendChild(footerToUse.cloneNode(true));
       debugButtonDetection("Footer/buttons successfully cloned and appended", { 
