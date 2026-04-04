@@ -58,7 +58,24 @@ export function refreshPanel() {
       contentPreview: newContent.substring(0, 500)
     });
     
+    // Capture content area width BEFORE injection to constrain cloned content
+    const contentAreaWidth = contentElement[0]?.offsetWidth || 400;
+    
+    debugPanelInjection("before injection - measuring widths", {
+      contentAreaWidth,
+      panelWidth: panelDialog.position?.width,
+      panelElementWidth: panelDialog.element?.offsetWidth
+    });
+    
     contentElement.html(newContent);
+    
+    // Apply explicit max-width to cloned dialog based on measured content area
+    const clonedDialog = contentElement.find(".dlc-cloned-system-dialog")[0];
+    if (clonedDialog) {
+      clonedDialog.style.maxWidth = `${contentAreaWidth - 28}px`; // subtract padding
+      clonedDialog.style.width = "100%";
+      clonedDialog.style.overflow = "hidden";
+    }
     
     debugPanelInjection("after injection", {
       contentHTMLLength: contentElement.html().length,
@@ -66,7 +83,7 @@ export function refreshPanel() {
       clonedButtonsCount: contentElement.find(".dlc-cloned-system-dialog button").length,
       clonedDialogVisible: contentElement.find(".dlc-cloned-system-dialog").is(":visible"),
       dialogButtonsVisible: contentElement.find(".dlc-cloned-system-dialog nav.dialog-buttons").is(":visible"),
-      dialogButtonsHTML: contentElement.find("nav.dialog-buttons").html()
+      clonedDialogMaxWidth: clonedDialog?.style.maxWidth
     });
     
     // Debug computed styles of buttons to see why they're not visible
@@ -85,10 +102,9 @@ export function refreshPanel() {
       attachPlayerPanelListeners($element);
     }
 
-    // Recalculate height to fit content after collapse/expand, but preserve current width
-    // Using width: "auto" would let the panel stretch to fit cloned system dialog content
-    const currentWidth = panelDialog.position?.width ?? panelDialog.element?.offsetWidth;
-    panelDialog.setPosition({ height: "auto", width: currentWidth || "auto" });
+    // Recalculate height only, preserve width to prevent stretching
+    const fixedWidth = panelDialog.position?.width || 480;
+    panelDialog.setPosition({ height: "auto", width: fixedWidth });
   }
 }
 
