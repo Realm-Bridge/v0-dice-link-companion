@@ -508,7 +508,7 @@ function extractDialogFormData(app, html) {
  * @param {Function} openPanel - Function to open the panel if not already open
  */
 export function handleMirroredDialogChange(dialogData, submitMirroredDialog, refreshPanel, openPanel) {
-  const { app, html, data: formData } = dialogData;
+  const { app, html, clonedHTML, data: formData } = dialogData;
   
   // Clear previous pending roll request
   setPendingRollRequest(null);
@@ -519,6 +519,7 @@ export function handleMirroredDialogChange(dialogData, submitMirroredDialog, ref
     subtitle: formData.formula,
     formula: formData.formula,
     isMirroredDialog: true,
+    clonedHTML,  // Pass the cloned HTML string to preserve system dialog layout
     mirrorData: formData,
     onComplete: async (userChoice) => {
       if (userChoice === "cancel") {
