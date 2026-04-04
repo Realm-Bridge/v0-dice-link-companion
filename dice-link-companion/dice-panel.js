@@ -85,8 +85,10 @@ export function refreshPanel() {
       attachPlayerPanelListeners($element);
     }
 
-    // Recalculate dialog dimensions to fit content after collapse/expand
-    panelDialog.setPosition({ height: "auto", width: "auto" });
+    // Recalculate height to fit content after collapse/expand, but preserve current width
+    // Using width: "auto" would let the panel stretch to fit cloned system dialog content
+    const currentWidth = panelDialog.position?.width ?? panelDialog.element?.offsetWidth;
+    panelDialog.setPosition({ height: "auto", width: currentWidth || "auto" });
   }
 }
 

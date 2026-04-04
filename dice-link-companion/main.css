@@ -58,8 +58,6 @@
    ============================================================================ */
 .dlc-panel {
   min-width: 420px;
-  max-width: 500px;
-  width: 100%;
   padding: 0 0 12px 0;
   font-size: 13px;
   background: var(--dlc-bg-dark);
@@ -67,7 +65,6 @@
   border-radius: 8px;
   display: flex;
   flex-direction: column;
-  box-sizing: border-box;
 }
 
 /* ============================================================================
