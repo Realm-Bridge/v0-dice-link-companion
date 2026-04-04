@@ -1702,10 +1702,27 @@
   height: auto !important;
 }
 
-/* Ensure the form fills width */
+/* Constrain the cloned dialog to the panel width - prevent stretching */
+.dlc-cloned-system-dialog {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* Ensure the form fills available width but does not overflow */
 .dlc-cloned-system-dialog form,
 .dlc-cloned-system-dialog .window-content {
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Constrain selects and inputs */
+.dlc-cloned-system-dialog select,
+.dlc-cloned-system-dialog input {
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* Center header content */
