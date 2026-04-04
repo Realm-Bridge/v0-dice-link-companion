@@ -5,7 +5,7 @@
  */
 
 import { MODULE_ID, ROLE_NAMES, ASYNC_OPERATION_DELAY_MS } from "./constants.js";
-import { debug, debugState, debugError, debugPanelInjection } from "./debug.js";
+import { debug, debugState, debugError, debugPanelInjection, debugComputedStyles } from "./debug.js";
 import {
   setPendingRollRequest,
   getPendingRollRequest,
@@ -68,6 +68,16 @@ export function refreshPanel() {
       dialogButtonsVisible: contentElement.find(".dlc-cloned-system-dialog nav.dialog-buttons").is(":visible"),
       dialogButtonsHTML: contentElement.find("nav.dialog-buttons").html()
     });
+    
+    // Debug computed styles of buttons to see why they're not visible
+    const navButtons = contentElement.find("nav.dialog-buttons")[0];
+    if (navButtons) {
+      debugComputedStyles("nav.dialog-buttons", navButtons);
+      const firstButton = contentElement.find("nav.dialog-buttons button")[0];
+      if (firstButton) {
+        debugComputedStyles("nav.dialog-buttons button", firstButton);
+      }
+    }
     
     if (isGM) {
       attachGMPanelListeners($element);
