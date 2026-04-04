@@ -89,3 +89,14 @@ export function debugResolverClosure(stage) {
     console.log("[Dice Link Resolver Closure]", stage);
   }
 }
+
+/**
+ * Log HTML cloning operations for mirrored dialogs
+ * @param {string} stage - Stage of cloning operation
+ * @param {any} data - Associated data (element info, HTML length, etc.)
+ */
+export function debugCloning(stage, data) {
+  if (DEBUG_ENABLED) {
+    console.log("[Dice Link Cloning]", stage, data);
+  }
+}
