@@ -221,14 +221,29 @@ function mirrorDialogToPanel(app, html, data) {
       return;
     }
     
-    // Create a deep clone of the entire dialog element
-    const clonedElement = elementToClone.cloneNode(true);
+    // Extract the inner content, NOT the outer <dialog> element
+    // Cloning the <dialog> element causes the browser to render it as a floating native dialog
+    // We want just the .window-content div (the form and layout) to inject inline into our panel
+    const windowContent = elementToClone.querySelector('.window-content');
+    const contentToClone = windowContent || elementToClone;
     
-    // Add a wrapper class to identify this as a cloned system dialog
-    clonedElement.classList.add('dlc-cloned-system-dialog');
+    debugCloning("Content to clone selected", {
+      usingWindowContent: !!windowContent,
+      tagName: contentToClone.tagName,
+      className: contentToClone.className,
+      innerHTML_length: contentToClone.innerHTML?.length
+    });
     
-    // Convert the cloned element to an HTML string for state serialization
-    const clonedHTMLString = clonedElement.outerHTML;
+    // Create a deep clone of the inner content
+    const clonedElement = contentToClone.cloneNode(true);
+    
+    // Wrap in a div with our identifier class so we can scope CSS overrides later
+    const wrapper = document.createElement('div');
+    wrapper.classList.add('dlc-cloned-system-dialog');
+    wrapper.appendChild(clonedElement);
+    
+    // Convert to HTML string for state serialization
+    const clonedHTMLString = wrapper.outerHTML;
     
     debugCloning("Cloned HTML string created", { 
       length: clonedHTMLString.length,
