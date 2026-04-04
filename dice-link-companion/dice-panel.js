@@ -53,24 +53,46 @@ export function refreshPanel() {
     const $element = $(panelDialog.element);
     const contentElement = $element.find(".window-content");
     
-    debugPanelInjection("before injection", {
-      contentLength: newContent.length,
-      contentPreview: newContent.substring(0, 500)
+    // Capture window-content width BEFORE injection to constrain cloned content
+    // Use window-content instead of section-content because sections can collapse (offsetWidth becomes 0)
+    const windowContentWidth = contentElement[0]?.offsetWidth || 400;
+    const maxDialogWidth = Math.max(windowContentWidth - 28, 300); // subtract padding, minimum 300px
+    
+    debugPanelInjection("before injection - measuring widths", {
+      windowContentWidth,
+      calculatedMaxDialogWidth: maxDialogWidth,
+      panelWidth: panelDialog.position?.width,
+      panelElementWidth: panelDialog.element?.offsetWidth
     });
     
     contentElement.html(newContent);
+    
+    // Apply explicit max-width to cloned dialog based on measured window-content width
+    const clonedDialog = contentElement.find(".dlc-cloned-system-dialog")[0];
+    if (clonedDialog) {
+      clonedDialog.style.maxWidth = `${maxDialogWidth}px`;
+      clonedDialog.style.width = "100%";
+      clonedDialog.style.overflow = "hidden";
+      clonedDialog.style.boxSizing = "border-box";
+      
+      debugPanelInjection("applied inline width constraints to cloned dialog", {
+        maxWidth: clonedDialog.style.maxWidth,
+        width: clonedDialog.style.width,
+        actualOffsetWidth: clonedDialog.offsetWidth
+      });
+    }
     
     // Log all element dimensions to diagnose stretching
     const panelElement = panelDialog.element;
     const windowContent = panelElement.querySelector(".window-content");
     const sectionContent = panelElement.querySelector(".dlc-section-content");
-    const clonedDialog = panelElement.querySelector(".dlc-cloned-system-dialog");
+    const clonedDialogCheck = panelElement.querySelector(".dlc-cloned-system-dialog");
     const nav = panelElement.querySelector("nav.dialog-buttons");
     
     debugElementDimensions("panel element", panelElement, "DLC-Panel");
     debugElementDimensions("window-content", windowContent, ".window-content");
     debugElementDimensions("section-content", sectionContent, ".dlc-section-content");
-    debugElementDimensions("cloned-dialog", clonedDialog, ".dlc-cloned-system-dialog");
+    debugElementDimensions("cloned-dialog", clonedDialogCheck, ".dlc-cloned-system-dialog");
     debugElementDimensions("nav.dialog-buttons", nav, "nav.dialog-buttons");
     
     debugPanelInjection("after injection", {
@@ -78,7 +100,8 @@ export function refreshPanel() {
       dialogButtonsCount: contentElement.find("nav.dialog-buttons").length,
       clonedButtonsCount: contentElement.find(".dlc-cloned-system-dialog button").length,
       clonedDialogVisible: contentElement.find(".dlc-cloned-system-dialog").is(":visible"),
-      dialogButtonsVisible: contentElement.find(".dlc-cloned-system-dialog nav.dialog-buttons").is(":visible")
+      dialogButtonsVisible: contentElement.find(".dlc-cloned-system-dialog nav.dialog-buttons").is(":visible"),
+      clonedDialogActualWidth: clonedDialog?.offsetWidth
     });
     
     // Debug computed styles of buttons to see why they're not visible
@@ -97,10 +120,9 @@ export function refreshPanel() {
       attachPlayerPanelListeners($element);
     }
 
-    // Recalculate height to fit content after collapse/expand, but preserve current width
-    // Using width: "auto" would let the panel stretch to fit cloned system dialog content
-    const currentWidth = panelDialog.position?.width ?? panelDialog.element?.offsetWidth;
-    panelDialog.setPosition({ height: "auto", width: currentWidth || "auto" });
+    // Recalculate height only, preserve width to prevent stretching
+    const fixedWidth = panelDialog.position?.width || 480;
+    panelDialog.setPosition({ height: "auto", width: fixedWidth });
   }
 }
 
