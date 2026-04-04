@@ -122,3 +122,14 @@ export function debugPanelInjection(stage, data) {
     console.log("[Dice Link Panel Injection]", stage, data);
   }
 }
+
+/**
+ * Log template/HTML generation for pending rolls
+ * @param {string} stage - Stage of generation (e.g., "generatePendingRollHTML called", "using clonedHTML", "fallback")
+ * @param {any} data - Associated data (roll object properties, HTML preview, etc.)
+ */
+export function debugTemplateGeneration(stage, data) {
+  if (DEBUG_ENABLED) {
+    console.log("[Dice Link Template]", stage, data);
+  }
+}
