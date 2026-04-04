@@ -5,7 +5,7 @@
  */
 
 import { MODULE_ID, ROLE_NAMES, ASYNC_OPERATION_DELAY_MS } from "./constants.js";
-import { debug, debugState, debugError } from "./debug.js";
+import { debug, debugState, debugError, debugPanelInjection } from "./debug.js";
 import {
   setPendingRollRequest,
   getPendingRollRequest,
@@ -52,7 +52,22 @@ export function refreshPanel() {
     // ApplicationV2 returns HTMLElement, not jQuery - wrap in jQuery for compatibility
     const $element = $(panelDialog.element);
     const contentElement = $element.find(".window-content");
+    
+    debugPanelInjection("before injection", {
+      contentLength: newContent.length,
+      contentPreview: newContent.substring(0, 500)
+    });
+    
     contentElement.html(newContent);
+    
+    debugPanelInjection("after injection", {
+      contentHTMLLength: contentElement.html().length,
+      dialogButtonsCount: contentElement.find("nav.dialog-buttons").length,
+      clonedButtonsCount: contentElement.find(".dlc-cloned-system-dialog button").length,
+      clonedDialogVisible: contentElement.find(".dlc-cloned-system-dialog").is(":visible"),
+      dialogButtonsVisible: contentElement.find(".dlc-cloned-system-dialog nav.dialog-buttons").is(":visible"),
+      dialogButtonsHTML: contentElement.find("nav.dialog-buttons").html()
+    });
     
     if (isGM) {
       attachGMPanelListeners($element);
