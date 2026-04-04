@@ -222,16 +222,34 @@ function mirrorDialogToPanel(app, html, data) {
     }
     
     // Extract the inner content, NOT the outer <dialog> element
-    // Cloning the <dialog> element causes the browser to render it as a floating native dialog
-    // We want the .window-content (form and layout) AND the footer (buttons) to inject inline
+    // We want the .window-content (form and layout) AND the buttons to inject inline
     const windowContent = elementToClone.querySelector('.window-content');
-    const windowFooter = elementToClone.querySelector('footer, .window-footer, .form-footer');
+    
+    // Search for the footer/buttons in multiple locations (different systems place them differently)
+    // dnd5e: buttons may be in form-buttons div inside the form
+    // Other systems: may be in footer, .window-footer, .form-footer, or .dialog-buttons
+    const windowFooter = elementToClone.querySelector(
+      'footer, .window-footer, .form-footer, .form-buttons, .dialog-buttons, [data-part="footer"]'
+    );
+    
+    // Also search within the form for buttons if not found at top level
+    let buttonsInForm = null;
+    if (windowContent && !windowFooter) {
+      buttonsInForm = windowContent.querySelector(
+        '.form-buttons, .dialog-buttons, [data-part="footer"]'
+      );
+    }
+    
+    const footerToUse = windowFooter || buttonsInForm;
     
     debugCloning("Content to clone selected", {
       hasWindowContent: !!windowContent,
       hasFooter: !!windowFooter,
+      hasButtonsInForm: !!buttonsInForm,
       windowContentTag: windowContent?.tagName,
       footerTag: windowFooter?.tagName,
+      buttonsInFormTag: buttonsInForm?.tagName,
+      footerClass: windowFooter?.className || buttonsInForm?.className,
       innerHTML_length: windowContent?.innerHTML?.length
     });
     
@@ -247,10 +265,17 @@ function mirrorDialogToPanel(app, html, data) {
       wrapper.appendChild(elementToClone.cloneNode(true));
     }
     
-    // Also clone and add the footer (contains action buttons like Advantage/Normal/Disadvantage)
-    if (windowFooter) {
-      wrapper.appendChild(windowFooter.cloneNode(true));
-      debugCloning("Footer cloned", { footerHTML: windowFooter.outerHTML.substring(0, 200) });
+    // Also clone and add the footer/buttons (contains action buttons like Advantage/Normal/Disadvantage)
+    if (footerToUse) {
+      wrapper.appendChild(footerToUse.cloneNode(true));
+      debugCloning("Footer/buttons cloned", { 
+        footerHTML: footerToUse.outerHTML.substring(0, 300),
+        footerClass: footerToUse.className
+      });
+    } else {
+      debugCloning("No footer/buttons found in dialog", {
+        dialogHTML: elementToClone.outerHTML.substring(0, 500)
+      });
     }
     
     // Convert to HTML string for state serialization
