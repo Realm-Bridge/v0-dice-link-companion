@@ -5,7 +5,7 @@
  */
 
 import { MODULE_ID, ROLE_NAMES, ASYNC_OPERATION_DELAY_MS } from "./constants.js";
-import { debug, debugState, debugError, debugPanelInjection, debugComputedStyles, debugClonedButtonClick, debugButtonLayout } from "./debug.js";
+import { debug, debugState, debugError, debugPanelInjection, debugComputedStyles, debugClonedButtonClick } from "./debug.js";
 import {
   setPendingRollRequest,
   getPendingRollRequest,
