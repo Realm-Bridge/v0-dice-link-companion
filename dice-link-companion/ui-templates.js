@@ -73,6 +73,15 @@ export function generateDiceTrayHTML() {
  * 3. Configuration step (selecting advantage/disadvantage/normal)
  */
 export function generatePendingRollHTML(roll) {
+  // If we have a cloned system dialog element, inject it directly
+  if (roll.isMirroredDialog && roll.clonedElement) {
+    // Convert the cloned DOM element back to HTML string
+    const tempDiv = document.createElement('div');
+    tempDiv.appendChild(roll.clonedElement.cloneNode(true));
+    return tempDiv.innerHTML;
+  }
+  
+  // Fallback to data-driven generation if no cloned element
   if (roll.isMirroredDialog && roll.mirrorData) {
     return generateMirroredDialogHTML(roll.mirrorData);
   }
