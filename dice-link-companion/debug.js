@@ -168,3 +168,14 @@ export function debugComputedStyles(selector, element) {
     });
   }
 }
+
+/**
+ * Log cloned button click events
+ * @param {string} action - Button action (e.g., "advantage", "normal", "disadvantage")
+ * @param {any} data - Associated data (button element info, pending roll state, etc.)
+ */
+export function debugClonedButtonClick(action, data) {
+  if (DEBUG_ENABLED) {
+    console.log(`[Dice Link Cloned Button]`, action, data);
+  }
+}

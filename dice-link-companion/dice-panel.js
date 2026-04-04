@@ -5,7 +5,7 @@
  */
 
 import { MODULE_ID, ROLE_NAMES, ASYNC_OPERATION_DELAY_MS } from "./constants.js";
-import { debug, debugState, debugError, debugPanelInjection, debugComputedStyles } from "./debug.js";
+import { debug, debugState, debugError, debugPanelInjection, debugComputedStyles, debugClonedButtonClick } from "./debug.js";
 import {
   setPendingRollRequest,
   getPendingRollRequest,
@@ -645,6 +645,36 @@ export function attachDiceTrayListeners(html) {
     setPendingRollRequest(null);
     refreshPanel();
     ui.notifications.info("Roll cancelled.");
+  });
+  
+  // Cloned system dialog buttons (Advantage/Normal/Disadvantage)
+  // These are buttons cloned from the system's roll configuration dialog
+  html.find(".dlc-cloned-system-dialog nav.dialog-buttons button").click( function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const $btn = $(this);
+    const action = $btn.data("action") || $btn.text().trim().toLowerCase();
+    
+    debugClonedButtonClick("Button clicked", {
+      action,
+      buttonText: $btn.text().trim(),
+      dataAction: $btn.data("action"),
+      buttonHTML: $btn.prop("outerHTML")
+    });
+    
+    const currentRollRequest = getPendingRollRequest();
+    if (currentRollRequest?.onComplete) {
+      debugClonedButtonClick("Calling onComplete", { action });
+      currentRollRequest.onComplete(action);
+      setPendingRollRequest(null);
+      refreshPanel();
+    } else {
+      debugClonedButtonClick("No onComplete handler found", { 
+        hasPendingRoll: !!currentRollRequest,
+        hasOnComplete: !!currentRollRequest?.onComplete
+      });
+    }
   });
 }
 
