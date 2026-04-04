@@ -27,6 +27,8 @@ import {
 
 import { generateVideoFeedSection } from "./video-feed.js";
 
+import { debugTemplateGeneration } from "./debug.js";
+
 
 // ============================================================================
 // DICE TRAY HTML
@@ -73,13 +75,30 @@ export function generateDiceTrayHTML() {
  * 3. Configuration step (selecting advantage/disadvantage/normal)
  */
 export function generatePendingRollHTML(roll) {
+  debugTemplateGeneration("generatePendingRollHTML called", {
+    isMirroredDialog: roll.isMirroredDialog,
+    hasClonedHTML: !!roll.clonedHTML,
+    clonedHTMLLength: roll.clonedHTML?.length,
+    hasMirrorData: !!roll.mirrorData,
+    isFulfillment: roll.isFulfillment,
+    rollKeys: Object.keys(roll)
+  });
+  
   // If we have a cloned system dialog HTML string, inject it directly
   if (roll.isMirroredDialog && roll.clonedHTML) {
+    debugTemplateGeneration("Using clonedHTML", {
+      htmlLength: roll.clonedHTML.length,
+      htmlPreview: roll.clonedHTML.substring(0, 300),
+      htmlEnd: roll.clonedHTML.substring(roll.clonedHTML.length - 300),
+      containsDialogButtons: roll.clonedHTML.includes('dialog-buttons'),
+      containsAdvantage: roll.clonedHTML.includes('Advantage')
+    });
     return roll.clonedHTML;
   }
   
   // Fallback to data-driven generation if no cloned HTML
   if (roll.isMirroredDialog && roll.mirrorData) {
+    debugTemplateGeneration("Fallback to mirrorData generation", { mirrorData: roll.mirrorData });
     return generateMirroredDialogHTML(roll.mirrorData);
   }
   
