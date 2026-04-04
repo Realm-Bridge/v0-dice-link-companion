@@ -132,8 +132,7 @@ class DiceLinkCompanionApp extends ApplicationV2 {
       title: "Dice Link Companion",
       resizable: true,
       minimizable: true,
-      positioned: true,
-      contentClasses: ["dlc-window-content-constrained"]
+      positioned: true
     }
   };
 

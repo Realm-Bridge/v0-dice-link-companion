@@ -51,22 +51,6 @@
 .dlc-dialog .window-content {
   background: var(--dlc-bg-dark);
   padding: 0;
-  overflow: hidden;
-  max-width: 100%;
-}
-
-/* Constrain window content to prevent horizontal stretching */
-.dlc-dialog .window-content,
-.dlc-dialog .dlc-window-content-constrained {
-  overflow-x: hidden !important;
-  max-width: 100% !important;
-}
-
-/* Force all children of cloned dialog to respect parent width */
-.dlc-cloned-system-dialog,
-.dlc-cloned-system-dialog * {
-  max-width: 100% !important;
-  box-sizing: border-box !important;
 }
 
 /* ============================================================================
