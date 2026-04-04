@@ -67,11 +67,11 @@ export function refreshPanel() {
     
     contentElement.html(newContent);
     
-    // Apply explicit max-width to cloned dialog based on measured window-content width
+    // Apply explicit max-width to cloned dialog - do NOT set width:100% as that causes stretching when panel is resized wider
     const clonedDialog = contentElement.find(".dlc-cloned-system-dialog")[0];
     if (clonedDialog) {
       clonedDialog.style.maxWidth = `${maxDialogWidth}px`;
-      clonedDialog.style.width = "100%";
+      clonedDialog.style.width = "auto"; // Use natural width, not 100%
       clonedDialog.style.overflow = "hidden";
       clonedDialog.style.boxSizing = "border-box";
       
