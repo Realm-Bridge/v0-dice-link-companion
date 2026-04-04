@@ -661,8 +661,7 @@ export function attachDiceTrayListeners(html) {
     debugClonedButtonClick("Button clicked", {
       action,
       buttonText: $btn.text().trim(),
-      dataAction: $btn.data("action"),
-      buttonHTML: $btn.prop("outerHTML")
+      dataAction: $btn.data("action")
     });
     
     const currentRollRequest = getPendingRollRequest();
@@ -678,41 +677,6 @@ export function attachDiceTrayListeners(html) {
       });
     }
   });
-  
-  // Debug button layout to diagnose stretching
-  // Use setTimeout to allow DOM to fully render before measuring
-  setTimeout(() => {
-    try {
-      const navButtonsElement = html.find(".dlc-cloned-system-dialog nav.dialog-buttons")[0];
-      if (navButtonsElement) {
-        const buttonElements = html.find(".dlc-cloned-system-dialog nav.dialog-buttons button");
-        const navStyles = window.getComputedStyle(navButtonsElement);
-        const buttonWidths = [];
-        
-        buttonElements.each(function() {
-          buttonWidths.push({
-            text: $(this).text().trim(),
-            offsetWidth: this.offsetWidth,
-            computedWidth: window.getComputedStyle(this).width
-          });
-        });
-        
-        debugButtonLayout("After rendering cloned buttons", {
-          navContainerWidth: navButtonsElement.offsetWidth,
-          navComputedWidth: navStyles.width,
-          navDisplay: navStyles.display,
-          navFlexWrap: navStyles.flexWrap,
-          navJustifyContent: navStyles.justifyContent,
-          navGap: navStyles.gap,
-          buttonCount: buttonElements.length,
-          buttonWidths: buttonWidths,
-          totalButtonsWidth: buttonWidths.reduce((sum, b) => sum + b.offsetWidth, 0)
-        });
-      }
-    } catch (error) {
-      debugButtonLayout("Error measuring button layout", { error: error.message });
-    }
-  }, 100);
 }
 
 // ============================================================================
