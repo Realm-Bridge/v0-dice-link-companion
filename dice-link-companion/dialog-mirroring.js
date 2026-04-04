@@ -214,6 +214,13 @@ function mirrorDialogToPanel(app, html, data) {
       innerHTML_length: elementToClone.innerHTML?.length 
     });
     
+    // Skip if element is already hidden - this means we've already processed it
+    // The hook fires twice and the second time the element has display:none
+    if (elementToClone.style?.display === 'none') {
+      debugCloning("Skipping clone - element already hidden (duplicate hook call)", {});
+      return;
+    }
+    
     // Create a deep clone of the entire dialog element
     const clonedElement = elementToClone.cloneNode(true);
     
