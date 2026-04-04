@@ -145,3 +145,26 @@ export function debugSectionGeneration(section, stage, data) {
     console.log(`[Dice Link ${section}]`, stage, data);
   }
 }
+
+/**
+ * Log CSS computed styles for elements to debug visibility issues
+ * @param {string} selector - CSS selector or element description
+ * @param {HTMLElement} element - Element to inspect
+ */
+export function debugComputedStyles(selector, element) {
+  if (DEBUG_ENABLED && element) {
+    const styles = window.getComputedStyle(element);
+    console.log(`[Dice Link CSS Styles] ${selector}`, {
+      display: styles.display,
+      visibility: styles.visibility,
+      opacity: styles.opacity,
+      height: styles.height,
+      width: styles.width,
+      maxHeight: styles.maxHeight,
+      overflow: styles.overflow,
+      position: styles.position,
+      zIndex: styles.zIndex,
+      pointerEvents: styles.pointerEvents
+    });
+  }
+}
