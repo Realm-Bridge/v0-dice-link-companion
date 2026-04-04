@@ -1674,7 +1674,8 @@
 
 /* Footer buttons should be horizontal */
 .dlc-cloned-system-dialog footer,
-.dlc-cloned-system-dialog .form-footer {
+.dlc-cloned-system-dialog .form-footer,
+.dlc-cloned-system-dialog nav.dialog-buttons {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -1685,7 +1686,8 @@
 }
 
 .dlc-cloned-system-dialog footer button,
-.dlc-cloned-system-dialog .form-footer button {
+.dlc-cloned-system-dialog .form-footer button,
+.dlc-cloned-system-dialog nav.dialog-buttons button {
   flex: 1;
   min-width: 80px;
 }
