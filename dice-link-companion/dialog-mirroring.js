@@ -4,7 +4,7 @@
  */
 
 import { getPlayerMode, getGlobalOverride, getCollapsedSections, setCollapsedSections } from "./settings.js";
-import { debug, debugError, debugState, debugResolverCancel, debugResolverClosure } from "./debug.js";
+import { debug, debugError, debugState, debugResolverCancel, debugResolverClosure, debugCloning } from "./debug.js";
 import { getMirroredDialog, setMirroredDialog, getPendingRollRequest, setPendingRollRequest, getCurrentPanelDialog } from "./state-management.js";
 
 /**
@@ -94,13 +94,14 @@ function handleDialogRender(app, html, data) {
       return;
     }
     
-    // Hide the native dialog
+    // IMPORTANT: Clone the HTML BEFORE hiding the element
+    // Otherwise the cloned HTML will have display:none
+    mirrorDialogToPanel(app, html, data);
+    
+    // Hide the native dialog AFTER cloning
     if (elementToHide?.style) {
       elementToHide.style.display = "none";
     }
-    
-    // Extract dialog data and mirror it to our panel
-    mirrorDialogToPanel(app, html, data);
   }
 }
 
@@ -186,20 +187,32 @@ function isRollDialog(app) {
  */
 function mirrorDialogToPanel(app, html, data) {
   try {
+    debugCloning("Starting mirrorDialogToPanel", { appTitle: app?.title, htmlType: html?.constructor?.name });
+    
     // Clone the system dialog's HTML element to preserve exact layout and styling
     let elementToClone;
     if (html instanceof jQuery) {
       elementToClone = html[0];
+      debugCloning("HTML is jQuery", { length: html.length });
     } else if (html?.element) {
       elementToClone = html.element;
+      debugCloning("HTML has .element property", { tagName: html.element?.tagName });
     } else if (html instanceof HTMLElement) {
       elementToClone = html;
+      debugCloning("HTML is HTMLElement", { tagName: html.tagName });
     }
     
     if (!elementToClone) {
-      debug("Could not find element to clone");
+      debugCloning("ERROR: Could not find element to clone", { html });
       return;
     }
+    
+    debugCloning("Element to clone found", { 
+      tagName: elementToClone.tagName, 
+      className: elementToClone.className,
+      displayStyle: elementToClone.style?.display,
+      innerHTML_length: elementToClone.innerHTML?.length 
+    });
     
     // Create a deep clone of the entire dialog element
     const clonedElement = elementToClone.cloneNode(true);
@@ -209,6 +222,11 @@ function mirrorDialogToPanel(app, html, data) {
     
     // Convert the cloned element to an HTML string for state serialization
     const clonedHTMLString = clonedElement.outerHTML;
+    
+    debugCloning("Cloned HTML string created", { 
+      length: clonedHTMLString.length,
+      preview: clonedHTMLString.substring(0, 200) + "..."
+    });
     
     // Extract form data as backup for data access
     const formData = extractDialogFormData(app, html);
@@ -224,10 +242,11 @@ function mirrorDialogToPanel(app, html, data) {
       timestamp: Date.now()
     });
     
-    debug("Mirrored dialog HTML cloned and serialized successfully");
+    debugCloning("setMirroredDialog called successfully", { clonedHTMLLength: clonedHTMLString.length });
     
   } catch (e) {
     debugError("Error mirroring dialog:", e);
+    debugCloning("ERROR in mirrorDialogToPanel", { error: e.message, stack: e.stack });
   }
 }
 
