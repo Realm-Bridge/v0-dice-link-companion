@@ -207,21 +207,24 @@ function mirrorDialogToPanel(app, html, data) {
     // Add a wrapper class to identify this as a cloned system dialog
     clonedElement.classList.add('dlc-cloned-system-dialog');
     
+    // Convert the cloned element to an HTML string for state serialization
+    const clonedHTMLString = clonedElement.outerHTML;
+    
     // Extract form data as backup for data access
     const formData = extractDialogFormData(app, html);
     
-    // Store the cloned element and dialog reference in state
+    // Store the cloned HTML string and dialog reference in state
     // The state listener in main.mjs will automatically handle panel updates
     setMirroredDialog({
       app,
       html,
-      clonedElement,  // NEW: Store the cloned DOM element
+      clonedHTML: clonedHTMLString,  // Store as HTML string for serialization
       data: formData,
       isMirroredDialog: true,
       timestamp: Date.now()
     });
     
-    debug("Mirrored dialog HTML cloned successfully");
+    debug("Mirrored dialog HTML cloned and serialized successfully");
     
   } catch (e) {
     debugError("Error mirroring dialog:", e);
