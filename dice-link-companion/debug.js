@@ -133,3 +133,15 @@ export function debugTemplateGeneration(stage, data) {
     console.log("[Dice Link Template]", stage, data);
   }
 }
+
+/**
+ * Log section generation and HTML wrapping
+ * @param {string} section - Section name (e.g., "Roll Request Section")
+ * @param {string} stage - Stage (e.g., "generating", "wrapping", "complete")
+ * @param {any} data - Associated data (content length, HTML preview, structure, etc.)
+ */
+export function debugSectionGeneration(section, stage, data) {
+  if (DEBUG_ENABLED) {
+    console.log(`[Dice Link ${section}]`, stage, data);
+  }
+}

@@ -27,7 +27,7 @@ import {
 
 import { generateVideoFeedSection } from "./video-feed.js";
 
-import { debugTemplateGeneration } from "./debug.js";
+import { debugTemplateGeneration, debugSectionGeneration } from "./debug.js";
 
 
 // ============================================================================
@@ -223,7 +223,22 @@ export function generateRollRequestSection(mode, globalOverride) {
   const currentCollapsed = getCollapsedSections();
   const sectionClass = `dlc-section dlc-roll-request-section${hasPending ? ' dlc-roll-request-pending' : ''}`;
 
-  return `
+  debugSectionGeneration("Roll Request", "generating", {
+    hasPending,
+    pendingRollKeys: hasPending ? Object.keys(currentPendingRoll) : null
+  });
+
+  const pendingHTML = hasPending ? generatePendingRollHTML(currentPendingRoll) : generateDiceTrayHTML();
+  
+  debugSectionGeneration("Roll Request", "pending content generated", {
+    contentLength: pendingHTML.length,
+    contentPreview: pendingHTML.substring(0, 300),
+    contentEnd: pendingHTML.substring(Math.max(0, pendingHTML.length - 300)),
+    containsDialogButtons: pendingHTML.includes('dialog-buttons'),
+    containsAdvantage: pendingHTML.includes('Advantage')
+  });
+
+  const result = `
     <div class="${sectionClass} ${currentCollapsed.rollRequest ? 'collapsed' : ''}">
       <div class="dlc-section-header" data-section="rollRequest">
         <span class="dlc-collapse-btn">${currentCollapsed.rollRequest ? '+' : '−'}</span>
@@ -231,10 +246,17 @@ export function generateRollRequestSection(mode, globalOverride) {
         ${hasPending ? '<button type="button" class="dlc-roll-cancel-btn dlc-header-cancel-btn">Cancel Roll</button>' : ''}
       </div>
       <div class="dlc-section-content">
-        ${hasPending ? generatePendingRollHTML(currentPendingRoll) : generateDiceTrayHTML()}
+        ${pendingHTML}
       </div>
     </div>
   `;
+  
+  debugSectionGeneration("Roll Request", "complete", {
+    totalLength: result.length,
+    wrapped: true
+  });
+  
+  return result;
 }
 
 // ============================================================================
