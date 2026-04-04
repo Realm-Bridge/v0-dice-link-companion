@@ -1691,15 +1691,16 @@
   overflow: visible !important;
 }
 
-.dlc-cloned-system-dialog footer button,
-.dlc-cloned-system-dialog .form-footer button,
-.dlc-cloned-system-dialog nav.dialog-buttons button {
-  flex: 1 !important;
+  .dlc-cloned-system-dialog footer button,
+  .dlc-cloned-system-dialog .form-footer button,
+  .dlc-cloned-system-dialog nav.dialog-buttons button {
   min-width: 80px !important;
-  display: block !important;
+  padding: 8px 12px !important;
+  display: inline-block !important;
   visibility: visible !important;
   opacity: 1 !important;
   height: auto !important;
+  white-space: nowrap !important;
 }
 
 /* Constrain the cloned dialog to the panel width - prevent stretching */

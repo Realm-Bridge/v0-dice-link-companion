@@ -179,3 +179,14 @@ export function debugClonedButtonClick(action, data) {
     console.log(`[Dice Link Cloned Button]`, action, data);
   }
 }
+
+/**
+ * Log button layout measurements to debug stretching
+ * @param {string} stage - Stage of measurement (e.g., "on load", "on expand", "parent width", etc.)
+ * @param {any} data - Associated data (button widths, parent widths, nav computed styles, etc.)
+ */
+export function debugButtonLayout(stage, data) {
+  if (DEBUG_ENABLED) {
+    console.log(`[Dice Link Button Layout]`, stage, data);
+  }
+}
