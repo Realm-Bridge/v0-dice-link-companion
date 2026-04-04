@@ -186,21 +186,42 @@ function isRollDialog(app) {
  */
 function mirrorDialogToPanel(app, html, data) {
   try {
-    // Extract form data from the hidden dialog
-    const formData = extractDialogFormData(app, html);
+    // Clone the system dialog's HTML element to preserve exact layout and styling
+    let elementToClone;
+    if (html instanceof jQuery) {
+      elementToClone = html[0];
+    } else if (html?.element) {
+      elementToClone = html.element;
+    } else if (html instanceof HTMLElement) {
+      elementToClone = html;
+    }
     
-    if (!formData) {
+    if (!elementToClone) {
+      debug("Could not find element to clone");
       return;
     }
     
-    // Store the dialog reference and data in state management
+    // Create a deep clone of the entire dialog element
+    const clonedElement = elementToClone.cloneNode(true);
+    
+    // Add a wrapper class to identify this as a cloned system dialog
+    clonedElement.classList.add('dlc-cloned-system-dialog');
+    
+    // Extract form data as backup for data access
+    const formData = extractDialogFormData(app, html);
+    
+    // Store the cloned element and dialog reference in state
     // The state listener in main.mjs will automatically handle panel updates
     setMirroredDialog({
       app,
       html,
+      clonedElement,  // NEW: Store the cloned DOM element
       data: formData,
+      isMirroredDialog: true,
       timestamp: Date.now()
     });
+    
+    debug("Mirrored dialog HTML cloned successfully");
     
   } catch (e) {
     debugError("Error mirroring dialog:", e);
