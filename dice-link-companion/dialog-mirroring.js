@@ -337,7 +337,15 @@ function mirrorDialogToPanel(app, html, data) {
     
     // Append the footer/buttons once, cleanly
     if (footerToUse) {
-      wrapper.appendChild(footerToUse.cloneNode(true));
+      const footerClone = footerToUse.cloneNode(true);
+      // Remove flexrow class to prevent dnd5e's flex layout from stretching buttons
+      if (footerClone.classList) {
+        footerClone.classList.remove('flexrow');
+        debugButtonDetection("Removed flexrow class from cloned footer", { 
+          newClass: footerClone.className
+        });
+      }
+      wrapper.appendChild(footerClone);
       debugButtonDetection("Footer/buttons successfully cloned and appended", { 
         footerHTML: footerToUse.outerHTML.substring(0, 300),
         footerClass: footerToUse.className,
