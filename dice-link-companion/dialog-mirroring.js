@@ -223,24 +223,35 @@ function mirrorDialogToPanel(app, html, data) {
     
     // Extract the inner content, NOT the outer <dialog> element
     // Cloning the <dialog> element causes the browser to render it as a floating native dialog
-    // We want just the .window-content div (the form and layout) to inject inline into our panel
+    // We want the .window-content (form and layout) AND the footer (buttons) to inject inline
     const windowContent = elementToClone.querySelector('.window-content');
-    const contentToClone = windowContent || elementToClone;
+    const windowFooter = elementToClone.querySelector('footer, .window-footer, .form-footer');
     
     debugCloning("Content to clone selected", {
-      usingWindowContent: !!windowContent,
-      tagName: contentToClone.tagName,
-      className: contentToClone.className,
-      innerHTML_length: contentToClone.innerHTML?.length
+      hasWindowContent: !!windowContent,
+      hasFooter: !!windowFooter,
+      windowContentTag: windowContent?.tagName,
+      footerTag: windowFooter?.tagName,
+      innerHTML_length: windowContent?.innerHTML?.length
     });
-    
-    // Create a deep clone of the inner content
-    const clonedElement = contentToClone.cloneNode(true);
     
     // Wrap in a div with our identifier class so we can scope CSS overrides later
     const wrapper = document.createElement('div');
     wrapper.classList.add('dlc-cloned-system-dialog');
-    wrapper.appendChild(clonedElement);
+    
+    // Clone and add the main content
+    if (windowContent) {
+      wrapper.appendChild(windowContent.cloneNode(true));
+    } else {
+      // Fallback: clone the whole element if no window-content found
+      wrapper.appendChild(elementToClone.cloneNode(true));
+    }
+    
+    // Also clone and add the footer (contains action buttons like Advantage/Normal/Disadvantage)
+    if (windowFooter) {
+      wrapper.appendChild(windowFooter.cloneNode(true));
+      debugCloning("Footer cloned", { footerHTML: windowFooter.outerHTML.substring(0, 200) });
+    }
     
     // Convert to HTML string for state serialization
     const clonedHTMLString = wrapper.outerHTML;

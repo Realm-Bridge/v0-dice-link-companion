@@ -1642,3 +1642,71 @@
 .dlc-submit-visual-dice-btn {
   width: 100%;
 }
+
+/* ============================================================================
+   CLONED SYSTEM DIALOG STYLES
+   These rules ensure the cloned system dialog content displays correctly
+   within our Roll Request section, regardless of which game system is used.
+   ============================================================================ */
+
+/* Reset list styles - systems like dnd5e use 'unlist' class which we don't inherit */
+.dlc-cloned-system-dialog ul,
+.dlc-cloned-system-dialog ol {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* Dice list should be horizontal */
+.dlc-cloned-system-dialog .dice,
+.dlc-cloned-system-dialog ul.dice {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
+
+.dlc-cloned-system-dialog .dice li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Footer buttons should be horizontal */
+.dlc-cloned-system-dialog footer,
+.dlc-cloned-system-dialog .form-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--dlc-border);
+}
+
+.dlc-cloned-system-dialog footer button,
+.dlc-cloned-system-dialog .form-footer button {
+  flex: 1;
+  min-width: 80px;
+}
+
+/* Ensure the form fills width */
+.dlc-cloned-system-dialog form,
+.dlc-cloned-system-dialog .window-content {
+  width: 100%;
+}
+
+/* Center header content */
+.dlc-cloned-system-dialog header,
+.dlc-cloned-system-dialog .dialog-header {
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+/* Formula row layout */
+.dlc-cloned-system-dialog .formulas {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+}
