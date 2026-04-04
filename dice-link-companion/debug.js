@@ -111,3 +111,14 @@ export function debugButtonDetection(stage, data) {
     console.log("[Dice Link Button Detection]", stage, data);
   }
 }
+
+/**
+ * Log panel content injection and DOM state
+ * @param {string} stage - Stage of injection (e.g., "before injection", "after injection", "verification")
+ * @param {any} data - Associated data (HTML length, element counts, visibility states, etc.)
+ */
+export function debugPanelInjection(stage, data) {
+  if (DEBUG_ENABLED) {
+    console.log("[Dice Link Panel Injection]", stage, data);
+  }
+}

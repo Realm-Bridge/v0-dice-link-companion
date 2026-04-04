@@ -5,7 +5,7 @@
  */
 
 import { MODULE_ID, ROLE_NAMES, ASYNC_OPERATION_DELAY_MS } from "./constants.js";
-import { debug, debugState, debugError } from "./debug.js";
+import { debug, debugState, debugError, debugPanelInjection } from "./debug.js";
 import {
   setPendingRollRequest,
   getPendingRollRequest,
@@ -53,19 +53,21 @@ export function refreshPanel() {
     const $element = $(panelDialog.element);
     const contentElement = $element.find(".window-content");
     
-    console.log("[v0] refreshPanel - About to inject content");
-    console.log("[v0] newContent length:", newContent.length);
-    console.log("[v0] newContent preview:", newContent.substring(0, 500));
+    debugPanelInjection("before injection", {
+      contentLength: newContent.length,
+      contentPreview: newContent.substring(0, 500)
+    });
     
     contentElement.html(newContent);
     
-    console.log("[v0] After HTML injection:");
-    console.log("[v0] contentElement HTML length:", contentElement.html().length);
-    console.log("[v0] Found nav.dialog-buttons elements:", contentElement.find("nav.dialog-buttons").length);
-    console.log("[v0] Found button elements in cloned content:", contentElement.find(".dlc-cloned-system-dialog button").length);
-    console.log("[v0] Cloned dialog wrapper visible?", contentElement.find(".dlc-cloned-system-dialog").is(":visible"));
-    console.log("[v0] Cloned dialog nav visible?", contentElement.find(".dlc-cloned-system-dialog nav.dialog-buttons").is(":visible"));
-    console.log("[v0] Dialog buttons HTML:", contentElement.find("nav.dialog-buttons").html());
+    debugPanelInjection("after injection", {
+      contentHTMLLength: contentElement.html().length,
+      dialogButtonsCount: contentElement.find("nav.dialog-buttons").length,
+      clonedButtonsCount: contentElement.find(".dlc-cloned-system-dialog button").length,
+      clonedDialogVisible: contentElement.find(".dlc-cloned-system-dialog").is(":visible"),
+      dialogButtonsVisible: contentElement.find(".dlc-cloned-system-dialog nav.dialog-buttons").is(":visible"),
+      dialogButtonsHTML: contentElement.find("nav.dialog-buttons").html()
+    });
     
     if (isGM) {
       attachGMPanelListeners($element);
