@@ -1722,25 +1722,22 @@
   flex: 0 0 auto !important;
 }
 
-/* Constrain the cloned dialog - fixed max-width, left-aligned, never stretches with panel */
+/* Cloned dialog fills available section width */
 .dlc-cloned-system-dialog {
-  width: fit-content;
-  max-width: 420px;
+  width: 100%;
   box-sizing: border-box;
   overflow: hidden;
   display: block;
-  margin: 0;
 }
 
-/* Override dnd5e flexrow class - use natural width, not 100% */
+/* Override dnd5e flexrow class */
 .dlc-cloned-system-dialog .flexrow {
   flex-wrap: wrap !important;
-  width: auto !important;
-  max-width: 420px !important;
+  width: 100% !important;
   flex-shrink: 1 !important;
 }
 
-/* Form and all child containers - natural width, not 100% of parent */
+/* Form and all child containers fill available width */
 .dlc-cloned-system-dialog form,
 .dlc-cloned-system-dialog .window-content,
 .dlc-cloned-system-dialog .form-group,
@@ -1749,8 +1746,7 @@
 .dlc-cloned-system-dialog .roll-configuration,
 .dlc-cloned-system-dialog .roll-modifiers,
 .dlc-cloned-system-dialog fieldset {
-  width: auto !important;
-  max-width: 420px !important;
+  width: 100% !important;
   box-sizing: border-box !important;
 }
 
