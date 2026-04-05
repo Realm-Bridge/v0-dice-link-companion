@@ -1692,7 +1692,7 @@
   align-items: center;
 }
 
-/* Footer/button containers - fill dialog width, center buttons within */
+/* Footer/button containers - flex row centered */
 .dlc-cloned-system-dialog footer,
 .dlc-cloned-system-dialog .form-footer,
 .dlc-cloned-system-dialog nav.dialog-buttons {
@@ -1701,10 +1701,7 @@
   gap: 8px !important;
   justify-content: center !important;
   margin-top: 12px !important;
-  margin-left: 0 !important;
-  margin-right: 0 !important;
   padding: 8px 0 !important;
-  width: 100% !important;
   border-top: 1px solid var(--dlc-border) !important;
   visibility: visible !important;
   opacity: 1 !important;
@@ -1726,13 +1723,15 @@
   flex: 0 0 auto !important;
 }
 
-/* Cloned dialog uses natural content width with responsive max-width constraint */
+/* Cloned dialog uses flexbox to center content vertically and center footer buttons */
 .dlc-cloned-system-dialog {
   width: auto;
   max-width: 550px;
   box-sizing: border-box !important;
   overflow: hidden;
-  display: block;
+  display: flex !important;
+  flex-direction: column;
+  align-items: center;
 }
 
 /* Override dnd5e flexrow class */
