@@ -85,6 +85,23 @@ export function refreshPanel() {
       if (firstButton) {
         debugComputedStyles("nav.dialog-buttons button", firstButton);
       }
+      
+      // Check if buttons are inside or outside cloned dialog
+      const clonedDialog = contentElement.find(".dlc-cloned-system-dialog")[0];
+      const isButtonsInsideDialog = clonedDialog && clonedDialog.contains(navButtons);
+      const buttonParent = navButtons.parentElement;
+      
+      debugPanelInjection("button container analysis", {
+        buttonContainerTagName: navButtons.tagName,
+        buttonParentTagName: buttonParent?.tagName,
+        buttonParentClassName: buttonParent?.className,
+        isButtonsInsideClonedDialog: isButtonsInsideDialog,
+        navButtonsClasses: navButtons.className,
+        navButtonsComputedJustify: window.getComputedStyle(navButtons).justifyContent,
+        navButtonsComputedMarginLeft: window.getComputedStyle(navButtons).marginLeft,
+        navButtonsComputedMarginRight: window.getComputedStyle(navButtons).marginRight,
+        navButtonsComputedMaxWidth: window.getComputedStyle(navButtons).maxWidth
+      });
     }
     
     if (isGM) {
