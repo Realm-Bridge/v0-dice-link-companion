@@ -1723,48 +1723,39 @@
 }
 
 /* Constrain the cloned dialog to the panel width - prevent stretching */
+/* Use width: fit-content so it uses natural content width, not 100% of parent */
 .dlc-cloned-system-dialog {
-  width: 100%;
-  max-width: 100%;
+  width: fit-content;
+  max-width: 400px;
   box-sizing: border-box;
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 1;
-  min-width: 0;
+  display: block;
+  margin: 0 auto;
 }
 
 /* Override dnd5e flexrow class which can cause stretching */
 .dlc-cloned-system-dialog .flexrow {
   flex-wrap: wrap !important;
-  width: 100% !important;
+  width: auto !important;
   max-width: 100% !important;
   flex-shrink: 1 !important;
 }
 
-/* Ensure the form fills available width but does not overflow */
+/* Ensure the form uses natural width, not 100% */
 .dlc-cloned-system-dialog form,
 .dlc-cloned-system-dialog .window-content {
-  width: 100%;
+  width: auto;
   max-width: 100%;
   box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 1;
-  min-width: 0;
-  overflow: hidden;
 }
 
-/* Constrain form groups and field groups */
+/* Constrain form groups and field groups to natural width */
 .dlc-cloned-system-dialog .form-group,
 .dlc-cloned-system-dialog .form-fields,
 .dlc-cloned-system-dialog .formulas {
-  width: 100% !important;
+  width: auto !important;
   max-width: 100% !important;
   box-sizing: border-box !important;
-  flex-shrink: 1 !important;
-  min-width: 0 !important;
-  overflow-x: hidden !important;
 }
 
 /* Constrain selects and inputs */
