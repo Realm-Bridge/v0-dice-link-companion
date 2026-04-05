@@ -24,12 +24,13 @@
 
 ## Technology Stack (Recommended)
 
-- **Electron** - Cross-platform desktop application framework
-- **TypeScript/JavaScript** - Application logic
-- **WebSocket Server** - To accept connections from DLC (DLC is the client)
-- **HTML/CSS** - User interface
-- **Canvas API** - Video capture and display
-- **TensorFlow.js or similar** - Dice detection and OCR (future phase)
+- **Python 3.10+** - Application backend and logic
+- **FastAPI** - WebSocket server and HTTP API
+- **HTML/CSS/JavaScript** - User interface (served by FastAPI)
+- **OpenCV** - Video capture from webcam
+- **NumPy** - Image processing
+- **PyInstaller** - Packaging for distribution (Windows .exe, Mac .app, Linux AppImage)
+- **OpenCV/TensorFlow** - Dice detection and result reading (future phase)
 
 ---
 
@@ -38,35 +39,59 @@
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    DICE LINK (This App)                     │
+│                    Python + FastAPI                         │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐     │
-│  │  WebSocket  │    │     UI      │    │   Camera    │     │
-│  │   Server    │◄──►│  Renderer   │◄──►│   Module    │     │
-│  └──────┬──────┘    └─────────────┘    └─────────────┘     │
-│         │                                     │             │
-│         │           ┌─────────────┐           │             │
-│         └──────────►│    State    │◄──────────┘             │
-│                     │   Manager   │                         │
-│                     └─────────────┘                         │
-│                            │                                │
-│                     ┌─────────────┐                         │
-│                     │    Dice     │                         │
-│                     │  Detection  │                         │
-│                     └─────────────┘                         │
-│                                                             │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │  FastAPI Backend (Python)                            │  │
+│  │                                                      │  │
+│  │  ┌────────────┐  ┌────────────┐  ┌────────────┐    │  │
+│  │  │ WebSocket  │  │   State    │  │   Camera   │    │  │
+│  │  │  Manager   │  │  Manager   │  │  Handler   │    │  │
+│  │  └────┬───────┘  └──────┬─────┘  └─────┬──────┘    │  │
+│  │       │                 │              │           │  │
+│  │       └─────────────────┼──────────────┘           │  │
+│  │                         │                         │  │
+│  │                  ┌──────▼──────┐                  │  │
+│  │                  │   Dice      │                  │  │
+│  │                  │  Detection  │                  │  │
+│  │                  │  (OpenCV)   │                  │  │
+│  │                  └─────────────┘                  │  │
+│  └──────────────────────────────────────────────────────┘  │
+│         │                                                  │
+│         │  Static files + templates                       │
+│         ▼                                                  │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │  Web UI (HTML/CSS/JavaScript)                        │  │
+│  │                                                      │  │
+│  │  • Connection Status                                │  │
+│  │  • Roll Request Display                             │  │
+│  │  • Camera Feed Preview                              │  │
+│  │  • Configuration Options                            │  │
+│  │  • Result Input/Confirmation                        │  │
+│  └──────────────────────────────────────────────────────┘  │
+│         △                                                  │
+│         │  WebSocket connection                           │
+│         │  User interacts via browser                     │
+│         │                                                  │
 └─────────────────────────────────────────────────────────────┘
          ▲
          │ WebSocket Connection
+         │ (ws://localhost:8765)
          ▼
 ┌─────────────────────────────────────────────────────────────┐
 │              FOUNDRY VTT + DLC (External System)            │
 │                                                             │
 │  DLC connects as a WebSocket CLIENT to Dice Link's server   │
-│  Default connection: ws://localhost:8765                    │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+**Key Architecture Decisions:**
+- FastAPI runs the WebSocket server AND serves the web UI
+- All camera, state, and detection logic runs in the same Python process (no inter-process communication overhead)
+- Web UI runs in the system's default browser (modern and cross-platform)
+- Single-threaded async processing via Python's asyncio (handles multiple concurrent connections efficiently)
 
 ---
 
@@ -308,29 +333,25 @@ Standard RPG dice that must be supported:
 
 ```
 dice-link/
-├── package.json
-├── electron/
-│   ├── main.ts           # Electron main process
-│   ├── preload.ts        # Preload script for IPC
-│   └── websocket.ts      # WebSocket server
-├── src/
-│   ├── App.tsx           # Main React/UI component
-│   ├── components/
-│   │   ├── ConnectionStatus.tsx
-│   │   ├── RollRequest.tsx
-│   │   ├── ConfigFields.tsx
-│   │   ├── DiceDisplay.tsx
-│   │   ├── CameraFeed.tsx
-│   │   └── ResultInput.tsx
-│   ├── hooks/
-│   │   ├── useWebSocket.ts
-│   │   └── useCamera.ts
-│   ├── state/
-│   │   └── rollState.ts
-│   └── types/
-│       └── messages.ts   # TypeScript types for message protocol
-├── assets/
-│   └── dice/             # Dice SVG icons (can copy from DLC)
+├── requirements.txt          # Python dependencies
+├── pyproject.toml            # Project metadata
+├── main.py                   # Entry point
+├── app/
+│   ├── __init__.py
+│   ├── server.py             # FastAPI app setup
+│   ├── websocket_handler.py  # WebSocket connection logic
+│   ├── state.py              # Roll state management
+│   ├── camera.py             # Camera capture and frame handling
+│   └── detection.py          # Dice detection logic (future)
+├── templates/
+│   └── index.html            # Web UI (served by FastAPI)
+├── static/
+│   ├── css/
+│   │   └── style.css         # UI styling
+│   ├── js/
+│   │   └── client.js         # WebSocket client logic
+│   └── dice/                 # Dice SVG icons (from DLC)
+├── config.py                 # Configuration (port, paths, etc.)
 └── README.md
 ```
 
@@ -340,26 +361,32 @@ dice-link/
 
 1. **DLC is the WebSocket CLIENT, Dice Link is the SERVER** - This allows DLC to reconnect if Dice Link restarts
 
-2. **Dice Link must handle multiple simultaneous roll requests** - Queue them if needed, but typically only one will be active
+2. **Python runs everything in one process** - Camera capture, WebSocket handling, detection, and UI serving all share the same Python runtime (fast and simple)
 
-3. **Results must include exact dice types** - DLC needs to know which die produced which value to correctly fulfill the Foundry roll
+3. **Web UI served locally** - The web interface runs in your default browser but is served by FastAPI running on `localhost:8765`. This gives you a modern, responsive UI without additional packaging overhead.
 
-4. **The message protocol is the contract** - If you need to add new fields, add them as optional to maintain backwards compatibility
+4. **Results must include exact dice types** - DLC needs to know which die produced which value to correctly fulfill the Foundry roll
 
-5. **Dice SVG assets** - DLC has SVG dice icons in `dice-link-companion/assets/DLC Dice/` that can be copied to Dice Link for visual consistency
+5. **The message protocol is the contract** - If you need to add new fields, add them as optional to maintain backwards compatibility
+
+6. **Cross-platform by default** - Same Python code runs on Windows, Mac, and Linux. Use PyInstaller to create platform-specific executables for distribution.
+
+7. **Dice SVG assets** - DLC has SVG dice icons in `dice-link-companion/assets/DLC Dice/` that can be copied to Dice Link for visual consistency
 
 ---
 
 ## Getting Started Prompt
 
-When starting development, begin with Phase 1:
+When starting development in a new chat, begin with Phase 1:
 
-"Create an Electron desktop application called 'Dice Link' that:
+"Create a Python + FastAPI application called 'Dice Link' that:
 1. Runs a WebSocket server on port 8765
-2. Accepts connections from clients
-3. Displays connection status in the UI
-4. Receives 'rollRequest' messages and displays them
-5. Allows manual entry of dice results
-6. Sends 'rollResult' messages back when the user submits
+2. Serves a web UI on http://localhost:8765
+3. Accepts WebSocket connections from DLC clients
+4. Displays connection status in the UI
+5. Receives 'rollRequest' messages and displays the configuration and dice requirements
+6. Allows manual entry of dice results
+7. Sends 'rollResult' messages back when the user submits
+8. Is packaged for distribution on Windows, Mac, and Linux
 
-Use TypeScript, React for the UI, and follow the message protocol defined in this document."
+Use the message protocol defined in this document and prioritize clean separation between backend (Python/FastAPI) and frontend (HTML/CSS/JavaScript)."
