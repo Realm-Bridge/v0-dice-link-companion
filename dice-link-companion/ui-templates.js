@@ -45,12 +45,17 @@ export function generateDiceTrayHTML() {
         <input type="text" class="dlc-dice-formula-input" placeholder="/r 1d20" value="/r ">
       </div>
       <div class="dlc-dice-buttons-row">
-        ${[4, 6, 8, 10, 12, 20, 100].map(die => `
+        ${[4, 6, 8, 10, 12, 20, 100].map(die => {
+          const svgFolder = die === 100 ? 'D100' : `D${die}`;
+          const svgFile = die === 100 ? 'd100-blank.svg' : `d${die}-blank.svg`;
+          const svgPath = `modules/dice-link-companion/assets/DLC%20Dice/${svgFolder}/${svgFile}`;
+          return `
           <button type="button" class="dlc-dice-btn" data-die="${die}" title="d${die}">
-            <span class="dlc-die-icon">d${die}</span>
+            <img src="${svgPath}" alt="d${die}" class="dlc-die-svg-icon">
+            <span class="dlc-die-label">d${die}</span>
             <span class="dlc-die-count" style="display:none;">0</span>
-          </button>
-        `).join('')}
+          </button>`;
+        }).join('')}
       </div>
       <div class="dlc-dice-controls-row">
         <button type="button" class="dlc-dice-mod-btn dlc-dice-minus" title="Decrease modifier">−</button>
