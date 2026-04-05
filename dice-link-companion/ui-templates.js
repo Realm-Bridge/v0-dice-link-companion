@@ -52,7 +52,6 @@ export function generateDiceTrayHTML() {
           return `
           <button type="button" class="dlc-dice-btn" data-die="${die}" title="d${die}">
             <img src="${svgPath}" alt="d${die}" class="dlc-die-svg-icon">
-            <span class="dlc-die-label">d${die}</span>
             <span class="dlc-die-count" style="display:none;">0</span>
           </button>`;
         }).join('')}

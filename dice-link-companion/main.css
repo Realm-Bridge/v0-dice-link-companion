@@ -1170,22 +1170,21 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 42px;
-  height: 42px;
-  background: var(--dlc-bg-section);
-  border: 1px solid var(--dlc-border);
-  border-radius: 6px;
+  width: auto;
+  height: auto;
+  background: transparent;
+  border: none;
+  border-radius: 0;
   color: var(--dlc-text-secondary);
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: opacity 0.2s ease;
+  padding: 0;
 }
 
 .dlc-dice-btn:hover {
-  background: var(--dlc-bg-input);
-  border-color: var(--dlc-accent);
-  color: var(--dlc-text-primary);
+  opacity: 0.8;
 }
 
 .dlc-die-icon {
@@ -1193,23 +1192,13 @@
 }
 
 .dlc-die-svg-icon {
-  width: 26px;
-  height: 26px;
+  width: 48px;
+  height: 48px;
   object-fit: contain;
   display: block;
 }
 
-.dlc-die-label {
-  font-size: 9px;
-  font-weight: 600;
-  color: var(--dlc-text-secondary);
-  margin-top: 1px;
-  line-height: 1;
-}
 
-.dlc-dice-btn:hover .dlc-die-label {
-  color: var(--dlc-text-primary);
-}
 
 .dlc-die-count {
   position: absolute;
