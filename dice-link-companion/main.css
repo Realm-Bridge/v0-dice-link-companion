@@ -1198,6 +1198,17 @@
   display: block;
 }
 
+/* Per-die size adjustments to normalize visual size differences from SVG files */
+.dlc-dice-btn[data-die="4"] .dlc-die-svg-icon {
+  width: 40px;
+  height: 40px;
+}
+
+.dlc-dice-btn[data-die="100"] .dlc-die-svg-icon {
+  width: 52px;
+  height: 52px;
+}
+
 
 
 .dlc-die-count {
