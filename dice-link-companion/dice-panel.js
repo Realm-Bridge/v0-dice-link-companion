@@ -13,7 +13,8 @@ import {
   setPendingDiceEntry,
   setDiceEntryCancelled,
   getCurrentPanelDialog,
-  setCurrentPanelDialog
+  setCurrentPanelDialog,
+  getMirroredDialog
 } from "./state-management.js";
 import {
   setGlobalOverride,
@@ -710,6 +711,80 @@ export function attachDiceTrayListeners(html) {
         hasPendingRoll: !!currentRollRequest,
         hasOnComplete: !!currentRollRequest?.onComplete
       });
+    }
+  });
+  
+  // Sync cloned form elements (selects, inputs) back to the original hidden dialog
+  // This ensures changes made in the DLC panel actually affect the roll
+  attachClonedFormSyncListeners(html);
+}
+
+/**
+ * Attach listeners to sync cloned form elements back to the original hidden dialog
+ * When user changes a select or input in our panel, update the corresponding element
+ * in Foundry's hidden dialog so the changes take effect when buttons are clicked
+ */
+function attachClonedFormSyncListeners(html) {
+  // Sync select elements (dropdowns like Roll Mode, Attack Mode, Abilities)
+  html.find(".dlc-cloned-system-dialog select").on("change", function() {
+    const $select = $(this);
+    const name = $select.attr("name");
+    const newValue = $select.val();
+    
+    debug("Cloned select changed", { name, newValue });
+    
+    // Get the original hidden dialog
+    const dialogRef = getMirroredDialog();
+    if (!dialogRef || !dialogRef.html) {
+      debug("No mirrored dialog reference found for syncing");
+      return;
+    }
+    
+    // Find the corresponding select in the original dialog
+    const originalHtml = dialogRef.html instanceof jQuery ? dialogRef.html : $(dialogRef.html);
+    const originalSelect = originalHtml.find(`select[name="${name}"]`);
+    
+    if (originalSelect.length > 0) {
+      originalSelect.val(newValue);
+      // Trigger change events so Foundry/dnd5e processes the change
+      originalSelect[0].dispatchEvent(new Event("change", { bubbles: true }));
+      originalSelect[0].dispatchEvent(new Event("input", { bubbles: true }));
+      debug("Synced select to original dialog", { name, newValue });
+    } else {
+      debug("Could not find original select to sync", { name });
+    }
+  });
+  
+  // Sync text/number inputs (like Situational Bonus)
+  html.find(".dlc-cloned-system-dialog input[type='text'], .dlc-cloned-system-dialog input[type='number'], .dlc-cloned-system-dialog input:not([type])").on("change input", function() {
+    const $input = $(this);
+    const name = $input.attr("name");
+    const newValue = $input.val();
+    
+    // Skip if no name attribute (can't sync without it)
+    if (!name) return;
+    
+    debug("Cloned input changed", { name, newValue });
+    
+    // Get the original hidden dialog
+    const dialogRef = getMirroredDialog();
+    if (!dialogRef || !dialogRef.html) {
+      debug("No mirrored dialog reference found for syncing");
+      return;
+    }
+    
+    // Find the corresponding input in the original dialog
+    const originalHtml = dialogRef.html instanceof jQuery ? dialogRef.html : $(dialogRef.html);
+    const originalInput = originalHtml.find(`input[name="${name}"]`);
+    
+    if (originalInput.length > 0) {
+      originalInput.val(newValue);
+      // Trigger change events so Foundry/dnd5e processes the change
+      originalInput[0].dispatchEvent(new Event("change", { bubbles: true }));
+      originalInput[0].dispatchEvent(new Event("input", { bubbles: true }));
+      debug("Synced input to original dialog", { name, newValue });
+    } else {
+      debug("Could not find original input to sync", { name });
     }
   });
 }
