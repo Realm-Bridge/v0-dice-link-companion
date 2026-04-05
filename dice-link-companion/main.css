@@ -1692,14 +1692,14 @@
   align-items: center;
 }
 
-/* Footer/button containers - align to left to match dialog content */
+/* Footer/button containers - center within the cloned dialog */
 .dlc-cloned-system-dialog footer,
 .dlc-cloned-system-dialog .form-footer,
 .dlc-cloned-system-dialog nav.dialog-buttons {
   display: flex !important;
   flex-wrap: wrap !important;
   gap: 8px !important;
-  justify-content: flex-start !important;
+  justify-content: center !important;
   margin-top: 12px !important;
   padding: 8px 0 !important;
   border-top: 1px solid var(--dlc-border) !important;
@@ -1842,15 +1842,20 @@
   color: white;
 }
 
-/* Dice icons - styled via JS replacement, this is fallback filter */
+/* Dice icons - constrain size and apply DLC styling */
 .dlc-cloned-system-dialog img[src*="d4"],
 .dlc-cloned-system-dialog img[src*="d6"],
 .dlc-cloned-system-dialog img[src*="d8"],
 .dlc-cloned-system-dialog img[src*="d10"],
 .dlc-cloned-system-dialog img[src*="d12"],
 .dlc-cloned-system-dialog img[src*="d20"],
-.dlc-cloned-system-dialog img[src*="dice"] {
-  filter: brightness(1.2) saturate(0.8);
+.dlc-cloned-system-dialog img[src*="dice"],
+.dlc-cloned-system-dialog img.dlc-dice-icon {
+  width: 64px !important;
+  height: 64px !important;
+  max-width: 64px !important;
+  max-height: 64px !important;
+  object-fit: contain;
 }
 
 /* Formula row layout */
