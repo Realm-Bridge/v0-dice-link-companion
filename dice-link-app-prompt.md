@@ -187,7 +187,37 @@ Sent when a player triggers a roll in Foundry and DLC intercepts the dialog.
 }
 ```
 
-**Dice Link → DLC: Roll Result**
+**Configuration Fields Reference**
+
+The `config.fields` array contains dynamic form fields that Dice Link must parse and render. Each field has:
+- `name` - Internal identifier for tracking changes
+- `label` - Display text shown to the user
+- `type` - How to render the field (see types below)
+- `value` or `selected` - Current value
+- Optional field-specific properties (e.g., `options` for select fields)
+
+Supported field types and how to render them:
+
+**Type: `select` (Dropdown)**
+- Render as HTML `<select>` element
+- `options` array contains objects with `value` and `label`
+- `selected` indicates which option is currently chosen
+- Example: Attack Mode (One-Handed, Two-Handed), Roll Mode (Public, GM Only, etc.), Ability choices (Strength, Dexterity, etc.)
+
+**Type: `text` (Text Input)**
+- Render as HTML `<input type="text">` element
+- `value` contains the current text (may be empty string)
+- Example: Situational Bonus field for user notes or modifiers
+
+**Type: `number` (Number Input)**
+- Render as HTML `<input type="number">` element
+- `value` contains the current number
+- May have optional `min`, `max`, or `step` properties
+- Example: Custom modifier inputs
+
+When the user modifies any field and clicks an action button, send back the changes in `configChanges` object with only the fields that changed (by `name`).
+
+**DLC → Dice Link: Roll Result**
 
 Sent when the user has completed configuration, rolled their dice, and Dice Link has captured the results.
 
