@@ -1724,8 +1724,9 @@
 
 /* Cloned dialog fills available section width */
 .dlc-cloned-system-dialog {
-  width: 100%;
-  box-sizing: border-box;
+  width: 100% !important;
+  min-width: 100% !important;
+  box-sizing: border-box !important;
   overflow: hidden;
   display: block;
 }
@@ -1737,7 +1738,7 @@
   flex-shrink: 1 !important;
 }
 
-/* Form and all child containers fill available width */
+/* Form and all child containers fill available width - use min-width to override dnd5e */
 .dlc-cloned-system-dialog form,
 .dlc-cloned-system-dialog .window-content,
 .dlc-cloned-system-dialog .form-group,
@@ -1747,6 +1748,7 @@
 .dlc-cloned-system-dialog .roll-modifiers,
 .dlc-cloned-system-dialog fieldset {
   width: 100% !important;
+  min-width: 100% !important;
   box-sizing: border-box !important;
 }
 

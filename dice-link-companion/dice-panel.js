@@ -74,7 +74,7 @@ export function refreshPanel() {
       clonedButtonsCount: contentElement.find(".dlc-cloned-system-dialog button").length,
       clonedDialogVisible: contentElement.find(".dlc-cloned-system-dialog").is(":visible"),
       dialogButtonsVisible: contentElement.find(".dlc-cloned-system-dialog nav.dialog-buttons").is(":visible"),
-      clonedDialogActualWidth: clonedDialog?.offsetWidth
+      clonedDialogActualWidth: clonedDialogCheck?.offsetWidth
     });
     
     // Debug computed styles of buttons to see why they're not visible
