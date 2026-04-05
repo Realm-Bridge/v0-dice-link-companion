@@ -53,34 +53,7 @@ export function refreshPanel() {
     const $element = $(panelDialog.element);
     const contentElement = $element.find(".window-content");
     
-    // Capture window-content width BEFORE injection to constrain cloned content
-    // Use window-content instead of section-content because sections can collapse (offsetWidth becomes 0)
-    const windowContentWidth = contentElement[0]?.offsetWidth || 400;
-    const maxDialogWidth = Math.max(windowContentWidth - 28, 300); // subtract padding, minimum 300px
-    
-    debugPanelInjection("before injection - measuring widths", {
-      windowContentWidth,
-      calculatedMaxDialogWidth: maxDialogWidth,
-      panelWidth: panelDialog.position?.width,
-      panelElementWidth: panelDialog.element?.offsetWidth
-    });
-    
     contentElement.html(newContent);
-    
-    // Apply explicit max-width to cloned dialog - do NOT set width:100% as that causes stretching when panel is resized wider
-    const clonedDialog = contentElement.find(".dlc-cloned-system-dialog")[0];
-    if (clonedDialog) {
-      clonedDialog.style.maxWidth = `${maxDialogWidth}px`;
-      clonedDialog.style.width = "auto"; // Use natural width, not 100%
-      clonedDialog.style.overflow = "hidden";
-      clonedDialog.style.boxSizing = "border-box";
-      
-      debugPanelInjection("applied inline width constraints to cloned dialog", {
-        maxWidth: clonedDialog.style.maxWidth,
-        width: clonedDialog.style.width,
-        actualOffsetWidth: clonedDialog.offsetWidth
-      });
-    }
     
     // Log all element dimensions to diagnose stretching
     const panelElement = panelDialog.element;
