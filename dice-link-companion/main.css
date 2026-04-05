@@ -1692,7 +1692,7 @@
   align-items: center;
 }
 
-/* Footer/button containers - center within the cloned dialog's max-width constraint */
+/* Footer/button containers - fill dialog width, center buttons within */
 .dlc-cloned-system-dialog footer,
 .dlc-cloned-system-dialog .form-footer,
 .dlc-cloned-system-dialog nav.dialog-buttons {
@@ -1701,11 +1701,10 @@
   gap: 8px !important;
   justify-content: center !important;
   margin-top: 12px !important;
-  margin-left: auto !important;
-  margin-right: auto !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
   padding: 8px 0 !important;
-  width: auto !important;
-  max-width: 550px !important;
+  width: 100% !important;
   border-top: 1px solid var(--dlc-border) !important;
   visibility: visible !important;
   opacity: 1 !important;
