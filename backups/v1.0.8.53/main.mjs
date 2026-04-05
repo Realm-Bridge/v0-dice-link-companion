@@ -4,8 +4,12 @@
  * Branded for Realm Bridge - https://realmbridge.co.uk
  */
 
-import { 
+import {
   MODULE_ID,
+  MODULE_VERSION,
+  REALM_BRIDGE_URL,
+  LOGO_URL,
+  LOGO_SQUARE_URL,
   ASYNC_OPERATION_DELAY_MS
 } from "./constants.js";
 
@@ -104,10 +108,6 @@ import {
   getManualRollsPermissions,
   setManualRollsPermission
 } from "./settings-helpers.js";
-
-const REALM_BRIDGE_URL = "https://realmbridge.co.uk";
-const LOGO_URL = "modules/dice-link-companion/assets/logo-header.png";
-const LOGO_SQUARE_URL = "modules/dice-link-companion/assets/logo-square.png";
 
 // ============================================================================
 // CUSTOM APPLICATION CLASS (ApplicationV2 for Foundry V13+)

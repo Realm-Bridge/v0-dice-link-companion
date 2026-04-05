@@ -18,16 +18,6 @@ export function debug(...args) {
 }
 
 /**
- * Log a debug warning
- * @param {...any} args - Arguments to log
- */
-export function debugWarn(...args) {
-  if (DEBUG_ENABLED) {
-    console.warn("[Dice Link Debug]", ...args);
-  }
-}
-
-/**
  * Log a debug error
  * @param {...any} args - Arguments to log
  */
