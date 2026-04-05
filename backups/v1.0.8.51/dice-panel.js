@@ -5,7 +5,7 @@
  */
 
 import { MODULE_ID, ROLE_NAMES, ASYNC_OPERATION_DELAY_MS } from "./constants.js";
-import { debug, debugState, debugError } from "./debug.js";
+import { debug, debugState, debugError, debugPanelInjection, debugComputedStyles, debugClonedButtonClick, debugElementDimensions } from "./debug.js";
 import {
   setPendingRollRequest,
   getPendingRollRequest,
@@ -52,7 +52,68 @@ export function refreshPanel() {
     // ApplicationV2 returns HTMLElement, not jQuery - wrap in jQuery for compatibility
     const $element = $(panelDialog.element);
     const contentElement = $element.find(".window-content");
+    
     contentElement.html(newContent);
+    
+    // After injection, constrain the nav to match the cloned dialog's actual rendered width
+    const clonedDialogEl = contentElement.find(".dlc-cloned-system-dialog")[0];
+    const navEl = contentElement.find(".dlc-cloned-system-dialog nav.dialog-buttons")[0];
+    if (clonedDialogEl && navEl) {
+      const dialogWidth = clonedDialogEl.offsetWidth;
+      if (dialogWidth > 0) {
+        navEl.style.width = `${dialogWidth}px`;
+        navEl.style.maxWidth = `${dialogWidth}px`;
+      }
+    }
+    
+    // Log all element dimensions to diagnose stretching
+    const panelElement = panelDialog.element;
+    const windowContent = panelElement.querySelector(".window-content");
+    const sectionContent = panelElement.querySelector(".dlc-section-content");
+    const clonedDialogCheck = panelElement.querySelector(".dlc-cloned-system-dialog");
+    const nav = panelElement.querySelector("nav.dialog-buttons");
+    
+    debugElementDimensions("panel element", panelElement, "DLC-Panel");
+    debugElementDimensions("window-content", windowContent, ".window-content");
+    debugElementDimensions("section-content", sectionContent, ".dlc-section-content");
+    debugElementDimensions("cloned-dialog", clonedDialogCheck, ".dlc-cloned-system-dialog");
+    debugElementDimensions("nav.dialog-buttons", nav, "nav.dialog-buttons");
+    
+    debugPanelInjection("after injection", {
+      contentHTMLLength: contentElement.html().length,
+      dialogButtonsCount: contentElement.find("nav.dialog-buttons").length,
+      clonedButtonsCount: contentElement.find(".dlc-cloned-system-dialog button").length,
+      clonedDialogVisible: contentElement.find(".dlc-cloned-system-dialog").is(":visible"),
+      dialogButtonsVisible: contentElement.find(".dlc-cloned-system-dialog nav.dialog-buttons").is(":visible"),
+      clonedDialogActualWidth: clonedDialogCheck?.offsetWidth
+    });
+    
+    // Debug computed styles of buttons to see why they're not visible
+    const navButtons = contentElement.find("nav.dialog-buttons")[0];
+    if (navButtons) {
+      debugComputedStyles("nav.dialog-buttons", navButtons);
+      const firstButton = contentElement.find("nav.dialog-buttons button")[0];
+      if (firstButton) {
+        debugComputedStyles("nav.dialog-buttons button", firstButton);
+      }
+      
+      // Check if buttons are inside or outside cloned dialog
+      const clonedDialog = contentElement.find(".dlc-cloned-system-dialog")[0];
+      const isButtonsInsideDialog = clonedDialog && clonedDialog.contains(navButtons);
+      const buttonParent = navButtons.parentElement;
+      
+      debugPanelInjection("button container analysis", {
+        buttonContainerTagName: navButtons.tagName,
+        buttonParentTagName: buttonParent?.tagName,
+        buttonParentClassName: buttonParent?.className,
+        isButtonsInsideClonedDialog: isButtonsInsideDialog,
+        navButtonsClasses: navButtons.className,
+        navButtonsComputedJustify: window.getComputedStyle(navButtons).justifyContent,
+        navButtonsComputedMarginLeft: window.getComputedStyle(navButtons).marginLeft,
+        navButtonsComputedMarginRight: window.getComputedStyle(navButtons).marginRight,
+        navButtonsComputedMaxWidth: window.getComputedStyle(navButtons).maxWidth
+      });
+    }
     
     if (isGM) {
       attachGMPanelListeners($element);
@@ -60,8 +121,9 @@ export function refreshPanel() {
       attachPlayerPanelListeners($element);
     }
 
-    // Recalculate dialog dimensions to fit content after collapse/expand
-    panelDialog.setPosition({ height: "auto", width: "auto" });
+    // Recalculate height only, preserve width to prevent stretching
+    const fixedWidth = panelDialog.position?.width || 480;
+    panelDialog.setPosition({ height: "auto", width: fixedWidth });
   }
 }
 
@@ -620,6 +682,35 @@ export function attachDiceTrayListeners(html) {
     setPendingRollRequest(null);
     refreshPanel();
     ui.notifications.info("Roll cancelled.");
+  });
+  
+  // Cloned system dialog buttons (Advantage/Normal/Disadvantage)
+  // These are buttons cloned from the system's roll configuration dialog
+  html.find(".dlc-cloned-system-dialog nav.dialog-buttons button").click( function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const $btn = $(this);
+    const action = $btn.data("action") || $btn.text().trim().toLowerCase();
+    
+    debugClonedButtonClick("Button clicked", {
+      action,
+      buttonText: $btn.text().trim(),
+      dataAction: $btn.data("action")
+    });
+    
+    const currentRollRequest = getPendingRollRequest();
+    if (currentRollRequest?.onComplete) {
+      debugClonedButtonClick("Calling onComplete", { action });
+      currentRollRequest.onComplete(action);
+      setPendingRollRequest(null);
+      refreshPanel();
+    } else {
+      debugClonedButtonClick("No onComplete handler found", { 
+        hasPendingRoll: !!currentRollRequest,
+        hasOnComplete: !!currentRollRequest?.onComplete
+      });
+    }
   });
 }
 

@@ -51,6 +51,22 @@
 .dlc-dialog .window-content {
   background: var(--dlc-bg-dark);
   padding: 0;
+  overflow: hidden;
+  max-width: 100%;
+}
+
+/* Constrain window content to prevent horizontal stretching */
+.dlc-dialog .window-content,
+.dlc-dialog .dlc-window-content-constrained {
+  overflow-x: hidden !important;
+  max-width: 100% !important;
+}
+
+/* Force all children of cloned dialog to respect parent width */
+.dlc-cloned-system-dialog,
+.dlc-cloned-system-dialog * {
+  max-width: 100% !important;
+  box-sizing: border-box !important;
 }
 
 /* ============================================================================
@@ -240,6 +256,10 @@
 .dlc-section-content {
   padding: 12px 14px;
   transition: max-height 0.3s ease, padding 0.3s ease;
+  overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
+  background-color: var(--dlc-bg-dark);
 }
 
 .dlc-section.collapsed .dlc-section-content {
@@ -1150,27 +1170,46 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 42px;
-  height: 42px;
-  background: var(--dlc-bg-section);
-  border: 1px solid var(--dlc-border);
-  border-radius: 6px;
+  width: auto;
+  height: auto;
+  background: transparent;
+  border: none;
+  border-radius: 0;
   color: var(--dlc-text-secondary);
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: opacity 0.2s ease;
+  padding: 0;
 }
 
 .dlc-dice-btn:hover {
-  background: var(--dlc-bg-input);
-  border-color: var(--dlc-accent);
-  color: var(--dlc-text-primary);
+  opacity: 0.8;
 }
 
 .dlc-die-icon {
   font-size: 12px;
 }
+
+.dlc-die-svg-icon {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  display: block;
+}
+
+/* Per-die size adjustments to normalize visual size differences from SVG files */
+.dlc-dice-btn[data-die="4"] .dlc-die-svg-icon {
+  width: 40px;
+  height: 40px;
+}
+
+.dlc-dice-btn[data-die="100"] .dlc-die-svg-icon {
+  width: 52px;
+  height: 52px;
+}
+
+
 
 .dlc-die-count {
   position: absolute;
@@ -1641,4 +1680,237 @@
 
 .dlc-submit-visual-dice-btn {
   width: 100%;
+}
+
+/* ============================================================================
+   CLONED SYSTEM DIALOG STYLES
+   These rules ensure the cloned system dialog content displays correctly
+   within our Roll Request section, regardless of which game system is used.
+   ============================================================================ */
+
+/* Reset list styles - systems like dnd5e use 'unlist' class which we don't inherit */
+.dlc-cloned-system-dialog ul,
+.dlc-cloned-system-dialog ol {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* Dice list should be horizontal */
+.dlc-cloned-system-dialog .dice,
+.dlc-cloned-system-dialog ul.dice {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
+
+.dlc-cloned-system-dialog .dice li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Footer/button containers - flex row centered, fill dialog width */
+.dlc-cloned-system-dialog footer,
+.dlc-cloned-system-dialog .form-footer,
+.dlc-cloned-system-dialog nav.dialog-buttons {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+  justify-content: center !important;
+  width: 100% !important;
+  margin-top: 12px !important;
+  padding: 8px 0 !important;
+  border-top: 1px solid var(--dlc-border) !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  height: auto !important;
+  overflow: visible !important;
+}
+
+/* Buttons inside footer - don't stretch, use inline-block sizing */
+.dlc-cloned-system-dialog footer button,
+.dlc-cloned-system-dialog .form-footer button,
+.dlc-cloned-system-dialog nav.dialog-buttons button {
+  min-width: 80px !important;
+  padding: 8px 12px !important;
+  display: inline-block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  height: auto !important;
+  white-space: nowrap !important;
+  flex: 0 0 auto !important;
+}
+
+/* Cloned dialog uses natural content width with responsive max-width constraint */
+.dlc-cloned-system-dialog {
+  width: auto;
+  max-width: 550px;
+  box-sizing: border-box !important;
+  overflow: hidden;
+  display: block;
+}
+
+/* Override dnd5e flexrow class */
+.dlc-cloned-system-dialog .flexrow {
+  flex-wrap: wrap !important;
+  width: auto !important;
+  max-width: 550px !important;
+  flex-shrink: 1 !important;
+}
+
+/* Form and all child containers - natural width with max-width constraint */
+.dlc-cloned-system-dialog form,
+.dlc-cloned-system-dialog .window-content,
+.dlc-cloned-system-dialog .form-group,
+.dlc-cloned-system-dialog .form-fields,
+.dlc-cloned-system-dialog .form-footer,
+.dlc-cloned-system-dialog .roll-configuration,
+.dlc-cloned-system-dialog .roll-modifiers,
+.dlc-cloned-system-dialog fieldset {
+  width: auto !important;
+  max-width: 550px !important;
+  box-sizing: border-box !important;
+}
+
+/* Prevent label text from wrapping */
+.dlc-cloned-system-dialog label,
+.dlc-cloned-system-dialog .form-group > label {
+  white-space: nowrap !important;
+}
+
+/* Constrain selects and inputs */
+.dlc-cloned-system-dialog select,
+.dlc-cloned-system-dialog input {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Style text inputs (like Situational Bonus) */
+.dlc-cloned-system-dialog input[type="text"],
+.dlc-cloned-system-dialog input[type="number"],
+.dlc-cloned-system-dialog input:not([type]) {
+  background-color: var(--dlc-bg-darker) !important;
+  color: var(--dlc-text-primary) !important;
+  border: 1px solid var(--dlc-accent) !important;
+  border-radius: 4px;
+  padding: 6px 8px;
+}
+
+.dlc-cloned-system-dialog input::placeholder {
+  color: var(--dlc-text-muted) !important;
+}
+
+/* Center header content */
+.dlc-cloned-system-dialog header,
+.dlc-cloned-system-dialog .dialog-header {
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+/* Background styling - match DLC dark theme */
+.dlc-cloned-system-dialog {
+  background-color: var(--dlc-bg-dark);
+  color: var(--dlc-text-primary);
+}
+
+.dlc-cloned-system-dialog form,
+.dlc-cloned-system-dialog fieldset,
+.dlc-cloned-system-dialog .form-group,
+.dlc-cloned-system-dialog .roll-configuration {
+  background-color: transparent !important;
+  border-color: var(--dlc-border);
+}
+
+/* Dropdown styling - match player card style */
+.dlc-cloned-system-dialog select {
+  background-color: var(--dlc-bg-input) !important;
+  color: var(--dlc-text-primary) !important;
+  border: 1px solid var(--dlc-border) !important;
+  border-radius: 6px !important;
+  padding: 6px 8px !important;
+  cursor: pointer !important;
+}
+
+.dlc-cloned-system-dialog select:hover {
+  border-color: var(--dlc-accent) !important;
+}
+
+.dlc-cloned-system-dialog select:focus {
+  outline: none !important;
+  border-color: var(--dlc-accent) !important;
+}
+
+/* Input styling - match player card style */
+.dlc-cloned-system-dialog input[type="text"],
+.dlc-cloned-system-dialog input[type="number"],
+.dlc-cloned-system-dialog input:not([type]) {
+  background-color: var(--dlc-bg-input) !important;
+  color: var(--dlc-text-primary) !important;
+  border: 1px solid var(--dlc-border) !important;
+  border-radius: 6px !important;
+  padding: 6px 8px !important;
+}
+
+.dlc-cloned-system-dialog input[type="text"]:focus,
+.dlc-cloned-system-dialog input[type="number"]:focus,
+.dlc-cloned-system-dialog input:not([type]):focus {
+  outline: none !important;
+  border-color: var(--dlc-accent) !important;
+}
+
+.dlc-cloned-system-dialog input::placeholder {
+  color: var(--dlc-text-muted) !important;
+}
+
+/* Button styling - match player card style */
+.dlc-cloned-system-dialog button,
+.dlc-cloned-system-dialog .dialog-buttons button {
+  background-color: var(--dlc-bg-input) !important;
+  color: var(--dlc-text-primary) !important;
+  border: 1px solid var(--dlc-border) !important;
+  border-radius: 6px !important;
+  padding: 8px 16px !important;
+  cursor: pointer !important;
+  transition: border-color 0.2s ease !important;
+  font-size: 14px !important;
+}
+
+.dlc-cloned-system-dialog button:hover,
+.dlc-cloned-system-dialog .dialog-buttons button:hover {
+  border-color: var(--dlc-accent) !important;
+}
+
+.dlc-cloned-system-dialog button:active,
+.dlc-cloned-system-dialog .dialog-buttons button:active {
+  background-color: var(--dlc-accent) !important;
+  border-color: var(--dlc-accent) !important;
+  color: white !important;
+}
+
+/* Dice icons - constrain size and apply DLC styling */
+.dlc-cloned-system-dialog img[src*="d4"],
+.dlc-cloned-system-dialog img[src*="d6"],
+.dlc-cloned-system-dialog img[src*="d8"],
+.dlc-cloned-system-dialog img[src*="d10"],
+.dlc-cloned-system-dialog img[src*="d12"],
+.dlc-cloned-system-dialog img[src*="d20"],
+.dlc-cloned-system-dialog img[src*="dice"],
+.dlc-cloned-system-dialog img.dlc-dice-icon {
+  width: 64px !important;
+  height: 64px !important;
+  max-width: 64px !important;
+  max-height: 64px !important;
+  object-fit: contain;
+}
+
+/* Formula row layout */
+.dlc-cloned-system-dialog .formulas {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 0;
 }

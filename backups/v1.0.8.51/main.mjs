@@ -132,7 +132,8 @@ class DiceLinkCompanionApp extends ApplicationV2 {
       title: "Dice Link Companion",
       resizable: true,
       minimizable: true,
-      positioned: true
+      positioned: true,
+      contentClasses: ["dlc-window-content-constrained"]
     }
   };
 
@@ -170,10 +171,13 @@ class DiceLinkCompanionApp extends ApplicationV2 {
       attachPlayerPanelListeners($html);
     }
     
-    // Auto-resize panel after images load (fixes first-open sizing issue)
-    setTimeout(() => {
-      this.setPosition({ height: "auto", width: "auto" });
-    }, 100);
+    // Defer positioning until element is fully rendered and attached to DOM
+    // Use requestAnimationFrame to ensure browser has painted the element
+    requestAnimationFrame(() => {
+      if (this.element?.offsetParent) {  // Check element is in DOM and visible
+        this.setPosition({ height: "auto", width: "auto" });
+      }
+    });
   }
 
   async close(options = {}) {

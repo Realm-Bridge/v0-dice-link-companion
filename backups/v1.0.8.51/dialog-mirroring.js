@@ -4,7 +4,7 @@
  */
 
 import { getPlayerMode, getGlobalOverride, getCollapsedSections, setCollapsedSections } from "./settings.js";
-import { debug, debugError, debugState, debugResolverCancel, debugResolverClosure } from "./debug.js";
+import { debug, debugError, debugState, debugResolverCancel, debugResolverClosure, debugCloning, debugButtonDetection } from "./debug.js";
 import { getMirroredDialog, setMirroredDialog, getPendingRollRequest, setPendingRollRequest, getCurrentPanelDialog } from "./state-management.js";
 
 /**
@@ -94,13 +94,14 @@ function handleDialogRender(app, html, data) {
       return;
     }
     
-    // Hide the native dialog
+    // IMPORTANT: Clone the HTML BEFORE hiding the element
+    // Otherwise the cloned HTML will have display:none
+    mirrorDialogToPanel(app, html, data);
+    
+    // Hide the native dialog AFTER cloning
     if (elementToHide?.style) {
       elementToHide.style.display = "none";
     }
-    
-    // Extract dialog data and mirror it to our panel
-    mirrorDialogToPanel(app, html, data);
   }
 }
 
@@ -186,24 +187,226 @@ function isRollDialog(app) {
  */
 function mirrorDialogToPanel(app, html, data) {
   try {
-    // Extract form data from the hidden dialog
-    const formData = extractDialogFormData(app, html);
+    debugCloning("Starting mirrorDialogToPanel", { appTitle: app?.title, htmlType: html?.constructor?.name });
     
-    if (!formData) {
+    // Clone the system dialog's HTML element to preserve exact layout and styling
+    let elementToClone;
+    if (html instanceof jQuery) {
+      elementToClone = html[0];
+      debugCloning("HTML is jQuery", { length: html.length });
+    } else if (html?.element) {
+      elementToClone = html.element;
+      debugCloning("HTML has .element property", { tagName: html.element?.tagName });
+    } else if (html instanceof HTMLElement) {
+      elementToClone = html;
+      debugCloning("HTML is HTMLElement", { tagName: html.tagName });
+    }
+    
+    if (!elementToClone) {
+      debugCloning("ERROR: Could not find element to clone", { html });
       return;
     }
     
-    // Store the dialog reference and data in state management
+    debugCloning("Element to clone found", { 
+      tagName: elementToClone.tagName, 
+      className: elementToClone.className,
+      displayStyle: elementToClone.style?.display,
+      innerHTML_length: elementToClone.innerHTML?.length 
+    });
+    
+    // Skip if element is already hidden - this means we've already processed it
+    // The hook fires twice and the second time the element has display:none
+    if (elementToClone.style?.display === 'none') {
+      debugCloning("Skipping clone - element already hidden (duplicate hook call)", {});
+      return;
+    }
+    
+    // Extract the inner content, NOT the outer <dialog> element
+    // We want the .window-content (form and layout) AND the buttons to inject inline
+    const windowContent = elementToClone.querySelector('.window-content');
+    
+    debugButtonDetection("Searching for buttons/footer", { 
+      windowContentFound: !!windowContent,
+      searchArea: "top-level selectors"
+    });
+    
+    // Search for the footer/buttons in multiple locations (different systems place them differently)
+    // dnd5e: buttons may be in form-buttons div inside the form
+    // Other systems: may be in footer, .window-footer, .form-footer, or .dialog-buttons
+    const selectors = [
+      'footer',
+      '.window-footer',
+      '.form-footer',
+      '.form-buttons',
+      '.dialog-buttons',
+      '[data-part="footer"]'
+    ];
+    
+    let windowFooter = null;
+    for (const selector of selectors) {
+      const found = elementToClone.querySelector(selector);
+      if (found) {
+        debugButtonDetection(`Selector matched: ${selector}`, {
+          elementTag: found.tagName,
+          elementClass: found.className,
+          elementHTML: found.outerHTML.substring(0, 300)
+        });
+        windowFooter = found;
+        break;
+      } else {
+        debugButtonDetection(`Selector did not match: ${selector}`, {});
+      }
+    }
+    
+    // Also search within the form for buttons if not found at top level
+    let buttonsInForm = null;
+    if (windowContent && !windowFooter) {
+      debugButtonDetection("Top-level buttons not found, searching within window-content", {});
+      
+      const formSelectors = [
+        '.form-buttons',
+        '.dialog-buttons',
+        '[data-part="footer"]'
+      ];
+      
+      for (const selector of formSelectors) {
+        const found = windowContent.querySelector(selector);
+        if (found) {
+          debugButtonDetection(`Found in form with selector: ${selector}`, {
+            elementTag: found.tagName,
+            elementClass: found.className,
+            elementHTML: found.outerHTML.substring(0, 300)
+          });
+          buttonsInForm = found;
+          break;
+        } else {
+          debugButtonDetection(`Not found in form: ${selector}`, {});
+        }
+      }
+      
+      // If still not found, search for ANY buttons in the form
+      if (!buttonsInForm) {
+        debugButtonDetection("No labeled button container found, searching for plain button elements", {});
+        const plainButtons = windowContent.querySelectorAll('button:not(.close):not(.header-control)');
+        if (plainButtons.length > 0) {
+          debugButtonDetection(`Found ${plainButtons.length} plain button elements`, {
+            buttons: Array.from(plainButtons).map(b => ({ 
+              text: b.textContent.trim(), 
+              class: b.className,
+              dataAction: b.dataset?.action
+            }))
+          });
+        } else {
+          debugButtonDetection("No button elements found at all", {
+            windowContentHTML: windowContent.outerHTML.substring(0, 500)
+          });
+        }
+      }
+    }
+    
+    const footerToUse = windowFooter || buttonsInForm;
+    
+    // Wrap in a div with our identifier class so we can scope CSS overrides later
+    const wrapper = document.createElement('div');
+    wrapper.classList.add('dlc-cloned-system-dialog');
+    
+    // Clone the main window-content
+    if (windowContent) {
+      const windowContentClone = windowContent.cloneNode(true);
+      
+      // Remove any button containers already inside the window-content clone
+      // to prevent duplication when we append footerToUse separately below
+      const buttonSelectorsToStrip = [
+        'nav.dialog-buttons', '.dialog-buttons', '.form-buttons', '.form-footer', 'footer'
+      ];
+      for (const sel of buttonSelectorsToStrip) {
+        const existing = windowContentClone.querySelector(sel);
+        if (existing) {
+          debugButtonDetection(`Stripped duplicate buttons from window-content clone: ${sel}`, {
+            elementClass: existing.className
+          });
+          existing.remove();
+        }
+      }
+      
+      wrapper.appendChild(windowContentClone);
+    } else {
+      // Fallback: clone the whole element if no window-content found
+      wrapper.appendChild(elementToClone.cloneNode(true));
+    }
+    
+    // Append the footer/buttons inside the form so it stays within the dialog's width constraint
+    if (footerToUse) {
+      const footerClone = footerToUse.cloneNode(true);
+      // Remove flexrow class to prevent dnd5e's flex layout from stretching buttons
+      if (footerClone.classList) {
+        footerClone.classList.remove('flexrow');
+        debugButtonDetection("Removed flexrow class from cloned footer", { 
+          newClass: footerClone.className
+        });
+      }
+      // Append inside the form element so buttons are constrained by the form's width
+      const formInWrapper = wrapper.querySelector('form');
+      if (formInWrapper) {
+        formInWrapper.appendChild(footerClone);
+        debugButtonDetection("Footer/buttons appended inside form", { 
+          footerClass: footerClone.className,
+          buttonCount: footerClone.querySelectorAll('button').length
+        });
+      } else {
+        // Fallback: append to wrapper if no form found
+        wrapper.appendChild(footerClone);
+        debugButtonDetection("Footer/buttons appended to wrapper (no form found)", { 
+          footerClass: footerClone.className
+        });
+      }
+      debugButtonDetection("Footer/buttons successfully cloned and appended", { 
+        footerHTML: footerToUse.outerHTML.substring(0, 300),
+        footerClass: footerToUse.className,
+        footerTag: footerToUse.tagName,
+        buttonCount: footerToUse.querySelectorAll('button').length
+      });
+    } else {
+      debugButtonDetection("CRITICAL: No footer/buttons found - searching entire element for buttons", {
+        entireDialogHTML: elementToClone.outerHTML.substring(0, 1000),
+        allButtons: Array.from(elementToClone.querySelectorAll('button:not(.close):not(.header-control)')).map(b => ({
+          text: b.textContent.trim(),
+          class: b.className,
+          parent: b.parentElement?.className
+        }))
+      });
+    }
+    
+    // Replace system dice images with DLC blank dice icons
+    replaceDiceIcons(wrapper);
+    
+    // Convert to HTML string for state serialization
+    const clonedHTMLString = wrapper.outerHTML;
+    
+    debugCloning("Cloned HTML string created", { 
+      length: clonedHTMLString.length,
+      preview: clonedHTMLString.substring(0, 200) + "..."
+    });
+    
+    // Extract form data as backup for data access
+    const formData = extractDialogFormData(app, html);
+    
+    // Store the cloned HTML string and dialog reference in state
     // The state listener in main.mjs will automatically handle panel updates
     setMirroredDialog({
       app,
       html,
+      clonedHTML: clonedHTMLString,  // Store as HTML string for serialization
       data: formData,
+      isMirroredDialog: true,
       timestamp: Date.now()
     });
     
+    debugCloning("setMirroredDialog called successfully", { clonedHTMLLength: clonedHTMLString.length });
+    
   } catch (e) {
     debugError("Error mirroring dialog:", e);
+    debugCloning("ERROR in mirrorDialogToPanel", { error: e.message, stack: e.stack });
   }
 }
 
@@ -484,7 +687,7 @@ function extractDialogFormData(app, html) {
  * @param {Function} openPanel - Function to open the panel if not already open
  */
 export function handleMirroredDialogChange(dialogData, submitMirroredDialog, refreshPanel, openPanel) {
-  const { app, html, data: formData } = dialogData;
+  const { app, html, clonedHTML, data: formData } = dialogData;
   
   // Clear previous pending roll request
   setPendingRollRequest(null);
@@ -495,6 +698,7 @@ export function handleMirroredDialogChange(dialogData, submitMirroredDialog, ref
     subtitle: formData.formula,
     formula: formData.formula,
     isMirroredDialog: true,
+    clonedHTML,  // Pass the cloned HTML string to preserve system dialog layout
     mirrorData: formData,
     onComplete: async (userChoice) => {
       if (userChoice === "cancel") {
@@ -529,5 +733,39 @@ export function handleMirroredDialogChange(dialogData, submitMirroredDialog, ref
     openPanel();
   } else {
     refreshPanel();
+  }
+}
+
+/**
+ * Replace system dice images with DLC blank dice icons
+ * @param {HTMLElement} wrapper - The cloned dialog wrapper element
+ */
+function replaceDiceIcons(wrapper) {
+  const diceMap = {
+    'd4': 'modules/dice-link-companion/assets/DLC%20Dice/D4/d4-blank.svg',
+    'd6': 'modules/dice-link-companion/assets/DLC%20Dice/D6/d6-blank.svg',
+    'd8': 'modules/dice-link-companion/assets/DLC%20Dice/D8/d8-blank.svg',
+    'd10': 'modules/dice-link-companion/assets/DLC%20Dice/D10/d10-blank.svg',
+    'd12': 'modules/dice-link-companion/assets/DLC%20Dice/D12/d12-blank.svg',
+    'd20': 'modules/dice-link-companion/assets/DLC%20Dice/D20/d20-blank.svg',
+    'd100': 'modules/dice-link-companion/assets/DLC%20Dice/D100/d100-blank.svg'
+  };
+  
+  // Find all images that might be dice icons
+  const images = wrapper.querySelectorAll('img');
+  
+  for (const img of images) {
+    const src = img.getAttribute('src') || '';
+    const alt = (img.getAttribute('alt') || '').toLowerCase();
+    
+    // Check if image source or alt contains dice type
+    for (const [dieType, dlcPath] of Object.entries(diceMap)) {
+      if (src.toLowerCase().includes(dieType) || alt.includes(dieType)) {
+        img.setAttribute('src', dlcPath);
+        // Add a class so we can style it
+        img.classList.add('dlc-dice-icon');
+        break;
+      }
+    }
   }
 }

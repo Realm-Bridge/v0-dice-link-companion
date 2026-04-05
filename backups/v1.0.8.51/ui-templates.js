@@ -27,6 +27,8 @@ import {
 
 import { generateVideoFeedSection } from "./video-feed.js";
 
+import { debugTemplateGeneration, debugSectionGeneration } from "./debug.js";
+
 
 // ============================================================================
 // DICE TRAY HTML
@@ -43,12 +45,16 @@ export function generateDiceTrayHTML() {
         <input type="text" class="dlc-dice-formula-input" placeholder="/r 1d20" value="/r ">
       </div>
       <div class="dlc-dice-buttons-row">
-        ${[4, 6, 8, 10, 12, 20, 100].map(die => `
+        ${[4, 6, 8, 10, 12, 20, 100].map(die => {
+          const svgFolder = die === 100 ? 'D100' : `D${die}`;
+          const svgFile = die === 100 ? 'd100-blank.svg' : `d${die}-blank.svg`;
+          const svgPath = `modules/dice-link-companion/assets/DLC%20Dice/${svgFolder}/${svgFile}`;
+          return `
           <button type="button" class="dlc-dice-btn" data-die="${die}" title="d${die}">
-            <span class="dlc-die-icon">d${die}</span>
+            <img src="${svgPath}" alt="d${die}" class="dlc-die-svg-icon">
             <span class="dlc-die-count" style="display:none;">0</span>
-          </button>
-        `).join('')}
+          </button>`;
+        }).join('')}
       </div>
       <div class="dlc-dice-controls-row">
         <button type="button" class="dlc-dice-mod-btn dlc-dice-minus" title="Decrease modifier">−</button>
@@ -73,7 +79,30 @@ export function generateDiceTrayHTML() {
  * 3. Configuration step (selecting advantage/disadvantage/normal)
  */
 export function generatePendingRollHTML(roll) {
+  debugTemplateGeneration("generatePendingRollHTML called", {
+    isMirroredDialog: roll.isMirroredDialog,
+    hasClonedHTML: !!roll.clonedHTML,
+    clonedHTMLLength: roll.clonedHTML?.length,
+    hasMirrorData: !!roll.mirrorData,
+    isFulfillment: roll.isFulfillment,
+    rollKeys: Object.keys(roll)
+  });
+  
+  // If we have a cloned system dialog HTML string, inject it directly
+  if (roll.isMirroredDialog && roll.clonedHTML) {
+    debugTemplateGeneration("Using clonedHTML", {
+      htmlLength: roll.clonedHTML.length,
+      htmlPreview: roll.clonedHTML.substring(0, 300),
+      htmlEnd: roll.clonedHTML.substring(roll.clonedHTML.length - 300),
+      containsDialogButtons: roll.clonedHTML.includes('dialog-buttons'),
+      containsAdvantage: roll.clonedHTML.includes('Advantage')
+    });
+    return roll.clonedHTML;
+  }
+  
+  // Fallback to data-driven generation if no cloned HTML
   if (roll.isMirroredDialog && roll.mirrorData) {
+    debugTemplateGeneration("Fallback to mirrorData generation", { mirrorData: roll.mirrorData });
     return generateMirroredDialogHTML(roll.mirrorData);
   }
   
@@ -198,7 +227,22 @@ export function generateRollRequestSection(mode, globalOverride) {
   const currentCollapsed = getCollapsedSections();
   const sectionClass = `dlc-section dlc-roll-request-section${hasPending ? ' dlc-roll-request-pending' : ''}`;
 
-  return `
+  debugSectionGeneration("Roll Request", "generating", {
+    hasPending,
+    pendingRollKeys: hasPending ? Object.keys(currentPendingRoll) : null
+  });
+
+  const pendingHTML = hasPending ? generatePendingRollHTML(currentPendingRoll) : generateDiceTrayHTML();
+  
+  debugSectionGeneration("Roll Request", "pending content generated", {
+    contentLength: pendingHTML.length,
+    contentPreview: pendingHTML.substring(0, 300),
+    contentEnd: pendingHTML.substring(Math.max(0, pendingHTML.length - 300)),
+    containsDialogButtons: pendingHTML.includes('dialog-buttons'),
+    containsAdvantage: pendingHTML.includes('Advantage')
+  });
+
+  const result = `
     <div class="${sectionClass} ${currentCollapsed.rollRequest ? 'collapsed' : ''}">
       <div class="dlc-section-header" data-section="rollRequest">
         <span class="dlc-collapse-btn">${currentCollapsed.rollRequest ? '+' : '−'}</span>
@@ -206,10 +250,17 @@ export function generateRollRequestSection(mode, globalOverride) {
         ${hasPending ? '<button type="button" class="dlc-roll-cancel-btn dlc-header-cancel-btn">Cancel Roll</button>' : ''}
       </div>
       <div class="dlc-section-content">
-        ${hasPending ? generatePendingRollHTML(currentPendingRoll) : generateDiceTrayHTML()}
+        ${pendingHTML}
       </div>
     </div>
   `;
+  
+  debugSectionGeneration("Roll Request", "complete", {
+    totalLength: result.length,
+    wrapped: true
+  });
+  
+  return result;
 }
 
 // ============================================================================
