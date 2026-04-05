@@ -267,49 +267,85 @@ If DLC requests video feed, Dice Link can stream frames.
 
 The app should display:
 
-1. **Connection Status** - Show if DLC is connected or not
-2. **Current Roll Request** (when active):
-   - Roll title and subtitle
-   - Configuration options (dropdowns, inputs) - user can modify these
-   - Dice to roll with visual representation
-   - Action buttons (Advantage, Normal, Disadvantage, etc.)
-3. **Camera Feed** - Live view from webcam showing the dice rolling area
-4. **Detected Results** - Show what dice and values were detected
-5. **Confirm/Cancel** - User confirms the detected results or re-rolls
+1. **Connection Status** - Indicator showing if DLC is connected or not
 
-### Settings
+2. **Roll Request Panel** (when active) - Rendered from structured JSON data sent by DLC:
+   - **Roll Header** - Title (e.g., "Longsword Attack") and subtitle (e.g., "Melee Weapon Attack")
+   - **Dice Display** - Visual representation of dice to be rolled:
+     - Shows dice types and counts (e.g., "1d20 + 1d4")
+     - Use dice SVG icons (provided by DLC) for visual clarity
+     - Display the full formula string
+   - **Configuration Section** - Dynamic fields based on the dialog from Foundry:
+     - Render all `config.fields` from the rollRequest message
+     - Support field types: `select` (dropdowns), `text` (text input), `number` (number input)
+     - Show labels and available options for each field
+     - Allow user to modify values before rolling
+   - **Situational Bonus Input** - If present in config
+   - **Action Buttons** - Render all buttons from the roll request (e.g., Advantage, Normal, Disadvantage, Critical Hit, etc.)
+     - User clicks one to proceed with the roll
 
-- WebSocket port configuration (default: 8765)
-- Camera selection
-- Detection sensitivity/calibration
-- Visual theme (light/dark)
+3. **Roll In Progress**:
+   - Once user clicks an action button, display: "Roll [dice list] now"
+   - Show live camera feed for physical dice rolling
+   - Display detected results as they're captured
+
+4. **Results Confirmation**:
+   - Show detected dice types and values
+   - Allow user to confirm or re-roll if detection was incorrect
+   - Once confirmed, send results back to DLC
+
+5. **Camera Feed** - Live preview from webcam (in future phases)
+
+### Settings Panel
+
+- **WebSocket Settings**: Host (default: localhost) and port (default: 8765)
+- **Camera Selection**: Choose which camera to use
+- **Detection Calibration**: Sensitivity settings (future phase)
+- **UI Theme**: Light/dark mode toggle
+
+### Design Notes
+
+- The UI should maintain visual consistency with DLC where possible
+- Configuration fields should be clearly labeled and easy to interact with
+- Action buttons should be prominent and clearly indicate their effect
+- The layout should adapt to showing dice first, then camera view once rolling starts
 
 ---
 
 ## Development Phases
 
-### Phase 1: Core Communication
-- Electron app shell
-- WebSocket server
-- Message handling (receive roll requests, send results)
-- Basic UI showing connection status and incoming requests
-- Manual dice result entry (no camera yet)
+### Phase 1: Core Foundation (MVP)
+- FastAPI WebSocket server on port 8765
+- Web UI served at http://localhost:8765 (HTML/CSS/JavaScript)
+- Connection status display
+- Receive rollRequest messages from DLC
+- Parse and dynamically render dialog from JSON data:
+  - Roll title, subtitle, formula, dice list
+  - Configuration fields (render dropdowns, text inputs, etc.)
+  - Action buttons
+- Manual result entry (no camera - user types dice results)
+- Send rollResult back to DLC
+- Basic error handling
 
-### Phase 2: User Interface
-- Full roll request display
-- Configuration option editing
-- Button rendering and interaction
-- Roll result input UI
+### Phase 2: Enhanced UI
+- Polish dialog rendering (match DLC visual style)
+- Configuration field interaction (user can change values)
+- Copy dice SVG assets from DLC for visual consistency
+- Settings panel (WebSocket host/port, theme, etc.)
+- Connection state management (handle reconnects)
 
 ### Phase 3: Camera Integration
 - Camera selection and preview
-- Frame capture
-- Video feed to DLC (optional feature)
+- Real-time frame capture
+- Video feed streaming back to DLC (optional)
+- Display "Roll these dice" during active roll
 
-### Phase 4: Dice Detection
+### Phase 4: Dice Detection & Automation
+- Computer vision with OpenCV
 - Dice type recognition (d4, d6, d8, d10, d12, d20, d100)
-- Value reading
-- Result validation (correct dice types rolled?)
+- Dice value reading (pip counting or number recognition)
+- Validation (correct dice types rolled?)
+- Automatic result capture and submission
 
 ---
 
