@@ -335,7 +335,7 @@ function mirrorDialogToPanel(app, html, data) {
       wrapper.appendChild(elementToClone.cloneNode(true));
     }
     
-    // Append the footer/buttons once, cleanly
+    // Append the footer/buttons inside the form so it stays within the dialog's width constraint
     if (footerToUse) {
       const footerClone = footerToUse.cloneNode(true);
       // Remove flexrow class to prevent dnd5e's flex layout from stretching buttons
@@ -345,7 +345,21 @@ function mirrorDialogToPanel(app, html, data) {
           newClass: footerClone.className
         });
       }
-      wrapper.appendChild(footerClone);
+      // Append inside the form element so buttons are constrained by the form's width
+      const formInWrapper = wrapper.querySelector('form');
+      if (formInWrapper) {
+        formInWrapper.appendChild(footerClone);
+        debugButtonDetection("Footer/buttons appended inside form", { 
+          footerClass: footerClone.className,
+          buttonCount: footerClone.querySelectorAll('button').length
+        });
+      } else {
+        // Fallback: append to wrapper if no form found
+        wrapper.appendChild(footerClone);
+        debugButtonDetection("Footer/buttons appended to wrapper (no form found)", { 
+          footerClass: footerClone.className
+        });
+      }
       debugButtonDetection("Footer/buttons successfully cloned and appended", { 
         footerHTML: footerToUse.outerHTML.substring(0, 300),
         footerClass: footerToUse.className,
