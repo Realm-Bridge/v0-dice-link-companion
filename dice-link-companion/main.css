@@ -259,6 +259,7 @@
   overflow: hidden;
   width: 100%;
   box-sizing: border-box;
+  background-color: var(--dlc-bg-darker);
 }
 
 .dlc-section.collapsed .dlc-section-content {
@@ -1765,6 +1766,102 @@
 .dlc-cloned-system-dialog .dialog-header {
   text-align: center;
   margin-bottom: 12px;
+}
+
+/* Background styling - match DLC dark theme */
+.dlc-cloned-system-dialog {
+  background-color: var(--dlc-bg-dark);
+  color: var(--dlc-text-primary);
+}
+
+.dlc-cloned-system-dialog form,
+.dlc-cloned-system-dialog fieldset,
+.dlc-cloned-system-dialog .form-group,
+.dlc-cloned-system-dialog .roll-configuration {
+  background-color: transparent !important;
+  border-color: var(--dlc-border);
+}
+
+/* Dropdown styling - match DLC color scheme */
+.dlc-cloned-system-dialog select {
+  background-color: var(--dlc-bg-darker);
+  color: var(--dlc-text-primary);
+  border: 1px solid var(--dlc-accent);
+  border-radius: 4px;
+  padding: 6px 8px;
+  cursor: pointer;
+}
+
+.dlc-cloned-system-dialog select:hover {
+  border-color: var(--dlc-accent-light);
+  background-color: var(--dlc-bg-dark);
+}
+
+.dlc-cloned-system-dialog select:focus {
+  outline: none;
+  border-color: var(--dlc-accent);
+  box-shadow: 0 0 0 2px rgba(138, 43, 226, 0.2);
+}
+
+/* Button styling - match DLC color scheme */
+.dlc-cloned-system-dialog button,
+.dlc-cloned-system-dialog .dialog-buttons button {
+  background-color: transparent;
+  color: var(--dlc-text-primary);
+  border: 1px solid var(--dlc-accent);
+  border-radius: 4px;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dlc-cloned-system-dialog button:hover,
+.dlc-cloned-system-dialog .dialog-buttons button:hover {
+  background-color: var(--dlc-accent-transparent);
+  border-color: var(--dlc-accent-light);
+}
+
+.dlc-cloned-system-dialog button:active,
+.dlc-cloned-system-dialog .dialog-buttons button:active {
+  background-color: var(--dlc-accent);
+  color: white;
+}
+
+/* Dice icon replacement - use blank SVG icons */
+.dlc-cloned-system-dialog img[src*="d4"],
+.dlc-cloned-system-dialog img[src*="d6"],
+.dlc-cloned-system-dialog img[src*="d8"],
+.dlc-cloned-system-dialog img[src*="d10"],
+.dlc-cloned-system-dialog img[src*="d12"],
+.dlc-cloned-system-dialog img[src*="d20"],
+.dlc-cloned-system-dialog img[src*="dice"] {
+  filter: brightness(0.9) contrast(1.1);
+  opacity: 0.9;
+}
+
+/* Replace specific dice types with DLC blank icons */
+.dlc-cloned-system-dialog img[src*="d20"] {
+  content: url('modules/dice-link-companion/assets/DLC Dice/D20/d20-blank.svg');
+}
+
+.dlc-cloned-system-dialog img[src*="d12"] {
+  content: url('modules/dice-link-companion/assets/DLC Dice/D12/d12-blank.svg');
+}
+
+.dlc-cloned-system-dialog img[src*="d10"] {
+  content: url('modules/dice-link-companion/assets/DLC Dice/D10/d10-blank.svg');
+}
+
+.dlc-cloned-system-dialog img[src*="d8"] {
+  content: url('modules/dice-link-companion/assets/DLC Dice/D8/d8-blank.svg');
+}
+
+.dlc-cloned-system-dialog img[src*="d6"] {
+  content: url('modules/dice-link-companion/assets/DLC Dice/D6/d6-blank.svg');
+}
+
+.dlc-cloned-system-dialog img[src*="d4"] {
+  content: url('modules/dice-link-companion/assets/DLC Dice/D4/d4-blank.svg');
 }
 
 /* Formula row layout */
