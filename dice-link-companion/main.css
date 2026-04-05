@@ -1825,28 +1825,29 @@
   box-shadow: 0 0 0 2px rgba(138, 43, 226, 0.2);
 }
 
-/* Button styling - match DLC color scheme */
+/* Button styling - match player card style */
 .dlc-cloned-system-dialog button,
 .dlc-cloned-system-dialog .dialog-buttons button {
-  background-color: transparent;
-  color: var(--dlc-text-primary);
-  border: 1px solid var(--dlc-accent);
-  border-radius: 4px;
-  padding: 8px 16px;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  background-color: var(--dlc-bg-input) !important;
+  color: var(--dlc-text-primary) !important;
+  border: 1px solid var(--dlc-border) !important;
+  border-radius: 6px !important;
+  padding: 8px 16px !important;
+  cursor: pointer !important;
+  transition: border-color 0.2s ease !important;
+  font-size: 14px !important;
 }
 
 .dlc-cloned-system-dialog button:hover,
 .dlc-cloned-system-dialog .dialog-buttons button:hover {
-  background-color: var(--dlc-accent-transparent);
-  border-color: var(--dlc-accent-light);
+  border-color: var(--dlc-accent) !important;
 }
 
 .dlc-cloned-system-dialog button:active,
 .dlc-cloned-system-dialog .dialog-buttons button:active {
-  background-color: var(--dlc-accent);
-  color: white;
+  background-color: var(--dlc-accent) !important;
+  border-color: var(--dlc-accent) !important;
+  color: white !important;
 }
 
 /* Dice icons - constrain size and apply DLC styling */
