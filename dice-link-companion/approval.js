@@ -6,6 +6,7 @@
 import { MODULE_ID } from "./constants.js";
 import { getPlayerMode, setPlayerMode, getPendingRequests, setPendingRequests } from "./settings.js";
 import { refreshPanel } from "./dice-panel.js";
+import { debugState, debugError } from "./debug.js";
 
 /**
  * Create a chat message showing approval/denial decision
