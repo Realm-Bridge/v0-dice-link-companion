@@ -259,7 +259,7 @@
   overflow: hidden;
   width: 100%;
   box-sizing: border-box;
-  background-color: var(--dlc-bg-darker);
+  background-color: var(--dlc-bg-dark);
 }
 
 .dlc-section.collapsed .dlc-section-content {

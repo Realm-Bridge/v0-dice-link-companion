@@ -55,6 +55,17 @@ export function refreshPanel() {
     
     contentElement.html(newContent);
     
+    // After injection, constrain the nav to match the cloned dialog's actual rendered width
+    const clonedDialogEl = contentElement.find(".dlc-cloned-system-dialog")[0];
+    const navEl = contentElement.find(".dlc-cloned-system-dialog nav.dialog-buttons")[0];
+    if (clonedDialogEl && navEl) {
+      const dialogWidth = clonedDialogEl.offsetWidth;
+      if (dialogWidth > 0) {
+        navEl.style.width = `${dialogWidth}px`;
+        navEl.style.maxWidth = `${dialogWidth}px`;
+      }
+    }
+    
     // Log all element dimensions to diagnose stretching
     const panelElement = panelDialog.element;
     const windowContent = panelElement.querySelector(".window-content");
