@@ -363,6 +363,9 @@ function mirrorDialogToPanel(app, html, data) {
       });
     }
     
+    // Replace system dice images with DLC blank dice icons
+    replaceDiceIcons(wrapper);
+    
     // Convert to HTML string for state serialization
     const clonedHTMLString = wrapper.outerHTML;
     
@@ -716,5 +719,39 @@ export function handleMirroredDialogChange(dialogData, submitMirroredDialog, ref
     openPanel();
   } else {
     refreshPanel();
+  }
+}
+
+/**
+ * Replace system dice images with DLC blank dice icons
+ * @param {HTMLElement} wrapper - The cloned dialog wrapper element
+ */
+function replaceDiceIcons(wrapper) {
+  const diceMap = {
+    'd4': 'modules/dice-link-companion/assets/DLC%20Dice/D4/d4-blank.svg',
+    'd6': 'modules/dice-link-companion/assets/DLC%20Dice/D6/d6-blank.svg',
+    'd8': 'modules/dice-link-companion/assets/DLC%20Dice/D8/d8-blank.svg',
+    'd10': 'modules/dice-link-companion/assets/DLC%20Dice/D10/d10-blank.svg',
+    'd12': 'modules/dice-link-companion/assets/DLC%20Dice/D12/d12-blank.svg',
+    'd20': 'modules/dice-link-companion/assets/DLC%20Dice/D20/d20-blank.svg',
+    'd100': 'modules/dice-link-companion/assets/DLC%20Dice/D100/d100-blank.svg'
+  };
+  
+  // Find all images that might be dice icons
+  const images = wrapper.querySelectorAll('img');
+  
+  for (const img of images) {
+    const src = img.getAttribute('src') || '';
+    const alt = (img.getAttribute('alt') || '').toLowerCase();
+    
+    // Check if image source or alt contains dice type
+    for (const [dieType, dlcPath] of Object.entries(diceMap)) {
+      if (src.toLowerCase().includes(dieType) || alt.includes(dieType)) {
+        img.setAttribute('src', dlcPath);
+        // Add a class so we can style it
+        img.classList.add('dlc-dice-icon');
+        break;
+      }
+    }
   }
 }

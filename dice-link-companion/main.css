@@ -1692,16 +1692,16 @@
   align-items: center;
 }
 
-/* Footer/button containers - make them flex to center content */
+/* Footer/button containers - align to left to match dialog content */
 .dlc-cloned-system-dialog footer,
 .dlc-cloned-system-dialog .form-footer,
 .dlc-cloned-system-dialog nav.dialog-buttons {
   display: flex !important;
   flex-wrap: wrap !important;
   gap: 8px !important;
-  justify-content: center !important;
+  justify-content: flex-start !important;
   margin-top: 12px !important;
-  padding: 8px !important;
+  padding: 8px 0 !important;
   border-top: 1px solid var(--dlc-border) !important;
   visibility: visible !important;
   opacity: 1 !important;
@@ -1759,6 +1759,21 @@
 .dlc-cloned-system-dialog input {
   max-width: 100%;
   box-sizing: border-box;
+}
+
+/* Style text inputs (like Situational Bonus) */
+.dlc-cloned-system-dialog input[type="text"],
+.dlc-cloned-system-dialog input[type="number"],
+.dlc-cloned-system-dialog input:not([type]) {
+  background-color: var(--dlc-bg-darker) !important;
+  color: var(--dlc-text-primary) !important;
+  border: 1px solid var(--dlc-accent) !important;
+  border-radius: 4px;
+  padding: 6px 8px;
+}
+
+.dlc-cloned-system-dialog input::placeholder {
+  color: var(--dlc-text-muted) !important;
 }
 
 /* Center header content */
@@ -1827,7 +1842,7 @@
   color: white;
 }
 
-/* Dice icon replacement - use blank SVG icons */
+/* Dice icons - styled via JS replacement, this is fallback filter */
 .dlc-cloned-system-dialog img[src*="d4"],
 .dlc-cloned-system-dialog img[src*="d6"],
 .dlc-cloned-system-dialog img[src*="d8"],
@@ -1835,33 +1850,7 @@
 .dlc-cloned-system-dialog img[src*="d12"],
 .dlc-cloned-system-dialog img[src*="d20"],
 .dlc-cloned-system-dialog img[src*="dice"] {
-  filter: brightness(0.9) contrast(1.1);
-  opacity: 0.9;
-}
-
-/* Replace specific dice types with DLC blank icons */
-.dlc-cloned-system-dialog img[src*="d20"] {
-  content: url('modules/dice-link-companion/assets/DLC Dice/D20/d20-blank.svg');
-}
-
-.dlc-cloned-system-dialog img[src*="d12"] {
-  content: url('modules/dice-link-companion/assets/DLC Dice/D12/d12-blank.svg');
-}
-
-.dlc-cloned-system-dialog img[src*="d10"] {
-  content: url('modules/dice-link-companion/assets/DLC Dice/D10/d10-blank.svg');
-}
-
-.dlc-cloned-system-dialog img[src*="d8"] {
-  content: url('modules/dice-link-companion/assets/DLC Dice/D8/d8-blank.svg');
-}
-
-.dlc-cloned-system-dialog img[src*="d6"] {
-  content: url('modules/dice-link-companion/assets/DLC Dice/D6/d6-blank.svg');
-}
-
-.dlc-cloned-system-dialog img[src*="d4"] {
-  content: url('modules/dice-link-companion/assets/DLC Dice/D4/d4-blank.svg');
+  filter: brightness(1.2) saturate(0.8);
 }
 
 /* Formula row layout */
