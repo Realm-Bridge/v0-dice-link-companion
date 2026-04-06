@@ -6,16 +6,14 @@
 
 import { MODULE_ID, ROLE_NAMES, ASYNC_OPERATION_DELAY_MS } from "./constants.js";
 import { debug, debugState, debugError, debugPanelInjection, debugComputedStyles, debugClonedButtonClick, debugElementDimensions } from "./debug.js";
-import {
-  setPendingRollRequest,
-  getPendingRollRequest,
-  getPendingDiceEntry,
-  setPendingDiceEntry,
-  setDiceEntryCancelled,
-  getCurrentPanelDialog,
-  setCurrentPanelDialog,
-  getMirroredDialog
+import { 
+  refreshPanel, 
+  getCurrentPanelDialog, 
+  setCurrentPanelDialog 
 } from "./state-management.js";
+import {
+  manualReconnect
+} from "./websocket-client.js";
 import {
   setGlobalOverride,
   getGlobalOverride,
@@ -197,6 +195,27 @@ export function attachGMPanelListeners(html) {
   html.find(".dlc-refresh-btn").click( function() {
     refreshPanel();
     ui.notifications.info("Panel refreshed.");
+  });
+
+  // Dice Link App reconnect button (GM only)
+  html.find(".dlc-reconnect-dla-btn").click( async function() {
+    const btn = $(this);
+    btn.prop("disabled", true).text("Reconnecting...");
+    
+    try {
+      const connected = await manualReconnect();
+      if (connected) {
+        ui.notifications.info("Reconnected to Dice Link App.");
+      } else {
+        ui.notifications.error("Failed to reconnect to Dice Link App. Is it running on port 47293?");
+      }
+    } catch (err) {
+      console.error("Reconnect error:", err);
+      ui.notifications.error("Error during reconnect attempt.");
+    }
+    
+    btn.prop("disabled", false).text("Reconnect to Dice Link App");
+    refreshPanel();
   });
 
   // Global override - All Manual toggle

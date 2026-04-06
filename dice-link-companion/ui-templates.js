@@ -376,6 +376,9 @@ export function generateGMPanelContent() {
             <button type="button" class="dlc-refresh-icon-btn dlc-refresh-btn" title="Refresh Panel" style="margin-top: 4px;">
               <i class="fas fa-sync-alt"></i>
             </button>
+            <button type="button" class="dlc-reconnect-dla-btn" title="Reconnect to Dice Link App" style="margin-top: 4px; padding: 6px 12px; font-size: 12px; background-color: #2a5ccc; color: white; border: none; border-radius: 4px; cursor: pointer; transition: background-color 0.2s;">
+              Reconnect to Dice Link App
+            </button>
           </div>
           </div>
         </div>

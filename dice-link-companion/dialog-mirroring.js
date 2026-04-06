@@ -5,6 +5,7 @@
 
 import { getPlayerMode, getGlobalOverride, getCollapsedSections, setCollapsedSections } from "./settings.js";
 import { debug, debugError, debugState, debugResolverCancel, debugResolverClosure, debugCloning, debugButtonDetection } from "./debug.js";
+import { getConnectionStatus, sendDiceRequest, getPendingDiceRequest } from "./websocket-client.js";
 import { getMirroredDialog, setMirroredDialog, getPendingRollRequest, setPendingRollRequest, getCurrentPanelDialog } from "./state-management.js";
 
 /**
@@ -481,12 +482,50 @@ function mirrorRollResolverToPanel(app, html, data) {
       }
     });
     
-    // Expand roll request section
+    // If connected to Dice Link App, send dice request (Phase B)
+    if (getConnectionStatus()) {
+      // Get the roll type from the pending request if available
+      const pendingRoll = getPendingRollRequest();
+      const rollType = pendingRoll?.buttonClicked || "normal";
+      const rollId = pendingRoll?.dlaRollId || `dlc-${Date.now()}`;
+      
+      // Build dice array for DLA
+      const diceForDLA = diceNeeded.map(d => ({
+        type: d.type,
+        count: 1
+      }));
+      
+      // Consolidate dice of same type
+      const consolidatedDice = [];
+      const diceMap = new Map();
+      for (const d of diceForDLA) {
+        if (diceMap.has(d.type)) {
+          diceMap.get(d.type).count++;
+        } else {
+          const entry = { type: d.type, count: 1 };
+          diceMap.set(d.type, entry);
+          consolidatedDice.push(entry);
+        }
+      }
+      
+      // Build formula string
+      const formulaParts = consolidatedDice.map(d => `${d.count}${d.type}`);
+      const formula = formulaParts.join(" + ");
+      
+      debug("Sending dice request to DLA (Phase B)", { rollId, rollType, formula, dice: consolidatedDice });
+      sendDiceRequest(rollId, consolidatedDice, formula, rollType);
+      
+      // Hide resolver element since DLA will handle dice entry
+      element.style.display = "none";
+      return; // DLA will handle dice entry, don't show DLC panel
+    }
+    
+    // Expand roll request section (only if DLA not connected)
     const currentCollapsed = getCollapsedSections();
     currentCollapsed.rollRequest = false;
     setCollapsedSections(currentCollapsed);
     
-    // Refresh panel to show dice entry UI
+    // Refresh panel to show dice entry UI (only if DLA not connected)
     const panelDialog = getCurrentPanelDialog();
     if (panelDialog && panelDialog.rendered) {
       panelDialog.render(true);
