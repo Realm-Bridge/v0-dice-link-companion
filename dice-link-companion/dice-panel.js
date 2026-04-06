@@ -8,7 +8,8 @@ import { MODULE_ID, ROLE_NAMES, ASYNC_OPERATION_DELAY_MS } from "./constants.js"
 import { debug, debugState, debugError, debugPanelInjection, debugComputedStyles, debugClonedButtonClick, debugElementDimensions } from "./debug.js";
 import { 
   getCurrentPanelDialog, 
-  setCurrentPanelDialog 
+  setCurrentPanelDialog,
+  setDiceEntryCancelled
 } from "./state-management.js";
 import {
   manualReconnect
