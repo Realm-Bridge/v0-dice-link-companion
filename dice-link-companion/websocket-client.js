@@ -266,7 +266,16 @@ function handleMessage(data) {
     debugWebSocket("Received", message);
 
     switch (message.type) {
+      case "buttonSelect":
+        // Phase A: User selected a button in DLA
+        handleButtonSelect(message);
+        break;
+      case "diceResult":
+        // Phase B: User submitted dice results in DLA
+        handleDiceResult(message);
+        break;
       case "rollResult":
+        // Legacy: Combined button + results (backward compatibility)
         handleRollResult(message);
         break;
       case "rollCancelled":
@@ -290,11 +299,36 @@ function handleMessage(data) {
 // ROLL REQUEST/RESULT HANDLING
 // ============================================================================
 
-// Callback for when roll results are received
+// Callback for when button selection is received (Phase A)
+let buttonSelectCallback = null;
+
+// Callback for when dice results are received (Phase B)
+let diceResultCallback = null;
+
+// Legacy callback (for backward compatibility during transition)
 let rollResultCallback = null;
 
+// Current pending dice request (for tracking Phase B)
+let pendingDiceRequest = null;
+
 /**
- * Set callback for handling roll results from DLA
+ * Set callback for handling button selection from DLA (Phase A)
+ * @param {Function} callback - Called with (rollId, buttonClicked, configChanges)
+ */
+export function setButtonSelectCallback(callback) {
+  buttonSelectCallback = callback;
+}
+
+/**
+ * Set callback for handling dice results from DLA (Phase B)
+ * @param {Function} callback - Called with (rollId, results)
+ */
+export function setDiceResultCallback(callback) {
+  diceResultCallback = callback;
+}
+
+/**
+ * Set callback for handling roll results from DLA (legacy/combined)
  * @param {Function} callback - Called with (rollId, results, configChanges, buttonClicked)
  */
 export function setRollResultCallback(callback) {
@@ -331,11 +365,91 @@ export function sendRollRequest(rollData) {
 }
 
 /**
- * Handle roll result from Dice Link App
+ * Send a dice request to the Dice Link App (Phase B)
+ * Called after Foundry has determined the actual dice needed
+ * @param {string} rollId - ID of the original roll request
+ * @param {Array} dice - Array of dice objects [{type: "d20", count: 2}, {type: "d6", count: 1}]
+ * @param {string} formula - The actual formula from Foundry
+ * @param {string} rollType - Type of roll (advantage, normal, disadvantage)
+ * @returns {string} Message ID
+ */
+export function sendDiceRequest(rollId, dice, formula, rollType) {
+  pendingDiceRequest = {
+    originalRollId: rollId,
+    dice,
+    formula,
+    rollType,
+    timestamp: Date.now()
+  };
+  
+  const message = {
+    type: "diceRequest",
+    originalRollId: rollId,
+    rollType: rollType || "normal",
+    formula: formula || "",
+    dice: dice || []
+  };
+  
+  return sendMessage(message);
+}
+
+/**
+ * Get the current pending dice request
+ * @returns {Object|null} Pending dice request or null
+ */
+export function getPendingDiceRequest() {
+  return pendingDiceRequest;
+}
+
+/**
+ * Clear the pending dice request
+ */
+export function clearPendingDiceRequest() {
+  pendingDiceRequest = null;
+}
+
+/**
+ * Handle button selection from Dice Link App (Phase A)
+ * User clicked Advantage/Normal/Disadvantage in DLA
+ * @param {Object} message - Button select message
+ */
+function handleButtonSelect(message) {
+  debugWebSocket("Processing button selection (Phase A)", message);
+  
+  if (buttonSelectCallback) {
+    buttonSelectCallback(
+      message.id || message.originalRollId,
+      message.button || "normal",
+      message.configChanges || {}
+    );
+  }
+}
+
+/**
+ * Handle dice result from Dice Link App (Phase B)
+ * User submitted actual dice values in DLA
+ * @param {Object} message - Dice result message
+ */
+function handleDiceResult(message) {
+  debugWebSocket("Processing dice result (Phase B)", message);
+  
+  if (diceResultCallback) {
+    diceResultCallback(
+      message.originalRollId || message.id,
+      message.results || []
+    );
+  }
+  
+  // Clear pending dice request
+  pendingDiceRequest = null;
+}
+
+/**
+ * Handle roll result from Dice Link App (legacy combined format)
  * @param {Object} message - Roll result message
  */
 function handleRollResult(message) {
-  debugWebSocket("Processing roll result", message);
+  debugWebSocket("Processing roll result (legacy)", message);
   
   if (rollResultCallback) {
     rollResultCallback(

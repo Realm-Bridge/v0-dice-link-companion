@@ -115,7 +115,12 @@ import {
   getConnectionStatus as getDLAConnectionStatus,
   onConnectionChange as onDLAConnectionChange,
   sendRollRequest,
+  sendDiceRequest,
+  setButtonSelectCallback,
+  setDiceResultCallback,
   setRollResultCallback,
+  getPendingDiceRequest,
+  clearPendingDiceRequest,
   extractRollDataForDLA
 } from "./websocket-client.js";
 
@@ -293,12 +298,17 @@ Hooks.once("ready", async () => {
       }
     });
     
-    // Handle roll results from Dice Link App
-    setRollResultCallback((rollId, results, configChanges, buttonClicked) => {
-      debug("Roll result from Dice Link App", { rollId, results, configChanges, buttonClicked });
+    // ========================================================================
+    // PHASE A: Button Selection from DLA
+    // User clicked a button (Advantage/Normal/Disadvantage) in DLA.
+    // We apply config changes and click the hidden Foundry dialog button.
+    // This triggers Foundry to process and show its dice resolver.
+    // ========================================================================
+    setButtonSelectCallback((rollId, buttonClicked, configChanges) => {
+      debug("Phase A: Button selection from DLA", { rollId, buttonClicked, configChanges });
       
       if (buttonClicked === "cancel") {
-        // Handle cancellation - trigger the cancel action on mirrored dialog
+        // Handle cancellation
         const dialogRef = getMirroredDialog();
         if (dialogRef?.app) {
           dialogRef.app.close();
@@ -322,13 +332,108 @@ Hooks.once("ready", async () => {
         }
       }
       
-      // TODO: When dice fulfillment is integrated, inject the dice results here
-      // For now, trigger the button click to let DLC's existing flow handle it
+      // Store the rollId for Phase B correlation
+      const pendingRoll = getPendingRollRequest();
+      if (pendingRoll) {
+        pendingRoll.dlaRollId = rollId;
+        pendingRoll.buttonClicked = buttonClicked;
+      }
+      
+      // Click the button on the hidden Foundry dialog
+      // This triggers Foundry to process the roll and show dice resolver
       if (buttonClicked && dialogRef?.data?.buttons) {
-        const pendingRoll = getPendingRollRequest();
-        if (pendingRoll?.onComplete) {
-          pendingRoll.onComplete(buttonClicked);
+        debug("Clicking hidden dialog button:", buttonClicked);
+        submitMirroredDialog({ buttonLabel: buttonClicked });
+      }
+    });
+    
+    // ========================================================================
+    // PHASE B: Dice Results from DLA
+    // User rolled dice and submitted results in DLA.
+    // We inject these values into Foundry's dice resolver.
+    // ========================================================================
+    setDiceResultCallback((rollId, results) => {
+      debug("Phase B: Dice results from DLA", { rollId, results });
+      
+      // Find the current dice resolver dialog
+      const dialogRef = getMirroredDialog();
+      if (!dialogRef) {
+        debug("No mirrored dialog found for dice results");
+        return;
+      }
+      
+      // Get the element to inject dice values into
+      let element;
+      if (dialogRef.html instanceof jQuery) {
+        element = dialogRef.html[0];
+      } else if (dialogRef.html?.element) {
+        element = dialogRef.html.element;
+      } else if (dialogRef.html instanceof HTMLElement) {
+        element = dialogRef.html;
+      } else if (dialogRef.data?.element) {
+        element = dialogRef.data.element;
+      }
+      
+      if (!element) {
+        debug("Could not find dialog element for dice injection");
+        return;
+      }
+      
+      // Inject dice values into the resolver inputs
+      // Foundry's RollResolver has inputs with data-die attribute
+      for (const result of results) {
+        const dieType = result.type?.toLowerCase(); // e.g., "d20"
+        const value = result.value;
+        
+        // Find input for this die type
+        const inputs = element.querySelectorAll(`input[data-die="${dieType}"], input[name*="${dieType}"]`);
+        for (const input of inputs) {
+          // Only fill empty inputs
+          if (!input.value) {
+            input.value = value;
+            input.dispatchEvent(new Event("change", { bubbles: true }));
+            input.dispatchEvent(new Event("input", { bubbles: true }));
+            debug("Injected dice value:", { dieType, value, input: input.name });
+            break; // Only fill one input per result
+          }
         }
+      }
+      
+      // After injecting all values, submit the resolver
+      // Small delay to let the UI update
+      setTimeout(() => {
+        const submitBtn = element.querySelector('button[type="submit"], button[data-action="submit"], .dialog-button.submit');
+        if (submitBtn) {
+          debug("Clicking resolver submit button");
+          submitBtn.click();
+        } else {
+          // Try clicking any OK/Submit button
+          const okBtn = Array.from(element.querySelectorAll('button')).find(btn => 
+            btn.textContent?.toLowerCase().includes('ok') || 
+            btn.textContent?.toLowerCase().includes('submit')
+          );
+          if (okBtn) {
+            debug("Clicking resolver OK button");
+            okBtn.click();
+          }
+        }
+        
+        // Clear state
+        clearPendingDiceRequest();
+        setMirroredDialog(null);
+        setPendingRollRequest(null);
+        refreshPanel();
+      }, 50);
+    });
+    
+    // Legacy handler for backward compatibility
+    setRollResultCallback((rollId, results, configChanges, buttonClicked) => {
+      debug("Legacy roll result from DLA (using two-phase handlers instead)", { rollId, buttonClicked });
+      // Forward to Phase A handler if results are empty (button select only)
+      // Otherwise this is a combined message from older DLA version
+      if (!results || results.length === 0) {
+        // Just button selection
+        setButtonSelectCallback && setButtonSelectCallback(rollId, buttonClicked, configChanges);
       }
     });
 
