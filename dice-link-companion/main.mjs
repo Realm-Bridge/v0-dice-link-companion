@@ -118,6 +118,7 @@ import {
   sendDiceRequest,
   setButtonSelectCallback,
   setDiceResultCallback,
+  setCancelCallback,
   setRollResultCallback,
   getPendingDiceRequest,
   clearPendingDiceRequest,
@@ -304,20 +305,41 @@ Hooks.once("ready", async () => {
     // We apply config changes and click the hidden Foundry dialog button.
     // This triggers Foundry to process and show its dice resolver.
     // ========================================================================
+    // ========================================================================
+    // CANCEL: Roll cancelled by user in DLA
+    // Close hidden Foundry dialog and clear all state
+    // ========================================================================
+    setCancelCallback((rollId) => {
+      debug("Roll cancelled by DLA user", { rollId });
+      
+      const dialogRef = getMirroredDialog();
+      
+      // Close the hidden Foundry dialog
+      if (dialogRef?.app) {
+        try {
+          dialogRef.app.close({ force: true });
+        } catch(e) {
+          debug("Error closing dialog app:", e);
+        }
+      }
+      
+      // Also try closing via the element directly
+      if (dialogRef?.html) {
+        const el = dialogRef.html instanceof jQuery ? dialogRef.html[0] : dialogRef.html;
+        const closeBtn = el?.querySelector?.('.window-header .close, button[data-action="close"]');
+        if (closeBtn) closeBtn.click();
+      }
+      
+      // Clear all pending state
+      setMirroredDialog(null);
+      setPendingRollRequest(null);
+      clearPendingDiceRequest();
+      setDiceEntryCancelled(true);
+      refreshPanel();
+    });
+
     setButtonSelectCallback((rollId, buttonClicked, configChanges) => {
       debug("Phase A: Button selection from DLA", { rollId, buttonClicked, configChanges });
-      
-      if (buttonClicked === "cancel") {
-        // Handle cancellation
-        const dialogRef = getMirroredDialog();
-        if (dialogRef?.app) {
-          dialogRef.app.close();
-        }
-        setMirroredDialog(null);
-        setPendingRollRequest(null);
-        refreshPanel();
-        return;
-      }
       
       // Apply config changes to the hidden dialog if any
       const dialogRef = getMirroredDialog();
