@@ -171,6 +171,17 @@ export function debugClonedButtonClick(action, data) {
 }
 
 /**
+ * Log WebSocket client events for Dice Link App communication
+ * @param {string} event - Event type (e.g., "connecting", "connected", "message", "error", "closed")
+ * @param {any} data - Associated data
+ */
+export function debugWebSocket(event, data) {
+  if (DEBUG_ENABLED) {
+    console.log("[Dice Link WebSocket]", event, data);
+  }
+}
+
+/**
  * Log element width measurements to debug stretching
  * @param {string} stage - Stage of measurement (e.g., "content area", "panel", "cloned dialog", "nav")
  * @param {HTMLElement} element - Element to measure

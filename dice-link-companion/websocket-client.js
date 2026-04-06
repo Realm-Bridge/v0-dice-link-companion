@@ -1,0 +1,422 @@
+/**
+ * WebSocket Client Module - Dice Link Companion
+ * Handles communication with the Dice Link App (DLA)
+ * 
+ * DLC acts as a WebSocket CLIENT connecting to DLA's server.
+ * This module manages connection state, message sending/receiving,
+ * and reconnection logic.
+ */
+
+import { 
+  MODULE_ID, 
+  DICE_LINK_APP_WS_URL,
+  DICE_LINK_APP_HOST,
+  DICE_LINK_APP_PORT
+} from "./constants.js";
+import { debugWebSocket, debugError } from "./debug.js";
+
+// ============================================================================
+// STATE
+// ============================================================================
+
+let socket = null;
+let isConnected = false;
+let reconnectAttempts = 0;
+let reconnectTimer = null;
+let messageQueue = []; // Queue messages if not connected
+let messageIdCounter = 0;
+let pendingResponses = new Map(); // Track pending roll results by ID
+
+// Configuration
+const MAX_RECONNECT_ATTEMPTS = 5;
+const RECONNECT_BASE_DELAY_MS = 1000;
+const RECONNECT_MAX_DELAY_MS = 30000;
+
+// Connection state listeners
+const connectionListeners = [];
+
+// ============================================================================
+// CONNECTION MANAGEMENT
+// ============================================================================
+
+/**
+ * Connect to the Dice Link App WebSocket server
+ * @returns {Promise<boolean>} True if connection successful
+ */
+export function connect() {
+  return new Promise((resolve) => {
+    if (socket && (socket.readyState === WebSocket.CONNECTING || socket.readyState === WebSocket.OPEN)) {
+      debugWebSocket("Already connected or connecting", { readyState: socket.readyState });
+      resolve(isConnected);
+      return;
+    }
+
+    debugWebSocket("Connecting", { url: DICE_LINK_APP_WS_URL });
+
+    try {
+      socket = new WebSocket(DICE_LINK_APP_WS_URL);
+
+      socket.onopen = () => {
+        debugWebSocket("Connected", { url: DICE_LINK_APP_WS_URL });
+        isConnected = true;
+        reconnectAttempts = 0;
+        
+        // Send connect message with client info
+        sendMessage({
+          type: "connect",
+          client: "dlc",
+          version: game.modules.get(MODULE_ID)?.version || "unknown",
+          user: {
+            id: game.user?.id,
+            name: game.user?.name,
+            isGM: game.user?.isGM
+          }
+        });
+
+        // Flush queued messages
+        flushMessageQueue();
+        
+        // Notify listeners
+        notifyConnectionListeners(true);
+        
+        resolve(true);
+      };
+
+      socket.onclose = (event) => {
+        debugWebSocket("Disconnected", { code: event.code, reason: event.reason, wasClean: event.wasClean });
+        isConnected = false;
+        socket = null;
+        
+        // Notify listeners
+        notifyConnectionListeners(false);
+        
+        // Attempt reconnect if not a clean close
+        if (!event.wasClean && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+          scheduleReconnect();
+        }
+        
+        resolve(false);
+      };
+
+      socket.onerror = (error) => {
+        debugWebSocket("Error", { error: error.message || "WebSocket error" });
+        // onclose will be called after onerror
+      };
+
+      socket.onmessage = (event) => {
+        handleMessage(event.data);
+      };
+
+    } catch (e) {
+      debugError("WebSocket connection failed:", e);
+      resolve(false);
+    }
+  });
+}
+
+/**
+ * Disconnect from the Dice Link App
+ */
+export function disconnect() {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  
+  reconnectAttempts = MAX_RECONNECT_ATTEMPTS; // Prevent auto-reconnect
+  
+  if (socket) {
+    debugWebSocket("Disconnecting", {});
+    socket.close(1000, "Client requested disconnect");
+    socket = null;
+  }
+  
+  isConnected = false;
+  notifyConnectionListeners(false);
+}
+
+/**
+ * Schedule a reconnection attempt with exponential backoff
+ */
+function scheduleReconnect() {
+  if (reconnectTimer) return;
+  
+  reconnectAttempts++;
+  const delay = Math.min(
+    RECONNECT_BASE_DELAY_MS * Math.pow(2, reconnectAttempts - 1),
+    RECONNECT_MAX_DELAY_MS
+  );
+  
+  debugWebSocket("Scheduling reconnect", { attempt: reconnectAttempts, delayMs: delay });
+  
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    connect();
+  }, delay);
+}
+
+/**
+ * Get current connection status
+ * @returns {boolean} True if connected
+ */
+export function getConnectionStatus() {
+  return isConnected;
+}
+
+/**
+ * Register a listener for connection state changes
+ * @param {Function} callback - Called with (isConnected) when state changes
+ * @returns {Function} Unsubscribe function
+ */
+export function onConnectionChange(callback) {
+  connectionListeners.push(callback);
+  return () => {
+    const index = connectionListeners.indexOf(callback);
+    if (index > -1) connectionListeners.splice(index, 1);
+  };
+}
+
+/**
+ * Notify all connection listeners of state change
+ */
+function notifyConnectionListeners(connected) {
+  for (const listener of connectionListeners) {
+    try {
+      listener(connected);
+    } catch (e) {
+      debugError("Error in connection listener:", e);
+    }
+  }
+}
+
+// ============================================================================
+// MESSAGE HANDLING
+// ============================================================================
+
+/**
+ * Send a message to the Dice Link App
+ * @param {Object} message - Message object to send
+ * @returns {string} Message ID for tracking
+ */
+export function sendMessage(message) {
+  // Add message ID and timestamp
+  const id = `dlc-${Date.now()}-${++messageIdCounter}`;
+  const fullMessage = {
+    ...message,
+    id,
+    timestamp: Date.now()
+  };
+
+  if (isConnected && socket && socket.readyState === WebSocket.OPEN) {
+    debugWebSocket("Sending", fullMessage);
+    socket.send(JSON.stringify(fullMessage));
+  } else {
+    debugWebSocket("Queueing (not connected)", fullMessage);
+    messageQueue.push(fullMessage);
+  }
+
+  return id;
+}
+
+/**
+ * Flush queued messages after reconnection
+ */
+function flushMessageQueue() {
+  if (messageQueue.length === 0) return;
+  
+  debugWebSocket("Flushing message queue", { count: messageQueue.length });
+  
+  const queue = [...messageQueue];
+  messageQueue = [];
+  
+  for (const message of queue) {
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify(message));
+    }
+  }
+}
+
+/**
+ * Handle incoming message from Dice Link App
+ * @param {string} data - Raw message data
+ */
+function handleMessage(data) {
+  try {
+    const message = JSON.parse(data);
+    debugWebSocket("Received", message);
+
+    switch (message.type) {
+      case "rollResult":
+        handleRollResult(message);
+        break;
+      case "rollCancelled":
+        handleRollCancelled(message);
+        break;
+      case "error":
+        handleErrorMessage(message);
+        break;
+      case "connected":
+        debugWebSocket("Server acknowledged connection", message);
+        break;
+      default:
+        debugWebSocket("Unknown message type", message);
+    }
+  } catch (e) {
+    debugError("Failed to parse message:", e, data);
+  }
+}
+
+// ============================================================================
+// ROLL REQUEST/RESULT HANDLING
+// ============================================================================
+
+// Callback for when roll results are received
+let rollResultCallback = null;
+
+/**
+ * Set callback for handling roll results from DLA
+ * @param {Function} callback - Called with (rollId, results, configChanges, buttonClicked)
+ */
+export function setRollResultCallback(callback) {
+  rollResultCallback = callback;
+}
+
+/**
+ * Send a roll request to the Dice Link App
+ * @param {Object} rollData - Roll data extracted from dialog
+ * @returns {string} Roll ID for tracking
+ */
+export function sendRollRequest(rollData) {
+  const message = {
+    type: "rollRequest",
+    player: {
+      id: game.user?.id,
+      name: game.user?.name
+    },
+    roll: {
+      title: rollData.title || "Roll",
+      subtitle: rollData.subtitle || "",
+      formula: rollData.formula || "",
+      dice: rollData.dice || []
+    },
+    config: {
+      fields: rollData.configFields || []
+    },
+    buttons: rollData.buttons || []
+  };
+
+  const id = sendMessage(message);
+  pendingResponses.set(id, { rollData, timestamp: Date.now() });
+  return id;
+}
+
+/**
+ * Handle roll result from Dice Link App
+ * @param {Object} message - Roll result message
+ */
+function handleRollResult(message) {
+  debugWebSocket("Processing roll result", message);
+  
+  if (rollResultCallback) {
+    rollResultCallback(
+      message.id,
+      message.results || [],
+      message.configChanges || {},
+      message.button || "normal"
+    );
+  }
+  
+  // Clean up pending response
+  pendingResponses.delete(message.id);
+}
+
+/**
+ * Handle roll cancellation from Dice Link App
+ * @param {Object} message - Cancellation message
+ */
+function handleRollCancelled(message) {
+  debugWebSocket("Roll cancelled", message);
+  
+  if (rollResultCallback) {
+    rollResultCallback(message.id, null, null, "cancel");
+  }
+  
+  pendingResponses.delete(message.id);
+}
+
+/**
+ * Handle error message from Dice Link App
+ * @param {Object} message - Error message
+ */
+function handleErrorMessage(message) {
+  debugError("Error from Dice Link App:", message.error || message.message);
+  ui.notifications?.warn(`Dice Link App: ${message.error || message.message}`);
+}
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+/**
+ * Extract roll data from mirrored dialog for sending to DLA
+ * @param {Object} dialogData - Data from setMirroredDialog
+ * @returns {Object} Formatted roll data for DLA
+ */
+export function extractRollDataForDLA(dialogData) {
+  const { data: formData, clonedHTML } = dialogData;
+  
+  // Extract dice from formula (basic parsing)
+  const dice = [];
+  const formulaMatch = formData?.formula?.match(/(\d*)d(\d+)/gi) || [];
+  for (const match of formulaMatch) {
+    const parts = match.toLowerCase().match(/(\d*)d(\d+)/);
+    if (parts) {
+      const count = parseInt(parts[1]) || 1;
+      const type = `d${parts[2]}`;
+      dice.push({ type, count });
+    }
+  }
+
+  // Extract config fields from form inputs
+  const configFields = [];
+  if (formData?.inputs) {
+    for (const [name, input] of Object.entries(formData.inputs)) {
+      if (input.type === "select-one" || input.options) {
+        configFields.push({
+          name,
+          label: name.charAt(0).toUpperCase() + name.slice(1).replace(/([A-Z])/g, ' $1'),
+          type: "select",
+          options: input.options || [],
+          selected: input.value
+        });
+      } else if (input.type === "text" || input.type === "number" || !input.type) {
+        configFields.push({
+          name,
+          label: name.charAt(0).toUpperCase() + name.slice(1).replace(/([A-Z])/g, ' $1'),
+          type: input.type || "text",
+          value: input.value || ""
+        });
+      }
+    }
+  }
+
+  // Extract buttons
+  const buttons = [];
+  if (formData?.buttons) {
+    for (const btn of formData.buttons) {
+      buttons.push({
+        id: btn.action || btn.label?.toLowerCase().replace(/\s+/g, '-') || `btn-${buttons.length}`,
+        label: btn.label
+      });
+    }
+  }
+
+  return {
+    title: formData?.title || "Roll",
+    subtitle: formData?.formula || "",
+    formula: formData?.formula || "",
+    dice,
+    configFields,
+    buttons
+  };
+}
