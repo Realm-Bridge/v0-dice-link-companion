@@ -40,6 +40,26 @@ const connectionListeners = [];
 // ============================================================================
 
 /**
+ * Manually reconnect to the Dice Link App (resets attempt counter)
+ * Useful for testing or if connection is stuck
+ * @returns {Promise<boolean>} True if connection successful
+ */
+export async function manualReconnect() {
+  debugWebSocket("Manual reconnect triggered");
+  reconnectAttempts = 0;
+  
+  // Close existing connection if any
+  if (socket) {
+    socket.close();
+    socket = null;
+    isConnected = false;
+  }
+  
+  // Attempt fresh connection
+  return connect();
+}
+
+/**
  * Connect to the Dice Link App WebSocket server
  * @returns {Promise<boolean>} True if connection successful
  */
