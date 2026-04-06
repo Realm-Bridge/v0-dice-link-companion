@@ -19,6 +19,11 @@ let pendingDiceEntry = null;
 let diceEntryCancelled = false;
 let mirroredDialog = null;
 
+// DLA communication phase tracking
+// Prevents duplicate rollRequests when dialog re-renders after button click
+// Phases: null (idle), "rollSent" (waiting for button), "buttonClicked" (waiting for resolver), "diceRequested" (waiting for results)
+let dlaPhase = null;
+
 // State change listeners
 const mirroredDialogListeners = [];
 
@@ -72,6 +77,14 @@ export function getDiceEntryCancelled() {
  */
 export function getMirroredDialog() {
   return mirroredDialog;
+}
+
+/**
+ * Get the current DLA communication phase
+ * @returns {string|null} Current phase: null, "rollSent", "buttonClicked", "diceRequested"
+ */
+export function getDLAPhase() {
+  return dlaPhase;
 }
 
 // ============================================================================
@@ -135,6 +148,14 @@ export function setMirroredDialog(value) {
   }
 }
 
+/**
+ * Set the DLA communication phase
+ * @param {string|null} phase - Phase: null, "rollSent", "buttonClicked", "diceRequested"
+ */
+export function setDLAPhase(phase) {
+  dlaPhase = phase;
+}
+
 
 
 /**
@@ -148,6 +169,7 @@ export function clearAllState() {
   pendingDiceEntry = null;
   diceEntryCancelled = false;
   mirroredDialog = null;
+  dlaPhase = null;
 }
 
 /**
