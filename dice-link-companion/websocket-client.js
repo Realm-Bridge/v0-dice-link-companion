@@ -305,6 +305,9 @@ let buttonSelectCallback = null;
 // Callback for when dice results are received (Phase B)
 let diceResultCallback = null;
 
+// Callback for when roll is cancelled by user in DLA
+let cancelCallback = null;
+
 // Legacy callback (for backward compatibility during transition)
 let rollResultCallback = null;
 
@@ -325,6 +328,14 @@ export function setButtonSelectCallback(callback) {
  */
 export function setDiceResultCallback(callback) {
   diceResultCallback = callback;
+}
+
+/**
+ * Set callback for handling roll cancellation from DLA
+ * @param {Function} callback - Called with (rollId)
+ */
+export function setCancelCallback(callback) {
+  cancelCallback = callback;
 }
 
 /**
@@ -446,18 +457,33 @@ function handleDiceResult(message) {
 
 /**
  * Handle roll result from Dice Link App (legacy combined format)
+ * DLA may still send this until it is updated to use buttonSelect + diceResult
  * @param {Object} message - Roll result message
  */
 function handleRollResult(message) {
   debugWebSocket("Processing roll result (legacy)", message);
   
+  const button = message.button || "normal";
+  const results = message.results || [];
+  const configChanges = message.configChanges || {};
+  
+  // If results are present, treat as Phase B (dice submitted)
+  if (results.length > 0 && diceResultCallback) {
+    debugWebSocket("Legacy rollResult has dice results - forwarding to diceResultCallback", results);
+    diceResultCallback(message.id, results);
+    return;
+  }
+  
+  // If no results, treat as Phase A (button selected only)
+  if (results.length === 0 && buttonSelectCallback) {
+    debugWebSocket("Legacy rollResult has no results - forwarding to buttonSelectCallback", button);
+    buttonSelectCallback(message.id, button, configChanges);
+    return;
+  }
+  
+  // Final fallback to legacy callback
   if (rollResultCallback) {
-    rollResultCallback(
-      message.id,
-      message.results || [],
-      message.configChanges || {},
-      message.button || "normal"
-    );
+    rollResultCallback(message.id, results, configChanges, button);
   }
   
   // Clean up pending response
@@ -471,11 +497,13 @@ function handleRollResult(message) {
 function handleRollCancelled(message) {
   debugWebSocket("Roll cancelled", message);
   
-  if (rollResultCallback) {
-    rollResultCallback(message.id, null, null, "cancel");
+  // Use dedicated cancel callback
+  if (cancelCallback) {
+    cancelCallback(message.id || message.originalRollId);
   }
   
   pendingResponses.delete(message.id);
+  pendingDiceRequest = null;
 }
 
 /**
