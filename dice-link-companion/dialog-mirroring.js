@@ -6,7 +6,7 @@
 import { getPlayerMode, getGlobalOverride, getCollapsedSections, setCollapsedSections } from "./settings.js";
 import { debug, debugError, debugState, debugResolverCancel, debugResolverClosure, debugCloning, debugButtonDetection } from "./debug.js";
 import { getConnectionStatus, sendDiceRequest, getPendingDiceRequest } from "./websocket-client.js";
-import { getMirroredDialog, setMirroredDialog, getPendingRollRequest, setPendingRollRequest, getCurrentPanelDialog } from "./state-management.js";
+import { getMirroredDialog, setMirroredDialog, getPendingRollRequest, setPendingRollRequest, getCurrentPanelDialog, setDLAPhase } from "./state-management.js";
 
 /**
  * Setup dialog mirroring - hook into ApplicationV2 and Dialog renders
@@ -514,6 +514,7 @@ function mirrorRollResolverToPanel(app, html, data) {
       
       debug("Sending dice request to DLA (Phase B)", { rollId, rollType, formula, dice: consolidatedDice });
       sendDiceRequest(rollId, consolidatedDice, formula, rollType);
+      setDLAPhase("diceRequested");
       
       // Hide resolver element since DLA will handle dice entry
       element.style.display = "none";

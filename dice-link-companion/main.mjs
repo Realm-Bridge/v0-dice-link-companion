@@ -36,12 +36,14 @@ import {
   getPendingDiceEntry,
   getDiceEntryCancelled,
   getMirroredDialog,
+  getDLAPhase,
   setPendingRollRequest,
   setHasRequestedThisSession,
   setCurrentPanelDialog,
   setPendingDiceEntry,
   setDiceEntryCancelled,
   setMirroredDialog,
+  setDLAPhase,
   clearAllState,
   resetUIState,
   hasPendingOperations,
@@ -280,9 +282,17 @@ Hooks.once("ready", async () => {
         
         // Also send to Dice Link App if connected
         if (getDLAConnectionStatus()) {
+          // Check if we're already in a DLA phase - don't send duplicate rollRequests
+          const currentPhase = getDLAPhase();
+          if (currentPhase && currentPhase !== null) {
+            debug("Skipping rollRequest - already in DLA phase:", currentPhase);
+            return;
+          }
+          
           const rollData = extractRollDataForDLA(dialogData);
           debug("Sending roll request to Dice Link App", rollData);
           sendRollRequest(rollData);
+          setDLAPhase("rollSent");
         }
       }
     });
@@ -335,11 +345,15 @@ Hooks.once("ready", async () => {
       setPendingRollRequest(null);
       clearPendingDiceRequest();
       setDiceEntryCancelled(true);
+      setDLAPhase(null);
       refreshPanel();
     });
 
     setButtonSelectCallback((rollId, buttonClicked, configChanges) => {
       debug("Phase A: Button selection from DLA", { rollId, buttonClicked, configChanges });
+      
+      // Set phase to buttonClicked - prevents sending duplicate rollRequests
+      setDLAPhase("buttonClicked");
       
       // Apply config changes to the hidden dialog if any
       const dialogRef = getMirroredDialog();
@@ -444,6 +458,7 @@ Hooks.once("ready", async () => {
         clearPendingDiceRequest();
         setMirroredDialog(null);
         setPendingRollRequest(null);
+        setDLAPhase(null);
         refreshPanel();
       }, 50);
     });
