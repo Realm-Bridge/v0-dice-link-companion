@@ -80,7 +80,7 @@
 └─────────────────────────────────────────────────────────────┘
          ▲
          │ WebSocket Connection
-         │ (ws://localhost:8765)
+         │ (ws://localhost:47293)
          ▼
 ┌─────────────────────────────────────────────────────────────┐
 │              FOUNDRY VTT + DLC (External System)            │
@@ -332,7 +332,7 @@ The app should display:
 
 ### Settings Panel
 
-- **WebSocket Settings**: Host (default: localhost) and port (default: 8765)
+- **WebSocket Settings**: Host (default: localhost) and port (default: 47293)
 - **Camera Selection**: Choose which camera to use
 - **Detection Calibration**: Sensitivity settings (future phase)
 - **UI Theme**: Light/dark mode toggle
@@ -352,7 +352,7 @@ The app should display:
 
 > **IMPORTANT: Must be built as a desktop application from the start.** Use PyWebView to open a native application window. The app must launch like any other desktop program - double-click to open, shows its own window, no browser required.
 
-- FastAPI WebSocket server on port 8765 (runs internally, user never sees a URL)
+- FastAPI WebSocket server on port 47293 (runs internally, user never sees a URL)
 - PyWebView desktop window displaying the HTML/CSS/JavaScript UI
 - Connection status display (waiting for DLC to connect)
 - Receive rollRequest messages from DLC
@@ -512,7 +512,7 @@ When starting development in a new chat, begin with Phase 1:
 
 "Create a Python desktop application called 'Dice Link' that:
 1. Opens as a native desktop window using PyWebView (NOT a browser or localhost URL)
-2. Runs a FastAPI WebSocket server on port 8765 internally
+2. Runs a FastAPI WebSocket server on port 47293 internally
 3. Displays the HTML/CSS/JavaScript UI inside the PyWebView window
 4. Accepts WebSocket connections from DLC clients
 5. Displays connection status in the UI

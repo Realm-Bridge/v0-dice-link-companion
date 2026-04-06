@@ -109,6 +109,16 @@ import {
   setManualRollsPermission
 } from "./settings-helpers.js";
 
+import {
+  connect as connectToDLA,
+  disconnect as disconnectFromDLA,
+  getConnectionStatus as getDLAConnectionStatus,
+  onConnectionChange as onDLAConnectionChange,
+  sendRollRequest,
+  setRollResultCallback,
+  extractRollDataForDLA
+} from "./websocket-client.js";
+
 // ============================================================================
 // CUSTOM APPLICATION CLASS (ApplicationV2 for Foundry V13+)
 // ============================================================================
@@ -261,6 +271,64 @@ Hooks.once("ready", async () => {
     onMirroredDialogChange((dialogData) => {
       if (dialogData && dialogData.data) {
         handleMirroredDialogChange(dialogData, submitMirroredDialog, refreshPanel, openPanel);
+        
+        // Also send to Dice Link App if connected
+        if (getDLAConnectionStatus()) {
+          const rollData = extractRollDataForDLA(dialogData);
+          debug("Sending roll request to Dice Link App", rollData);
+          sendRollRequest(rollData);
+        }
+      }
+    });
+    
+    // Setup Dice Link App WebSocket connection
+    debug("Attempting to connect to Dice Link App...");
+    connectToDLA();
+    
+    // Handle connection status changes
+    onDLAConnectionChange((connected) => {
+      debug("Dice Link App connection status:", connected ? "connected" : "disconnected");
+      if (connected) {
+        ui.notifications?.info("Connected to Dice Link App");
+      }
+    });
+    
+    // Handle roll results from Dice Link App
+    setRollResultCallback((rollId, results, configChanges, buttonClicked) => {
+      debug("Roll result from Dice Link App", { rollId, results, configChanges, buttonClicked });
+      
+      if (buttonClicked === "cancel") {
+        // Handle cancellation - trigger the cancel action on mirrored dialog
+        const dialogRef = getMirroredDialog();
+        if (dialogRef?.app) {
+          dialogRef.app.close();
+        }
+        setMirroredDialog(null);
+        setPendingRollRequest(null);
+        refreshPanel();
+        return;
+      }
+      
+      // Apply config changes to the hidden dialog if any
+      const dialogRef = getMirroredDialog();
+      if (dialogRef && configChanges && Object.keys(configChanges).length > 0) {
+        const originalHtml = dialogRef.html instanceof jQuery ? dialogRef.html : $(dialogRef.html);
+        for (const [name, value] of Object.entries(configChanges)) {
+          const input = originalHtml.find(`[name="${name}"]`);
+          if (input.length > 0) {
+            input.val(value);
+            input[0].dispatchEvent(new Event("change", { bubbles: true }));
+          }
+        }
+      }
+      
+      // TODO: When dice fulfillment is integrated, inject the dice results here
+      // For now, trigger the button click to let DLC's existing flow handle it
+      if (buttonClicked && dialogRef?.data?.buttons) {
+        const pendingRoll = getPendingRollRequest();
+        if (pendingRoll?.onComplete) {
+          pendingRoll.onComplete(buttonClicked);
+        }
       }
     });
 
@@ -294,5 +362,9 @@ globalThis.DiceLinkCompanion = {
   applyManual: applyManualDice,
   applyDigital: applyDigitalDice,
   requestManual: playerRequestManual,
-  switchToDigital: playerSwitchToDigital
+  switchToDigital: playerSwitchToDigital,
+  // Dice Link App connection
+  connectToDLA,
+  disconnectFromDLA,
+  getDLAConnectionStatus
 };
