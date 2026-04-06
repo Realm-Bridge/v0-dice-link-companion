@@ -391,66 +391,91 @@ Hooks.once("ready", async () => {
     setDiceResultCallback((rollId, results) => {
       debug("Phase B: Dice results from DLA", { rollId, results });
       
-      // Find the current dice resolver dialog
-      const dialogRef = getMirroredDialog();
-      if (!dialogRef) {
-        debug("No mirrored dialog found for dice results");
+      // Find the Foundry roll resolver in the DOM
+      // The resolver is a SEPARATE dialog from the roll configuration we mirrored
+      // It appears after clicking Advantage/Normal/Disadvantage button
+      const resolver = document.querySelector('.roll-resolver, [data-application-part="resolver"], dialog.application');
+      
+      if (!resolver) {
+        debug("No roll resolver found in DOM for dice injection");
+        // Clear state anyway
+        clearPendingDiceRequest();
+        setMirroredDialog(null);
+        setPendingRollRequest(null);
+        setDLAPhase(null);
+        refreshPanel();
         return;
       }
       
-      // Get the element to inject dice values into
-      let element;
-      if (dialogRef.html instanceof jQuery) {
-        element = dialogRef.html[0];
-      } else if (dialogRef.html?.element) {
-        element = dialogRef.html.element;
-      } else if (dialogRef.html instanceof HTMLElement) {
-        element = dialogRef.html;
-      } else if (dialogRef.data?.element) {
-        element = dialogRef.data.element;
-      }
+      debug("Found resolver element", { 
+        tagName: resolver.tagName, 
+        className: resolver.className,
+        innerHTML_length: resolver.innerHTML?.length 
+      });
       
-      if (!element) {
-        debug("Could not find dialog element for dice injection");
-        return;
-      }
+      // Find all dice input fields in the resolver
+      // Foundry's RollResolver uses various input patterns
+      const allInputs = resolver.querySelectorAll('input[type="text"], input[type="number"], input:not([type])');
+      debug("Found inputs in resolver", { 
+        count: allInputs.length, 
+        inputs: Array.from(allInputs).map(i => ({ name: i.name, value: i.value, placeholder: i.placeholder }))
+      });
       
       // Inject dice values into the resolver inputs
-      // Foundry's RollResolver has inputs with data-die attribute
-      for (const result of results) {
-        const dieType = result.type?.toLowerCase(); // e.g., "d20"
-        const value = result.value;
+      let resultIndex = 0;
+      for (const input of allInputs) {
+        // Skip inputs that already have values or are hidden
+        if (input.value || input.type === 'hidden' || getComputedStyle(input).display === 'none') {
+          continue;
+        }
         
-        // Find input for this die type
-        const inputs = element.querySelectorAll(`input[data-die="${dieType}"], input[name*="${dieType}"]`);
-        for (const input of inputs) {
-          // Only fill empty inputs
-          if (!input.value) {
-            input.value = value;
-            input.dispatchEvent(new Event("change", { bubbles: true }));
-            input.dispatchEvent(new Event("input", { bubbles: true }));
-            debug("Injected dice value:", { dieType, value, input: input.name });
-            break; // Only fill one input per result
-          }
+        // Get next result value
+        if (resultIndex < results.length) {
+          const result = results[resultIndex];
+          const value = result.value;
+          
+          input.value = value;
+          input.dispatchEvent(new Event("input", { bubbles: true }));
+          input.dispatchEvent(new Event("change", { bubbles: true }));
+          debug("Injected dice value:", { value, inputName: input.name, inputIndex: resultIndex });
+          resultIndex++;
         }
       }
+      
+      debug("Injection complete", { injectedCount: resultIndex, totalResults: results.length });
       
       // After injecting all values, submit the resolver
       // Small delay to let the UI update
       setTimeout(() => {
-        const submitBtn = element.querySelector('button[type="submit"], button[data-action="submit"], .dialog-button.submit');
+        // Look for submit button in resolver
+        const submitBtn = resolver.querySelector(
+          'button[type="submit"], ' +
+          'button[data-action="submit"], ' +
+          'button[data-action="fulfill"], ' +
+          '.dialog-button.submit, ' +
+          'button.submit'
+        );
+        
         if (submitBtn) {
-          debug("Clicking resolver submit button");
+          debug("Clicking resolver submit button", { buttonText: submitBtn.textContent });
           submitBtn.click();
         } else {
-          // Try clicking any OK/Submit button
-          const okBtn = Array.from(element.querySelectorAll('button')).find(btn => 
-            btn.textContent?.toLowerCase().includes('ok') || 
-            btn.textContent?.toLowerCase().includes('submit')
-          );
-          if (okBtn) {
-            debug("Clicking resolver OK button");
-            okBtn.click();
+          // Try form submit
+          const form = resolver.querySelector('form');
+          if (form) {
+            debug("Submitting resolver form directly");
+            form.requestSubmit();
+          } else {
+            // Last resort - find any button that looks like submit
+            const anyBtn = Array.from(resolver.querySelectorAll('button')).find(btn => 
+              btn.textContent?.toLowerCase().includes('submit') || 
+              btn.textContent?.toLowerCase().includes('ok') ||
+              btn.textContent?.toLowerCase().includes('roll')
+            );
+            if (anyBtn) {
+              debug("Clicking fallback button", { buttonText: anyBtn.textContent });
+              anyBtn.click();
+            }
           }
         }
         
@@ -460,7 +485,7 @@ Hooks.once("ready", async () => {
         setPendingRollRequest(null);
         setDLAPhase(null);
         refreshPanel();
-      }, 50);
+      }, 100);
     });
     
     // Legacy handler for backward compatibility
