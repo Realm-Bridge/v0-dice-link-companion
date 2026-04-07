@@ -12,7 +12,11 @@ import {
   setDiceEntryCancelled,
   getMirroredDialog,
   setMirroredDialog,
-  setDLAPhase
+  setDLAPhase,
+  getPendingDiceEntry,
+  setPendingDiceEntry,
+  getPendingRollRequest,
+  setPendingRollRequest
 } from "./state-management.js";
 import { clearPendingDiceRequest } from "./websocket-client.js";
 import {
