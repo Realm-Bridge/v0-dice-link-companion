@@ -9,8 +9,12 @@ import { debug, debugState, debugError, debugPanelInjection, debugComputedStyles
 import { 
   getCurrentPanelDialog, 
   setCurrentPanelDialog,
-  setDiceEntryCancelled
+  setDiceEntryCancelled,
+  getMirroredDialog,
+  setMirroredDialog,
+  setDLAPhase
 } from "./state-management.js";
+import { clearPendingDiceRequest } from "./websocket-client.js";
 import {
   manualReconnect
 } from "./websocket-client.js";
@@ -682,6 +686,22 @@ export function attachDiceTrayListeners(html) {
     // Set cancellation flag to prevent further dice prompts
     setDiceEntryCancelled(true);
     
+    // Close the hidden mirrored Foundry dialog (same as DLA cancel)
+    const dialogRef = getMirroredDialog();
+    if (dialogRef?.app) {
+      try {
+        dialogRef.app.close({ force: true });
+      } catch(e) {
+        debug("Error closing dialog app:", e);
+      }
+    }
+    // Also try closing via the element directly
+    if (dialogRef?.html) {
+      const el = dialogRef.html instanceof jQuery ? dialogRef.html[0] : dialogRef.html;
+      const closeBtn = el?.querySelector?.('.window-header .close, button[data-action="close"]');
+      if (closeBtn) closeBtn.click();
+    }
+    
     // Handle dice entry cancellation
     const currentDiceEntry = getPendingDiceEntry();
     debugState("Current dice entry", currentDiceEntry);
@@ -699,7 +719,12 @@ export function attachDiceTrayListeners(html) {
       currentRollRequest.onComplete("cancel");
     }
     
+    // Clear all pending state (same cleanup as DLA cancel)
+    setMirroredDialog(null);
     setPendingRollRequest(null);
+    clearPendingDiceRequest();
+    setDLAPhase(null);
+    
     refreshPanel();
     ui.notifications.info("Roll cancelled.");
   });
