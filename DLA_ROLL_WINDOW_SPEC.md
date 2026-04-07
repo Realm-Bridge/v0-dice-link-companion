@@ -1,10 +1,12 @@
 # DLA Roll Window Implementation Specification
 
 ## Overview
-Add a permanent "Roll Window" to DLA's main page that displays one of three states:
+Add a permanent "Roll Window" section to DLA's dashboard that displays one of three internal states:
 1. **Dice Tray** (idle) - Basic dice buttons when no roll is pending
 2. **Roll Request** (config) - Shows roll details and action buttons when DLC sends a roll
-3. **Dice Entry** (resolution) - SVG dice clicking to enter results when DLC requests dice values
+3. **Dice Entry** (resolution) - Input fields to enter dice results when DLC requests dice values
+
+**Important:** This is a dashboard layout - the Roll Window is ONE section that remains visible alongside other sections (camera feed, connection status, settings, etc.). Only the Roll Window's internal content changes between states.
 
 ## Integration with Existing DLA Patterns
 
@@ -22,8 +24,8 @@ const state = {
 };
 ```
 
-### Panel Integration
-The Roll Window should be a **permanent visible section** on the main page (not a panel that hides/shows). It contains three sub-states that swap content:
+### Dashboard Integration
+The Roll Window is a **permanent visible section** on the dashboard (not a full-page panel swap). It sits alongside other dashboard sections. Only its internal content changes between the three states:
 
 ```javascript
 function updateRollWindow(newState) {
