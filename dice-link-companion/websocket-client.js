@@ -543,10 +543,38 @@ export function extractRollDataForDLA(dialogData) {
   const configFields = [];
   if (formData?.inputs) {
     for (const [name, input] of Object.entries(formData.inputs)) {
+      // Generate human-readable label from field name
+      // Handles: "roll.0.situational" -> "Situational Bonus"
+      //          "rollMode" -> "Roll Mode"
+      //          "ability" -> "Ability"
+      const generateLabel = (fieldName) => {
+        // Known field name mappings
+        const labelMap = {
+          'situational': 'Situational Bonus',
+          'rollMode': 'Roll Mode',
+          'ability': 'Ability',
+          'skill': 'Skill',
+          'tool': 'Tool',
+          'dc': 'DC',
+          'flavor': 'Flavor Text'
+        };
+        
+        // Extract the last part of dotted names (e.g., "roll.0.situational" -> "situational")
+        const baseName = fieldName.includes('.') ? fieldName.split('.').pop() : fieldName;
+        
+        // Check if we have a known mapping
+        if (labelMap[baseName]) {
+          return labelMap[baseName];
+        }
+        
+        // Otherwise, convert camelCase to Title Case
+        return baseName.charAt(0).toUpperCase() + baseName.slice(1).replace(/([A-Z])/g, ' $1');
+      };
+      
       if (input.type === "select-one" || input.options) {
         configFields.push({
           name,
-          label: name.charAt(0).toUpperCase() + name.slice(1).replace(/([A-Z])/g, ' $1'),
+          label: generateLabel(name),
           type: "select",
           options: input.options || [],
           selected: input.value
@@ -554,7 +582,7 @@ export function extractRollDataForDLA(dialogData) {
       } else if (input.type === "text" || input.type === "number" || !input.type) {
         configFields.push({
           name,
-          label: name.charAt(0).toUpperCase() + name.slice(1).replace(/([A-Z])/g, ' $1'),
+          label: generateLabel(name),
           type: input.type || "text",
           value: input.value || ""
         });
