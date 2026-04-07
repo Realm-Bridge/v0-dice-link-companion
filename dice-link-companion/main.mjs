@@ -122,6 +122,7 @@ import {
   setDiceResultCallback,
   setCancelCallback,
   setRollResultCallback,
+  setDiceTrayRollCallback,
   getPendingDiceRequest,
   clearPendingDiceRequest,
   extractRollDataForDLA
@@ -315,6 +316,26 @@ Hooks.once("ready", async () => {
     // We apply config changes and click the hidden Foundry dialog button.
     // This triggers Foundry to process and show its dice resolver.
     // ========================================================================
+    // ========================================================================
+    // DICE TRAY ROLL: DLA's dice tray initiated a roll
+    // Execute the formula in Foundry - this will trigger the normal flow
+    // (Foundry shows resolver -> we mirror -> send diceRequest -> etc)
+    // ========================================================================
+    setDiceTrayRollCallback(async (formula, flavor) => {
+      debug("Dice tray roll from DLA", { formula, flavor });
+      
+      try {
+        // Execute the roll using Foundry's native system
+        // This triggers the normal fulfillment flow - Foundry will show
+        // its resolver, our hooks will hide/mirror it, and we'll send
+        // a diceRequest to DLA for the physical dice values
+        await executeDiceTrayRollManually(formula, flavor, null);
+      } catch (e) {
+        debug("Error executing dice tray roll:", e);
+        ui.notifications?.error(`Dice roll error: ${e.message}`);
+      }
+    });
+
     // ========================================================================
     // CANCEL: Roll cancelled by user in DLA
     // Close hidden Foundry dialog and clear all state

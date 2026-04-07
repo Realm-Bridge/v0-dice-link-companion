@@ -281,6 +281,10 @@ function handleMessage(data) {
       case "rollCancelled":
         handleRollCancelled(message);
         break;
+      case "diceTrayRoll":
+        // DLA dice tray initiated a roll
+        handleDiceTrayRoll(message);
+        break;
       case "error":
         handleErrorMessage(message);
         break;
@@ -307,6 +311,9 @@ let diceResultCallback = null;
 
 // Callback for when roll is cancelled by user in DLA
 let cancelCallback = null;
+
+// Callback for when DLA dice tray initiates a roll
+let diceTrayRollCallback = null;
 
 // Legacy callback (for backward compatibility during transition)
 let rollResultCallback = null;
@@ -344,6 +351,14 @@ export function setCancelCallback(callback) {
  */
 export function setRollResultCallback(callback) {
   rollResultCallback = callback;
+}
+
+/**
+ * Set callback for handling dice tray rolls from DLA
+ * @param {Function} callback - Called with (formula, flavor)
+ */
+export function setDiceTrayRollCallback(callback) {
+  diceTrayRollCallback = callback;
 }
 
 /**
@@ -513,6 +528,29 @@ function handleRollCancelled(message) {
 function handleErrorMessage(message) {
   debugError("Error from Dice Link App:", message.error || message.message);
   ui.notifications?.warn(`Dice Link App: ${message.error || message.message}`);
+}
+
+/**
+ * Handle dice tray roll from Dice Link App
+ * DLA's dice tray initiated a roll - execute it in Foundry
+ * @param {Object} message - Dice tray roll message with formula and flavor
+ */
+function handleDiceTrayRoll(message) {
+  debugWebSocket("Dice tray roll from DLA", message);
+  
+  const formula = message.formula;
+  const flavor = message.flavor || "Manual Dice Roll";
+  
+  if (!formula) {
+    debugError("No formula in diceTrayRoll message");
+    return;
+  }
+  
+  if (diceTrayRollCallback) {
+    diceTrayRollCallback(formula, flavor);
+  } else {
+    debugError("No diceTrayRollCallback registered");
+  }
 }
 
 // ============================================================================
