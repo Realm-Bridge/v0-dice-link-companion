@@ -20,9 +20,10 @@ Add these CSS variables to `style.css`. These are the Realm Bridge brand colors 
   --dlc-bg-section: #2a3547;
   --dlc-bg-input: #181f2b;
   
-  /* Border and accent */
+  /* Border and accent - purple/pink Realm Bridge brand colors */
   --dlc-border: #6f2e9a;
-  --dlc-accent: #6f2e9a;
+  --dlc-accent: #6f2e9a;           /* Purple - primary accent */
+  --dlc-accent-pink: #a78bfa;      /* Pink/violet - used in gradients and highlights */
   --dlc-accent-hover: #5d9eca;
   --dlc-accent-glow: rgba(111, 46, 154, 0.3);
   
@@ -35,8 +36,19 @@ Add these CSS variables to `style.css`. These are the Realm Bridge brand colors 
   --dlc-success: #10b981;
   --dlc-success-hover: #34d399;
   --dlc-warning: #D5D5D6;
+  --dlc-warning-hover: #e8e8e8;
   --dlc-danger: #ef4444;
   --dlc-danger-hover: #f87171;
+  
+  /* Mode colors */
+  --dlc-digital: #6366f1;
+  --dlc-manual: #10b981;
+  --dlc-individual: #6366f1;
+}
+
+/* The purple-to-pink gradient used on header/accent elements */
+.gradient-accent {
+  background: linear-gradient(90deg, var(--dlc-accent) 0%, var(--dlc-accent-pink) 100%);
 }
 ```
 
@@ -330,12 +342,22 @@ const diceTrayState = {
 };
 
 function initDiceTray() {
-  // Dice button clicks - add dice to formula
+  // Dice button left-click - add one die to formula
   document.querySelectorAll('.dice-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const die = parseInt(btn.dataset.die);
       diceTrayState.dice[die]++;
       updateDiceTrayDisplay();
+    });
+    
+    // Dice button right-click - subtract one die from formula (matches DLC behavior)
+    btn.addEventListener('contextmenu', (e) => {
+      e.preventDefault(); // Prevent browser context menu
+      const die = parseInt(btn.dataset.die);
+      if (diceTrayState.dice[die] > 0) {
+        diceTrayState.dice[die]--;
+        updateDiceTrayDisplay();
+      }
     });
   });
   
@@ -775,7 +797,8 @@ function handleDiceRequest(message) {
 
 1. **Idle State:**
    - [ ] Dice tray displays with all 7 dice type buttons
-   - [ ] Clicking dice adds to formula
+   - [ ] Left-click adds one die to formula
+   - [ ] Right-click subtracts one die from formula (minimum 0)
    - [ ] +/- modifier buttons work
    - [ ] ADV/DIS toggle cycles through states
    - [ ] Roll button builds and sends formula
@@ -789,6 +812,8 @@ function handleDiceRequest(message) {
    - [ ] Returns to idle after submit
 
 3. **Visual:**
-   - [ ] Colors match DLC (purple accent, dark backgrounds)
+   - [ ] Purple accent color `#6f2e9a` used on borders and highlights
+   - [ ] Pink/violet `#a78bfa` used in gradients
+   - [ ] Dark backgrounds `#212a37` / `#2a3547` / `#181f2b`
    - [ ] SVG dice display correctly
    - [ ] Hover/selected states visible
