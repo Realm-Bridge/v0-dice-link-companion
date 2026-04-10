@@ -2,15 +2,15 @@
 
 ## Overview
 
-Move the Player Modes functionality from DLC to DLA. This section displays connected players and their dice rolling mode (digital/manual/pending), and provides GM controls for managing player permissions.
+Move the Player Modes functionality from DLC to DLA. This section displays all connected users (including GM) and their dice rolling mode (digital/manual/pending), and provides GM controls for managing player permissions.
 
-**Important:** DLA already receives `isGM` from DLC's connect message. Use this to show/hide GM-only controls.
+**Important:** DLA already receives `isGM` from DLC's connect message. Use this to show/hide GM-only controls (approve/deny buttons).
 
 ## Communication Requirements
 
 ### New Messages from DLC to DLA
 
-DLC sends player mode data to DLA when connecting and whenever modes change:
+DLC sends player mode data to DLA when connecting and whenever modes change. **The `players` array includes all users - both players and the GM - so everyone can see each other's modes:**
 
 ```json
 {
@@ -18,18 +18,28 @@ DLC sends player mode data to DLA when connecting and whenever modes change:
   "globalOverride": "individual",  // "individual" | "forceAllManual" | "forceAllDigital" (read-only in DLA)
   "players": [
     {
-      "id": "player123",
-      "name": "Alice",
+      "id": "gm123",
+      "name": "Gamemaster",
       "mode": "manual",           // "digital" | "manual"
       "storedMode": "manual",     // Original mode before override
-      "isPending": false
+      "isPending": false,
+      "isGM": true                // Indicates this is the GM (optional, for display purposes)
+    },
+    {
+      "id": "player123",
+      "name": "Alice",
+      "mode": "manual",
+      "storedMode": "manual",
+      "isPending": false,
+      "isGM": false
     },
     {
       "id": "player456", 
       "name": "Bob",
       "mode": "digital",
       "storedMode": "digital",
-      "isPending": true
+      "isPending": true,
+      "isGM": false
     }
   ],
   "pendingRequests": [
