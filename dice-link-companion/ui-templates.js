@@ -280,7 +280,7 @@ export function generateGMPanelContent() {
 
   const players = [];
   for (const user of game.users) {
-    if (user.isGM) continue;
+    // Include all users (including GM) so everyone can see each other's modes
     const storedMode = getPlayerMode(user.id);
     const isPending = pendingRequests.some(req => req.playerId === user.id);
     
@@ -472,7 +472,7 @@ export function generatePlayerPanelContent() {
 
   const players = [];
   for (const user of game.users) {
-    if (user.isGM) continue;
+    // Include all users (including GM) so everyone can see each other's modes
     const storedMode = getPlayerMode(user.id);
     const isPendingRaw = pendingRequests.some(req => req.playerId === user.id);
     let effectiveMode = storedMode;
