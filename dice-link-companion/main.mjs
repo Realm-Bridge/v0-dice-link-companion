@@ -546,11 +546,12 @@ Hooks.once("ready", async () => {
       const sendPlayerModes = () => {
         const players = [];
         for (const user of game.users) {
-          if (user.id === game.user?.id) continue; // Skip self
+          // Include everyone (including GM) so all users can see each other's modes
           players.push({
             id: user.id,
             name: user.name,
-            mode: getPlayerMode(user.id)
+            mode: getPlayerMode(user.id),
+            isGM: user.isGM
           });
         }
         const globalOverride = getGlobalOverride();

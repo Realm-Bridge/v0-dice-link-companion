@@ -10,28 +10,26 @@ Move the Player Modes functionality from DLC to DLA. This section displays conne
 
 ### New Messages from DLC to DLA
 
-DLC needs to send player mode data to DLA. Add handling for:
+DLC sends player mode data to DLA when connecting and whenever modes change:
 
 ```json
 {
   "type": "playerModesUpdate",
-  "globalOverride": "individual",  // "individual" | "forceAllManual" | "forceAllDigital"
+  "globalOverride": "individual",  // "individual" | "forceAllManual" | "forceAllDigital" (read-only in DLA)
   "players": [
     {
       "id": "player123",
       "name": "Alice",
       "mode": "manual",           // "digital" | "manual"
       "storedMode": "manual",     // Original mode before override
-      "isPending": false,
-      "canRevoke": true           // GM can revoke manual access
+      "isPending": false
     },
     {
       "id": "player456", 
       "name": "Bob",
       "mode": "digital",
       "storedMode": "digital",
-      "isPending": true,
-      "canRevoke": false
+      "isPending": true
     }
   ],
   "pendingRequests": [
@@ -42,7 +40,7 @@ DLC needs to send player mode data to DLA. Add handling for:
 
 ### New Messages from DLA to DLC
 
-When GM takes action in DLA:
+**Only for approval/denial of pending requests. Global override is controlled in DLC settings only.**
 
 ```json
 // Approve manual dice request
@@ -50,12 +48,6 @@ When GM takes action in DLA:
 
 // Deny manual dice request  
 { "type": "playerModeAction", "action": "deny", "playerId": "player456" }
-
-// Revoke manual access
-{ "type": "playerModeAction", "action": "revoke", "playerId": "player123" }
-
-// Change global override (GM only)
-{ "type": "globalOverrideChange", "override": "forceAllManual" }
 ```
 
 ---
@@ -95,7 +87,6 @@ const state = {
       <span class="legend-item"><span class="mode-dot digital"></span>Digital</span>
       <span class="legend-item"><span class="mode-dot manual"></span>Manual</span>
       <span class="legend-item"><span class="mode-dot pending"></span>Pending</span>
-      <span class="legend-item" id="revoke-legend" style="display: none;"><span class="revoke-dot"></span>Revoke</span>
     </div>
     
     <!-- Pending Requests (GM only) -->
@@ -144,15 +135,13 @@ const state = {
   </div>
 </div>
 
-<!-- Player card with revoke button (GM only, when canRevoke is true) -->
-<div class="player-card player-card-revokable">
+<!-- Player card (simple - no revoke) -->
+<div class="player-card">
   <div class="player-info">
     <span class="mode-dot manual"></span>
     <span class="player-name">Alice</span>
   </div>
-  <button class="revoke-corner revoke-btn" data-player-id="player123" title="Revoke manual dice">
-    <i class="fas fa-times"></i>
-  </button>
+  <div class="player-status">Manual</div>
 </div>
 ```
 
@@ -244,13 +233,24 @@ Uses the same color variables from DLC (already in DLA from previous specs):
 }
 
 /* Revoke dot in legend */
-.revoke-dot {
+.mode-dot {
   display: inline-block;
-  width: 8px;
-  height: 8px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  background: var(--dlc-warning);
-  position: relative;
+  margin-right: 8px;
+}
+
+.mode-dot.digital {
+  background-color: var(--dlc-digital, #6366f1);
+}
+
+.mode-dot.manual {
+  background-color: var(--dlc-manual, #10b981);
+}
+
+.mode-dot.pending {
+  background-color: var(--dlc-warning, #D5D5D6);
 }
 
 .revoke-dot::after {
@@ -327,17 +327,33 @@ Uses the same color variables from DLC (already in DLA from previous specs):
 }
 
 .player-card {
+  background-color: var(--dlc-bg-section, #2a3547);
+  border: 1px solid var(--dlc-border, #6f2e9a);
+  border-radius: 4px;
+  padding: 12px;
   display: flex;
-  flex-direction: row;
-  justify-content: space-between;
   align-items: center;
-  padding: 0 12px;
-  background: var(--dlc-bg-input);
-  border: 1px solid var(--dlc-border);
-  border-radius: 6px;
-  transition: border-color 0.2s ease;
-  box-sizing: border-box;
-  overflow: hidden;
+  justify-content: space-between;
+}
+
+.player-card:hover {
+  border-color: var(--dlc-accent-pink, #a78bfa);
+}
+
+.player-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.player-name {
+  color: var(--dlc-text-primary, #e7f6ff);
+  font-weight: 500;
+}
+
+.player-status {
+  color: var(--dlc-text-secondary, #a0a0b0);
+  font-size: 12px;
 }
 
 .player-card:hover {
@@ -477,11 +493,6 @@ function renderPlayerModes() {
     const pendingList = document.getElementById('pending-list');
     const pendingCount = document.getElementById('pending-count');
     const noPlayers = document.getElementById('no-players');
-    const revokeLegend = document.getElementById('revoke-legend');
-    
-    // Show/hide revoke legend item (GM only)
-    const hasRevokable = state.isGM && state.players.some(p => p.canRevoke);
-    revokeLegend.style.display = hasRevokable ? 'flex' : 'none';
     
     // Render pending requests (GM only)
     if (state.isGM && state.pendingRequests.length > 0) {
@@ -514,19 +525,14 @@ function renderPlayerModes() {
         
         playersGrid.innerHTML = state.players.map(player => {
             const modeClass = player.isPending ? 'pending' : player.mode;
-            const isRevokable = state.isGM && player.canRevoke;
             
             return `
-                <div class="player-card ${isRevokable ? 'player-card-revokable' : ''}">
+                <div class="player-card">
                     <div class="player-info">
                         <span class="mode-dot ${modeClass}"></span>
                         <span class="player-name">${escapeHtml(player.name)}</span>
                     </div>
-                    ${isRevokable ? `
-                        <button class="revoke-corner revoke-btn" data-player-id="${player.id}" title="Revoke manual dice">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    ` : ''}
+                    <div class="player-status">${player.isPending ? 'Pending Approval' : (player.mode === 'digital' ? 'Digital' : 'Manual')}</div>
                 </div>
             `;
         }).join('');
@@ -564,18 +570,7 @@ function attachPlayerModeListeners() {
             });
         });
     });
-    
-    // Revoke buttons
-    document.querySelectorAll('.revoke-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const playerId = btn.dataset.playerId;
-            sendMessage({
-                type: 'playerModeAction',
-                action: 'revoke',
-                playerId: playerId
-            });
-        });
-    });
+}
 }
 
 // Utility function
@@ -606,7 +601,6 @@ function escapeHtml(text) {
 
 1. **Display:**
    - [ ] Legend shows Digital/Manual/Pending dots with correct colors
-   - [ ] Revoke legend item only shows for GM when players can be revoked
    - [ ] Players grid displays all connected players
    - [ ] "No players connected" shows when no players
    - [ ] Mode dots show correct color per player mode
@@ -614,14 +608,10 @@ function escapeHtml(text) {
 2. **GM-only features:**
    - [ ] Pending Requests section only visible to GM
    - [ ] Approve/Deny buttons work and send correct message to DLC
-   - [ ] Revoke X button only appears on revokable player cards
-   - [ ] Revoke button sends correct message to DLC
 
 3. **Player view (non-GM):**
    - [ ] No Approve/Deny buttons visible
-   - [ ] No Revoke buttons visible
-   - [ ] Revoke legend item hidden
-   - [ ] Can still see all players and their modes
+   - [ ] Can still see all players and their modes (read-only)
 
 4. **Real-time updates:**
    - [ ] UI updates when `playerModesUpdate` message received
