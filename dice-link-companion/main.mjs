@@ -118,11 +118,13 @@ import {
   onConnectionChange as onDLAConnectionChange,
   sendRollRequest,
   sendDiceRequest,
+  sendPlayerModesUpdate,
   setButtonSelectCallback,
   setDiceResultCallback,
   setCancelCallback,
   setRollResultCallback,
   setDiceTrayRollCallback,
+  setPlayerModeActionCallback,
   getPendingDiceRequest,
   clearPendingDiceRequest,
   extractRollDataForDLA
@@ -534,6 +536,56 @@ Hooks.once("ready", async () => {
       } else {
         applyDigitalDice();
       }
+    }
+
+    // ========================================================================
+    // PLAYER MODES: Send initial state to DLA and handle mode changes
+    // ========================================================================
+    if (game.user?.isGM) {
+      // Function to gather and send player modes to DLA
+      const sendPlayerModes = () => {
+        const players = [];
+        for (const user of game.users) {
+          if (user.id === game.user?.id) continue; // Skip self
+          players.push({
+            id: user.id,
+            name: user.name,
+            mode: getPlayerMode(user.id)
+          });
+        }
+        const globalOverride = getGlobalOverride();
+        const pending = getPendingRequests();
+        
+        debug("Sending player modes to DLA", { 
+          playerCount: players.length, 
+          globalOverride,
+          pendingCount: pending?.length || 0 
+        });
+        
+        sendPlayerModesUpdate(players, globalOverride, pending);
+      };
+
+      // Send initial player modes on DLA connection
+      sendPlayerModes();
+      
+      // Re-send player modes whenever they change (via settings socket)
+      Hooks.on("diceLink.playerModeChanged", () => {
+        debug("Player mode changed - resending modes to DLA");
+        sendPlayerModes();
+      });
+
+      // Handle player mode actions from DLA (player mode change or global override)
+      setPlayerModeActionCallback((action, userId, newMode, globalOverride) => {
+        debug("Player mode action from DLA", { action, userId, newMode, globalOverride });
+        
+        if (action === "playerModeChange" && userId) {
+          // Player changed their mode
+          setPlayerMode(userId, newMode);
+        } else if (action === "globalOverrideChange") {
+          // GM changed global override setting
+          setGlobalOverride(globalOverride);
+        }
+      });
     }
   } catch (error) {
     debugError("ERROR in ready hook:", error);

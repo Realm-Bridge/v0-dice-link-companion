@@ -285,6 +285,10 @@ function handleMessage(data) {
         // DLA dice tray initiated a roll
         handleDiceTrayRoll(message);
         break;
+      case "playerModeAction":
+        // Player mode changed in DLA
+        handlePlayerModeAction(message);
+        break;
       case "error":
         handleErrorMessage(message);
         break;
@@ -312,8 +316,8 @@ let diceResultCallback = null;
 // Callback for when roll is cancelled by user in DLA
 let cancelCallback = null;
 
-// Callback for when DLA dice tray initiates a roll
-let diceTrayRollCallback = null;
+// Callback for when player mode action occurs in DLA
+let playerModeActionCallback = null;
 
 // Legacy callback (for backward compatibility during transition)
 let rollResultCallback = null;
@@ -354,11 +358,11 @@ export function setRollResultCallback(callback) {
 }
 
 /**
- * Set callback for handling dice tray rolls from DLA
- * @param {Function} callback - Called with (formula, flavor)
+ * Set callback for handling player mode actions from DLA
+ * @param {Function} callback - Called with (action, userId, newMode) for mode changes
  */
-export function setDiceTrayRollCallback(callback) {
-  diceTrayRollCallback = callback;
+export function setPlayerModeActionCallback(callback) {
+  playerModeActionCallback = callback;
 }
 
 /**
@@ -432,6 +436,31 @@ export function getPendingDiceRequest() {
  */
 export function clearPendingDiceRequest() {
   pendingDiceRequest = null;
+}
+
+/**
+ * Send player modes update to DLA
+ * Sends list of players with their current modes and global override setting
+ * @param {Array} players - Array of player objects {id, name, mode}
+ * @param {String} globalOverride - Current global override mode (or null)
+ * @param {Array} pendingRequests - Array of pending approval requests
+ */
+export function sendPlayerModesUpdate(players, globalOverride, pendingRequests = []) {
+  const message = {
+    type: "playerModesUpdate",
+    players: players || [],
+    globalOverride: globalOverride || null,
+    pendingRequests: pendingRequests || [],
+    timestamp: Date.now()
+  };
+  
+  debugWebSocket("Sending player modes update to DLA", { 
+    playerCount: players?.length || 0,
+    globalOverride,
+    pendingCount: pendingRequests?.length || 0
+  });
+  
+  return sendMessage(message);
 }
 
 /**
@@ -531,25 +560,18 @@ function handleErrorMessage(message) {
 }
 
 /**
- * Handle dice tray roll from Dice Link App
- * DLA's dice tray initiated a roll - execute it in Foundry
- * @param {Object} message - Dice tray roll message with formula and flavor
+ * Handle player mode action from DLA
+ * @param {Object} message - Player mode action message
  */
-function handleDiceTrayRoll(message) {
-  debugWebSocket("Dice tray roll from DLA", message);
+function handlePlayerModeAction(message) {
+  debugWebSocket("Player mode action from DLA", message);
   
-  const formula = message.formula;
-  const flavor = message.flavor || "Manual Dice Roll";
+  const { action, userId, newMode, globalOverride } = message;
   
-  if (!formula) {
-    debugError("No formula in diceTrayRoll message");
-    return;
-  }
-  
-  if (diceTrayRollCallback) {
-    diceTrayRollCallback(formula, flavor);
+  if (playerModeActionCallback) {
+    playerModeActionCallback(action, userId, newMode, globalOverride);
   } else {
-    debugError("No diceTrayRollCallback registered");
+    debugError("No playerModeActionCallback registered");
   }
 }
 
