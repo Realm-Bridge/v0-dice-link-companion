@@ -309,6 +309,14 @@ Hooks.once("ready", async () => {
       debug("Dice Link App connection status:", connected ? "connected" : "disconnected");
       if (connected) {
         ui.notifications?.info("Connected to Dice Link App");
+        // Send player modes data to DLA now that we're connected
+        // (sendPlayerModes is defined later in this hook but hoisted)
+        setTimeout(() => {
+          if (typeof sendPlayerModes === "function") {
+            debug("Sending player modes after connection established");
+            sendPlayerModes();
+          }
+        }, 100);
       }
     });
     
@@ -569,9 +577,6 @@ Hooks.once("ready", async () => {
       sendPlayerModesUpdate(players, globalOverride, pending);
     };
 
-    // Send initial player modes on DLA connection
-    sendPlayerModes();
-    
     // Re-send player modes whenever they change (via settings socket)
     Hooks.on("diceLink.playerModeChanged", () => {
       debug("Player mode changed - resending modes to DLA");
