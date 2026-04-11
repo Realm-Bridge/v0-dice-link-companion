@@ -239,6 +239,7 @@ export function attachGMPanelListeners(html) {
       game.socket.emit(`module.${MODULE_ID}`, { action: "globalOverride", mode: "individual" });
       ui.notifications.info("Set to individual control.");
     }
+    Hooks.call("diceLink.playerModeChanged");
     refreshPanel();
   });
 
@@ -255,6 +256,7 @@ export function attachGMPanelListeners(html) {
       game.socket.emit(`module.${MODULE_ID}`, { action: "globalOverride", mode: "individual" });
       ui.notifications.info("Set to individual control.");
     }
+    Hooks.call("diceLink.playerModeChanged");
     refreshPanel();
   });
 
@@ -272,6 +274,7 @@ export function attachGMPanelListeners(html) {
       applyDigitalDice();
       ui.notifications.info("Your dice: Digital");
     }
+    Hooks.call("diceLink.playerModeChanged");
     refreshPanel();
   });
 
@@ -300,6 +303,7 @@ export function attachGMPanelListeners(html) {
     
     await createApprovalChatMessage(playerId, player.name, true);
     ui.notifications.info(`Approved manual dice for ${player.name}.`);
+    Hooks.call("diceLink.playerModeChanged");
     refreshPanel();
   });
 
@@ -325,6 +329,7 @@ export function attachGMPanelListeners(html) {
     
     await createApprovalChatMessage(playerId, player.name, false);
     ui.notifications.info(`Denied manual dice for ${player.name}.`);
+    Hooks.call("diceLink.playerModeChanged");
     refreshPanel();
   });
 
@@ -342,6 +347,7 @@ export function attachGMPanelListeners(html) {
     });
     
     ui.notifications.info(`Revoked manual dice for ${player.name}.`);
+    Hooks.call("diceLink.playerModeChanged");
     refreshPanel();
   });
 

@@ -70,6 +70,7 @@ export function setupChatButtonHandlers() {
     
     await createApprovalChatMessage(playerId, player.name, true);
     ui.notifications.info(`Approved manual dice for ${player.name}.`);
+    Hooks.call("diceLink.playerModeChanged");
     
     // Refresh the panel to show updated state
     refreshPanel();
@@ -110,6 +111,7 @@ export function setupChatButtonHandlers() {
     
     await createApprovalChatMessage(playerId, player.name, false);
     ui.notifications.info(`Denied manual dice for ${player.name}.`);
+    Hooks.call("diceLink.playerModeChanged");
     
     // Refresh the panel to show updated state
     refreshPanel();

@@ -35,11 +35,13 @@ export function setupSocketListeners() {
 
       await createRequestChatMessage(data.playerId, data.playerName);
       ui.notifications.warn(`${data.playerName} requested manual dice mode.`);
+      Hooks.call("diceLink.playerModeChanged");
       refreshPanel();
     }
 
     if (game.user.isGM && data.action === "playerSwitchToDigital") {
       await setPlayerMode(data.playerId, "digital");
+      Hooks.call("diceLink.playerModeChanged");
       refreshPanel();
     } else if (data.action === "playerSwitchToDigital") {
       // Another player switched to digital, refresh our panel to see the update
