@@ -540,52 +540,62 @@ Hooks.once("ready", async () => {
 
     // ========================================================================
     // PLAYER MODES: Send initial state to DLA and handle mode changes
+    // All users (GM and players) receive playerModesUpdate so everyone can
+    // see the Player Modes section. Only GMs see approve/deny buttons in DLA.
     // ========================================================================
-    if (game.user?.isGM) {
-      // Function to gather and send player modes to DLA
-      const sendPlayerModes = () => {
-        const players = [];
-        for (const user of game.users) {
-          // Include everyone (including GM) so all users can see each other's modes
-          players.push({
-            id: user.id,
-            name: user.name,
-            mode: getPlayerMode(user.id),
-            isGM: user.isGM
-          });
-        }
-        const globalOverride = getGlobalOverride();
-        const pending = getPendingRequests();
-        
-        debug("Sending player modes to DLA", { 
-          playerCount: players.length, 
-          globalOverride,
-          pendingCount: pending?.length || 0 
+    
+    // Function to gather and send player modes to DLA
+    const sendPlayerModes = () => {
+      const players = [];
+      for (const user of game.users) {
+        // Include everyone (including GM) so all users can see each other's modes
+        players.push({
+          id: user.id,
+          name: user.name,
+          mode: getPlayerMode(user.id),
+          isGM: user.isGM
         });
-        
-        sendPlayerModesUpdate(players, globalOverride, pending);
-      };
-
-      // Send initial player modes on DLA connection
-      sendPlayerModes();
+      }
+      const globalOverride = getGlobalOverride();
+      // Only include pending requests - DLA will only show these to GMs
+      const pending = getPendingRequests();
       
-      // Re-send player modes whenever they change (via settings socket)
-      Hooks.on("diceLink.playerModeChanged", () => {
-        debug("Player mode changed - resending modes to DLA");
-        sendPlayerModes();
+      debug("Sending player modes to DLA", { 
+        playerCount: players.length, 
+        globalOverride,
+        pendingCount: pending?.length || 0 
       });
+      
+      sendPlayerModesUpdate(players, globalOverride, pending);
+    };
 
-      // Handle player mode actions from DLA (player mode change or global override)
-      setPlayerModeActionCallback((action, userId, newMode, globalOverride) => {
+    // Send initial player modes on DLA connection
+    sendPlayerModes();
+    
+    // Re-send player modes whenever they change (via settings socket)
+    Hooks.on("diceLink.playerModeChanged", () => {
+      debug("Player mode changed - resending modes to DLA");
+      sendPlayerModes();
+    });
+
+    // Handle player mode actions from DLA (GM only actions - approve/deny)
+    if (game.user?.isGM) {
+      setPlayerModeActionCallback(async (action, userId, newMode, globalOverride) => {
         debug("Player mode action from DLA", { action, userId, newMode, globalOverride });
         
-        if (action === "playerModeChange" && userId) {
-          // Player changed their mode
-          setPlayerMode(userId, newMode);
-        } else if (action === "globalOverrideChange") {
-          // GM changed global override setting
-          setGlobalOverride(globalOverride);
+        if (action === "approve" && userId) {
+          // GM approved manual dice request - set to manual and remove from pending
+          setPlayerMode(userId, "manual");
+          const pending = getPendingRequests().filter(req => req.playerId !== userId);
+          await setPendingRequests(pending);
+        } else if (action === "deny" && userId) {
+          // GM denied manual dice request - just remove from pending (keep digital)
+          const pending = getPendingRequests().filter(req => req.playerId !== userId);
+          await setPendingRequests(pending);
         }
+        
+        // Trigger update to refresh DLA
+        Hooks.call("diceLink.playerModeChanged");
       });
     }
   } catch (error) {
