@@ -20,7 +20,7 @@ export const ASYNC_OPERATION_DELAY_MS = 40;
 
 // Dice Link App connection
 export const DICE_LINK_APP_HOST = "localhost";
-export const DICE_LINK_APP_PORT = 47293;
+export const DICE_LINK_APP_PORT = 8765;
 export const DICE_LINK_APP_WS_URL = `ws://${DICE_LINK_APP_HOST}:${DICE_LINK_APP_PORT}/ws/dlc`;
 
 // Dice configuration
