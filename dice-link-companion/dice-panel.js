@@ -4,7 +4,7 @@
  * This is the primary UI orchestration module.
  */
 
-import { MODULE_ID, ROLE_NAMES, ASYNC_OPERATION_DELAY_MS } from "./constants.js";
+import { MODULE_ID, ROLE_NAMES, ASYNC_OPERATION_DELAY_MS, DICE_LINK_APP_PORT } from "./constants.js";
 import { debug, debugState, debugError, debugPanelInjection, debugComputedStyles, debugClonedButtonClick, debugElementDimensions } from "./debug.js";
 import { 
   getCurrentPanelDialog, 
@@ -215,7 +215,7 @@ export function attachGMPanelListeners(html) {
       if (connected) {
         ui.notifications.info("Reconnected to Dice Link App.");
       } else {
-        ui.notifications.error("Failed to reconnect to Dice Link App. Is it running on port 47293?");
+        ui.notifications.error(`Failed to reconnect to Dice Link App. Is it running on port ${DICE_LINK_APP_PORT}?`);
       }
     } catch (err) {
       console.error("Reconnect error:", err);
