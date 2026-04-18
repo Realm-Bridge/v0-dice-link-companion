@@ -71,12 +71,20 @@ export function connect() {
       return;
     }
 
+    // DEBUG: Log page context and connection details
+    console.log("[DLC] Page origin:", window.location.origin);
+    console.log("[DLC] Hostname detected:", window.location.hostname);
+    console.log("[DLC] WebSocket URL:", DICE_LINK_APP_WS_URL);
+    console.log("[DLC] Initiating connection...");
+
     debugWebSocket("Connecting", { url: DICE_LINK_APP_WS_URL });
 
     try {
       socket = new WebSocket(DICE_LINK_APP_WS_URL);
 
       socket.onopen = () => {
+        // DEBUG: Connection succeeded
+        console.log("[DLC] WebSocket connected successfully");
         debugWebSocket("Connected", { url: DICE_LINK_APP_WS_URL });
         isConnected = true;
         reconnectAttempts = 0;
@@ -103,6 +111,8 @@ export function connect() {
       };
 
       socket.onclose = (event) => {
+        // DEBUG: Log close details
+        console.log("[DLC] WebSocket closed, code:", event.code, "reason:", event.reason);
         debugWebSocket("Disconnected", { code: event.code, reason: event.reason, wasClean: event.wasClean });
         isConnected = false;
         socket = null;
@@ -119,6 +129,9 @@ export function connect() {
       };
 
       socket.onerror = (error) => {
+        // DEBUG: Log error details and socket state
+        console.log("[DLC] WebSocket error:", error);
+        console.log("[DLC] WebSocket readyState:", socket?.readyState);
         debugWebSocket("Error", { error: error.message || "WebSocket error" });
         // onclose will be called after onerror
       };
@@ -128,6 +141,8 @@ export function connect() {
       };
 
     } catch (e) {
+      // DEBUG: Log connection attempt failure
+      console.log("[DLC] WebSocket connection failed:", e.message);
       debugError("WebSocket connection failed:", e);
       resolve(false);
     }
