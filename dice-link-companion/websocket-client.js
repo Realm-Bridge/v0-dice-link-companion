@@ -31,69 +31,13 @@ let pendingResponses = new Map(); // Track pending roll results by ID
 const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_BASE_DELAY_MS = 1000;
 const RECONNECT_MAX_DELAY_MS = 30000;
-const EXTERNAL_IP_API_TIMEOUT_MS = 2000; // Timeout for external IP fetch
 
 // Connection state listeners
 const connectionListeners = [];
 
-// Cache for external IP (avoid repeated API calls)
-let cachedExternalIP = null;
-let cachedExternalIPUrl = null;
-
 // ============================================================================
 // CONNECTION MANAGEMENT
 // ============================================================================
-
-/**
- * Fetch external IP from DLA's UPnP-enabled endpoint
- * Only works if DLA has UPnP configured and port forwarding succeeded
- * @returns {Promise<string|null>} WebSocket URL using external IP, or null if unavailable
- */
-async function fetchExternalIPUrl() {
-  // Return cached URL if available
-  if (cachedExternalIPUrl) {
-    debugWebSocket("Using cached external IP URL", { url: cachedExternalIPUrl });
-    return cachedExternalIPUrl;
-  }
-
-  try {
-    // Attempt to fetch external IP from local DLA API
-    // This call is allowed because it's from localhost to localhost (local network)
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), EXTERNAL_IP_API_TIMEOUT_MS);
-    
-    const response = await fetch(`http://${DICE_LINK_APP_HOST}:${DICE_LINK_APP_PORT}/api/external-ip`, {
-      signal: controller.signal
-    });
-    
-    clearTimeout(timeoutId);
-    
-    if (!response.ok) {
-      debugWebSocket("External IP API returned error", { status: response.status });
-      return null;
-    }
-    
-    const data = await response.json();
-    
-    if (data.externalIp && data.wsUrl) {
-      // Cache the external IP URL
-      cachedExternalIPUrl = data.wsUrl;
-      debugWebSocket("Successfully fetched external IP URL", { url: cachedExternalIPUrl });
-      console.log("[DLC] External IP available for remote connections:", data.externalIp);
-      return cachedExternalIPUrl;
-    }
-    
-    debugWebSocket("External IP API returned no external IP", data);
-    return null;
-    
-  } catch (error) {
-    // Expected to fail if DLA doesn't have UPnP configured
-    debugWebSocket("Failed to fetch external IP", { error: error.message });
-    return null;
-  }
-}
-
-
 /**
  * Manually reconnect to the Dice Link App (resets attempt counter)
  * Useful for testing or if connection is stuck
@@ -116,40 +60,26 @@ export async function manualReconnect() {
 
 /**
  * Connect to the Dice Link App WebSocket server
- * Attempts external IP first (if available via UPnP), then falls back to localhost
+ * Uses window.location.hostname to work with local IPs, external IPs, and UPnP port forwarding
  * @returns {Promise<boolean>} True if connection successful
  */
-export async function connect() {
-  return new Promise(async (resolve) => {
+export function connect() {
+  return new Promise((resolve) => {
     if (socket && (socket.readyState === WebSocket.CONNECTING || socket.readyState === WebSocket.OPEN)) {
       debugWebSocket("Already connected or connecting", { readyState: socket.readyState });
       resolve(isConnected);
       return;
     }
 
-    // DEBUG: Log page context and connection details
-    console.log("[DLC] Page origin:", window.location.origin);
-    console.log("[DLC] Hostname detected:", window.location.hostname);
-    console.log("[DLC] Initiating connection...");
+    // Use the hostname from where Foundry is loaded
+    // This works for: localhost, local IPs, external IPs, and UPnP port forwarding
+    const host = window.location.hostname;
+    const wsUrl = `ws://${host}:${DICE_LINK_APP_PORT}/ws/dlc`;
 
-    // Try external IP first if page is loaded from external origin
-    let wsUrl = DICE_LINK_APP_WS_URL; // Default to localhost
-    const isRemoteOrigin = window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1";
-    
-    if (isRemoteOrigin) {
-      console.log("[DLC] Remote origin detected, attempting external IP connection...");
-      const externalIpUrl = await fetchExternalIPUrl();
-      if (externalIpUrl) {
-        wsUrl = externalIpUrl;
-        console.log("[DLC] WebSocket URL:", wsUrl, "(via UPnP external IP)");
-      } else {
-        console.log("[DLC] External IP unavailable, falling back to localhost");
-        console.log("[DLC] WebSocket URL:", wsUrl);
-      }
-    } else {
-      console.log("[DLC] Local origin detected, using localhost connection");
-      console.log("[DLC] WebSocket URL:", wsUrl);
-    }
+    console.log("[DLC] Page origin:", window.location.origin);
+    console.log("[DLC] Using hostname:", host);
+    console.log("[DLC] WebSocket URL:", wsUrl);
+    console.log("[DLC] Initiating connection...");
 
     debugWebSocket("Connecting", { url: wsUrl, attempt: reconnectAttempts + 1 });
 
@@ -157,7 +87,6 @@ export async function connect() {
       socket = new WebSocket(wsUrl);
 
       socket.onopen = () => {
-        // DEBUG: Connection succeeded
         console.log("[DLC] WebSocket connected successfully");
         debugWebSocket("Connected", { url: wsUrl });
         isConnected = true;
@@ -185,7 +114,6 @@ export async function connect() {
       };
 
       socket.onclose = (event) => {
-        // DEBUG: Log close details
         console.log("[DLC] WebSocket closed, code:", event.code, "reason:", event.reason);
         debugWebSocket("Disconnected", { code: event.code, reason: event.reason, wasClean: event.wasClean });
         isConnected = false;
@@ -203,7 +131,6 @@ export async function connect() {
       };
 
       socket.onerror = (error) => {
-        // DEBUG: Log error details and socket state
         console.log("[DLC] WebSocket error:", error);
         console.log("[DLC] WebSocket readyState:", socket?.readyState);
         debugWebSocket("Error", { error: error.message || "WebSocket error", url: wsUrl });
@@ -215,7 +142,6 @@ export async function connect() {
       };
 
     } catch (e) {
-      // DEBUG: Log connection attempt failure
       console.log("[DLC] WebSocket connection failed:", e.message);
       debugError("WebSocket connection failed:", e);
       resolve(false);
