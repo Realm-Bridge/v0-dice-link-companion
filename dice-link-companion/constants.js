@@ -8,7 +8,7 @@
 
 // Module metadata
 export const MODULE_ID = "dice-link-companion";
-export const MODULE_VERSION = "1.0.8.77";
+export const MODULE_VERSION = "1.0.8.78";
 
 // Branding
 export const REALM_BRIDGE_URL = "https://realmbridge.co.uk";
@@ -19,10 +19,10 @@ export const LOGO_SQUARE_URL = "modules/dice-link-companion/assets/logo-square.p
 export const ASYNC_OPERATION_DELAY_MS = 40;
 
 // Dice Link App connection
-// Use window.location.hostname to support remote connections
-// Local: resolves to "localhost"
-// Remote with port forwarding: resolves to external IP
-export const DICE_LINK_APP_HOST = typeof window !== "undefined" ? window.location.hostname : "localhost";
+// Always use localhost - each player connects to their own local DLA instance
+// This works regardless of whether Foundry is accessed via localhost or external IP
+// because localhost always resolves to the local machine
+export const DICE_LINK_APP_HOST = "localhost";
 export const DICE_LINK_APP_PORT = 8765;
 export const DICE_LINK_APP_WS_URL = `ws://${DICE_LINK_APP_HOST}:${DICE_LINK_APP_PORT}/ws/dlc`;
 
