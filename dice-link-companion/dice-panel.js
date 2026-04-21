@@ -4,7 +4,7 @@
  * This is the primary UI orchestration module.
  */
 
-import { MODULE_ID, ROLE_NAMES, ASYNC_OPERATION_DELAY_MS, DICE_LINK_APP_PORT } from "./constants.js";
+import { MODULE_ID, ROLE_NAMES, ASYNC_OPERATION_DELAY_MS, DICE_LINK_APP_PORT, CONNECTION_METHOD } from "./constants.js";
 import { debug, debugState, debugError, debugPanelInjection, debugComputedStyles, debugClonedButtonClick, debugElementDimensions } from "./debug.js";
 import { 
   getCurrentPanelDialog, 
@@ -18,10 +18,13 @@ import {
   getPendingRollRequest,
   setPendingRollRequest
 } from "./state-management.js";
-import { clearPendingDiceRequest } from "./websocket-client.js";
-import {
-  manualReconnect
-} from "./websocket-client.js";
+import { clearPendingDiceRequest, manualReconnect as manualReconnect_WS } from "./websocket-client.js";
+import { connect as connect_WebRTC } from "./webrtc-client.js";
+import { showHandshakeDialog } from "./webrtc-handshake-dialog.js";
+
+// Use correct reconnect based on connection method
+const useWebRTC = CONNECTION_METHOD === "webrtc";
+const manualReconnect = useWebRTC ? connect_WebRTC : manualReconnect_WS;
 import {
   setGlobalOverride,
   getGlobalOverride,
@@ -205,24 +208,46 @@ export function attachGMPanelListeners(html) {
     ui.notifications.info("Panel refreshed.");
   });
 
-  // Dice Link App reconnect button (GM only)
+  // Dice Link App connect/reconnect button (GM only)
   html.find(".dlc-reconnect-dla-btn").click( async function() {
     const btn = $(this);
-    btn.prop("disabled", true).text("Reconnecting...");
     
-    try {
-      const connected = await manualReconnect();
-      if (connected) {
-        ui.notifications.info("Reconnected to Dice Link App.");
-      } else {
-        ui.notifications.error(`Failed to reconnect to Dice Link App. Is it running on port ${DICE_LINK_APP_PORT}?`);
+    if (useWebRTC) {
+      // WebRTC mode: Show handshake dialog for manual offer/answer exchange
+      btn.prop("disabled", true).text("Connecting...");
+      
+      try {
+        const connected = await showHandshakeDialog();
+        if (connected) {
+          ui.notifications.info("Connected to Dice Link App via WebRTC.");
+        } else {
+          ui.notifications.warn("Connection cancelled or failed.");
+        }
+      } catch (err) {
+        debugError("WebRTC handshake error:", err);
+        ui.notifications.error("Error during WebRTC handshake.");
       }
-    } catch (err) {
-      debugError("Reconnect error:", err);
-      ui.notifications.error("Error during reconnect attempt.");
+      
+      btn.prop("disabled", false).text("Connect to Dice Link App");
+    } else {
+      // WebSocket mode: Auto-reconnect
+      btn.prop("disabled", true).text("Reconnecting...");
+      
+      try {
+        const connected = await manualReconnect();
+        if (connected) {
+          ui.notifications.info("Reconnected to Dice Link App.");
+        } else {
+          ui.notifications.error(`Failed to reconnect to Dice Link App. Is it running on port ${DICE_LINK_APP_PORT}?`);
+        }
+      } catch (err) {
+        debugError("Reconnect error:", err);
+        ui.notifications.error("Error during reconnect attempt.");
+      }
+      
+      btn.prop("disabled", false).text("Reconnect to Dice Link App");
     }
     
-    btn.prop("disabled", false).text("Reconnect to Dice Link App");
     refreshPanel();
   });
 
