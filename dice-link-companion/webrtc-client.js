@@ -258,22 +258,51 @@ async function displayOfferAndWaitForAnswer(localDescription) {
   return new Promise((resolve, reject) => {
     showOfferDialog(formattedOffer, async (answerSDP) => {
       try {
+        // STEP 1: Log the raw answer SDP BEFORE any processing
+        console.log("[DLC] Raw answer SDP from user paste:");
+        console.log(answerSDP);
+        console.log("[DLC] Answer SDP length:", answerSDP.length);
+        console.log("[DLC] First 200 chars:", answerSDP.substring(0, 200));
+        
         debugWebSocket("Received answer SDP from user", { sdpLength: answerSDP.length });
         
-        // Create answer description and set as remote
-        const answer = new RTCSessionDescription({
+        // STEP 2: Create RTCSessionDescription with the answer - NO MODIFICATIONS
+        console.log("[DLC] Creating RTCSessionDescription with answer...");
+        const answerDescription = new RTCSessionDescription({
           type: "answer",
-          sdp: answerSDP
+          sdp: answerSDP  // Pass raw SDP directly - NO MODIFICATIONS
         });
         
-        await peerConnection.setRemoteDescription(answer);
-        debugWebSocket("Remote description set successfully", {});
+        // STEP 3: Log the RTCSessionDescription object
+        console.log("[DLC] RTCSessionDescription object:", answerDescription);
+        console.log("[DLC] Answer description type:", answerDescription.type);
+        console.log("[DLC] Answer description SDP length:", answerDescription.sdp.length);
         
-        // Connection will be established when ICE completes
-        // The data channel onopen event will fire when ready
-        resolve(true);
+        // STEP 4: Set as remote description with detailed error logging
+        try {
+          console.log("[DLC] Calling setRemoteDescription with answer...");
+          await peerConnection.setRemoteDescription(answerDescription);
+          console.log("[DLC] setRemoteDescription succeeded!");
+          console.log("[DLC] Connection state:", peerConnection.connectionState);
+          console.log("[DLC] ICE connection state:", peerConnection.iceConnectionState);
+          
+          debugWebSocket("Remote description set successfully", {});
+          
+          // Connection will be established when ICE completes
+          // The data channel onopen event will fire when ready
+          resolve(true);
+        } catch (setRemoteError) {
+          console.error("[DLC] setRemoteDescription failed:", setRemoteError);
+          console.error("[DLC] Error name:", setRemoteError.name);
+          console.error("[DLC] Error message:", setRemoteError.message);
+          console.error("[DLC] Full error object:", setRemoteError);
+          
+          debugError("Failed to set remote description", setRemoteError);
+          reject(setRemoteError);
+        }
       } catch (error) {
-        debugError("Failed to set remote description", error);
+        console.error("[DLC] Unexpected error in answer processing:", error);
+        debugError("Failed to process answer SDP", error);
         reject(error);
       }
     });
