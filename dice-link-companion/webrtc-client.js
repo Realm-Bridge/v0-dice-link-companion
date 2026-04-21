@@ -256,21 +256,26 @@ async function displayOfferAndWaitForAnswer(localDescription) {
 
   // Show user a dialog to copy offer and paste answer
   return new Promise((resolve, reject) => {
-    showOfferDialog(formattedOffer, async (answerSDP) => {
+    showOfferDialog(formattedOffer, async (rawAnswerSDP) => {
       try {
         // STEP 1: Log the raw answer SDP BEFORE any processing
         console.log("[DLC] Raw answer SDP from user paste:");
-        console.log(answerSDP);
-        console.log("[DLC] Answer SDP length:", answerSDP.length);
-        console.log("[DLC] First 200 chars:", answerSDP.substring(0, 200));
+        console.log(rawAnswerSDP);
+        console.log("[DLC] Raw answer SDP length:", rawAnswerSDP.length);
+        console.log("[DLC] First 200 chars:", rawAnswerSDP.substring(0, 200));
         
-        debugWebSocket("Received answer SDP from user", { sdpLength: answerSDP.length });
+        // STEP 2: Normalize line endings to CRLF as required by RFC 8866
+        // Textareas convert CRLF to LF, but WebRTC requires CRLF
+        const answerSDP = rawAnswerSDP.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\n/g, '\r\n');
+        console.log("[DLC] Normalized answer SDP length:", answerSDP.length);
         
-        // STEP 2: Create RTCSessionDescription with the answer - NO MODIFICATIONS
-        console.log("[DLC] Creating RTCSessionDescription with answer...");
+        debugWebSocket("Received answer SDP from user", { rawLength: rawAnswerSDP.length, normalizedLength: answerSDP.length });
+        
+        // STEP 3: Create RTCSessionDescription with the normalized answer
+        console.log("[DLC] Creating RTCSessionDescription with normalized answer...");
         const answerDescription = new RTCSessionDescription({
           type: "answer",
-          sdp: answerSDP  // Pass raw SDP directly - NO MODIFICATIONS
+          sdp: answerSDP  // Use normalized SDP with CRLF line endings
         });
         
         // STEP 3: Log the RTCSessionDescription object
