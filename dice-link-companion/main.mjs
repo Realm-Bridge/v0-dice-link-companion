@@ -144,8 +144,6 @@ import {
   setPlayerModeActionCallback as setPlayerModeActionCallback_WebRTC
 } from "./webrtc-client.js";
 
-import { showHandshakeDialog } from "./webrtc-handshake-dialog.js";
-
 import { CONNECTION_METHOD } from "./constants.js";
 
 // Connection method abstraction - use the configured method
