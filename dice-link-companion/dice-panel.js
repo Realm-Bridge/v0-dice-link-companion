@@ -20,7 +20,6 @@ import {
 } from "./state-management.js";
 import { clearPendingDiceRequest, manualReconnect as manualReconnect_WS } from "./websocket-client.js";
 import { connect as connect_WebRTC } from "./webrtc-client.js";
-import { showHandshakeDialog } from "./webrtc-handshake-dialog.js";
 
 // Use correct reconnect based on connection method
 const useWebRTC = CONNECTION_METHOD === "webrtc";
@@ -213,11 +212,11 @@ export function attachGMPanelListeners(html) {
     const btn = $(this);
     
     if (useWebRTC) {
-      // WebRTC mode: Show handshake dialog for manual offer/answer exchange
+      // WebRTC mode: Connect initiates handshake dialog flow automatically
       btn.prop("disabled", true).text("Connecting...");
       
       try {
-        const connected = await showHandshakeDialog();
+        const connected = await connect_WebRTC();
         if (connected) {
           ui.notifications.info("Connected to Dice Link App via WebRTC.");
         } else {

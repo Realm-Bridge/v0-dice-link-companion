@@ -13,6 +13,7 @@ import {
   DICE_LINK_APP_PORT,
   MODULE_ID
 } from "./constants.js";
+import { showOfferDialog, closeHandshakeDialog } from "./webrtc-handshake-dialog.js";
 
 // ============================================================================
 // STATE
@@ -254,14 +255,28 @@ async function displayOfferAndWaitForAnswer(localDescription) {
   const formattedOffer = localDescription.sdp.replace(/\n/g, "\r\n");
 
   // Show user a dialog to copy offer and paste answer
-  // This is a placeholder - actual UI implementation depends on Foundry integration
   return new Promise((resolve, reject) => {
-    // Phase 1 checkpoint: Placeholder for UI dialog
-    // Will be implemented with Foundry dialog system
-    debugWebSocket("Phase 1 checkpoint: UI dialog needed for offer/answer exchange", {});
-    
-    // For testing, we'll need to implement this in Phase 2
-    reject(new Error("Phase 1: UI dialog not yet implemented"));
+    showOfferDialog(formattedOffer, async (answerSDP) => {
+      try {
+        debugWebSocket("Received answer SDP from user", { sdpLength: answerSDP.length });
+        
+        // Create answer description and set as remote
+        const answer = new RTCSessionDescription({
+          type: "answer",
+          sdp: answerSDP
+        });
+        
+        await peerConnection.setRemoteDescription(answer);
+        debugWebSocket("Remote description set successfully", {});
+        
+        // Connection will be established when ICE completes
+        // The data channel onopen event will fire when ready
+        resolve(true);
+      } catch (error) {
+        debugError("Failed to set remote description", error);
+        reject(error);
+      }
+    });
   });
 }
 
@@ -349,4 +364,64 @@ function scheduleReconnect() {
   setTimeout(() => {
     connect();
   }, delay);
+}
+
+// ============================================================================
+// CALLBACK REGISTRATION (matching websocket-client.js API)
+// ============================================================================
+
+// Callback storage
+let buttonSelectCallback = null;
+let diceResultCallback = null;
+let cancelCallback = null;
+let rollResultCallback = null;
+let diceTrayRollCallback = null;
+let playerModeActionCallback = null;
+
+/**
+ * Set callback for button selection messages from DLA
+ * @param {Function} callback 
+ */
+export function setButtonSelectCallback(callback) {
+  buttonSelectCallback = callback;
+}
+
+/**
+ * Set callback for dice result messages from DLA
+ * @param {Function} callback 
+ */
+export function setDiceResultCallback(callback) {
+  diceResultCallback = callback;
+}
+
+/**
+ * Set callback for cancel messages from DLA
+ * @param {Function} callback 
+ */
+export function setCancelCallback(callback) {
+  cancelCallback = callback;
+}
+
+/**
+ * Set callback for roll result messages from DLA
+ * @param {Function} callback 
+ */
+export function setRollResultCallback(callback) {
+  rollResultCallback = callback;
+}
+
+/**
+ * Set callback for dice tray roll messages from DLA
+ * @param {Function} callback 
+ */
+export function setDiceTrayRollCallback(callback) {
+  diceTrayRollCallback = callback;
+}
+
+/**
+ * Set callback for player mode action messages from DLA
+ * @param {Function} callback 
+ */
+export function setPlayerModeActionCallback(callback) {
+  playerModeActionCallback = callback;
 }
