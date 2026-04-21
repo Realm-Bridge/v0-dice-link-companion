@@ -8,7 +8,7 @@
 
 // Module metadata
 export const MODULE_ID = "dice-link-companion";
-export const MODULE_VERSION = "1.0.8.81";
+export const MODULE_VERSION = "1.0.8.83";
 
 // Branding
 export const REALM_BRIDGE_URL = "https://realmbridge.co.uk";
@@ -24,6 +24,11 @@ export const ASYNC_OPERATION_DELAY_MS = 40;
 export const DICE_LINK_APP_HOST = "127.0.0.1";
 export const DICE_LINK_APP_PORT = 8765;
 export const DICE_LINK_APP_WS_URL = `ws://${DICE_LINK_APP_HOST}:${DICE_LINK_APP_PORT}/ws/dlc`;
+
+// Connection method
+// "websocket" = legacy WebSocket (for fallback)
+// "webrtc" = WebRTC Data Channels (primary, bypasses PNA)
+export const CONNECTION_METHOD = "webrtc";
 
 // Dice configuration
 export const DICE_TYPES = ["d4", "d6", "d8", "d10", "d12", "d20", "d100"];
