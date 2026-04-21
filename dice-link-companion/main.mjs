@@ -112,23 +112,81 @@ import {
 } from "./settings-helpers.js";
 
 import {
-  connect as connectToDLA,
-  disconnect as disconnectFromDLA,
-  getConnectionStatus as getDLAConnectionStatus,
-  onConnectionChange as onDLAConnectionChange,
-  sendRollRequest,
-  sendDiceRequest,
-  sendPlayerModesUpdate,
-  setButtonSelectCallback,
-  setDiceResultCallback,
-  setCancelCallback,
-  setRollResultCallback,
-  setDiceTrayRollCallback,
-  setPlayerModeActionCallback,
+  connect as connectToDLA_WS,
+  disconnect as disconnectFromDLA_WS,
+  getConnectionStatus as getDLAConnectionStatus_WS,
+  onConnectionChange as onDLAConnectionChange_WS,
+  sendRollRequest as sendRollRequest_WS,
+  sendDiceRequest as sendDiceRequest_WS,
+  sendPlayerModesUpdate as sendPlayerModesUpdate_WS,
+  setButtonSelectCallback as setButtonSelectCallback_WS,
+  setDiceResultCallback as setDiceResultCallback_WS,
+  setCancelCallback as setCancelCallback_WS,
+  setRollResultCallback as setRollResultCallback_WS,
+  setDiceTrayRollCallback as setDiceTrayRollCallback_WS,
+  setPlayerModeActionCallback as setPlayerModeActionCallback_WS,
   getPendingDiceRequest,
   clearPendingDiceRequest,
   extractRollDataForDLA
 } from "./websocket-client.js";
+
+import {
+  connect as connectToDLA_WebRTC,
+  disconnect as disconnectFromDLA_WebRTC,
+  getConnectionStatus as getDLAConnectionStatus_WebRTC,
+  onConnectionChange as onDLAConnectionChange_WebRTC,
+  sendMessage as sendMessage_WebRTC,
+  setButtonSelectCallback as setButtonSelectCallback_WebRTC,
+  setDiceResultCallback as setDiceResultCallback_WebRTC,
+  setCancelCallback as setCancelCallback_WebRTC,
+  setRollResultCallback as setRollResultCallback_WebRTC,
+  setDiceTrayRollCallback as setDiceTrayRollCallback_WebRTC,
+  setPlayerModeActionCallback as setPlayerModeActionCallback_WebRTC
+} from "./webrtc-client.js";
+
+import { showHandshakeDialog } from "./webrtc-handshake-dialog.js";
+
+import { CONNECTION_METHOD } from "./constants.js";
+
+// Connection method abstraction - use the configured method
+const useWebRTC = CONNECTION_METHOD === "webrtc";
+
+// Unified connection functions based on CONNECTION_METHOD
+const connectToDLA = useWebRTC ? connectToDLA_WebRTC : connectToDLA_WS;
+const disconnectFromDLA = useWebRTC ? disconnectFromDLA_WebRTC : disconnectFromDLA_WS;
+const getDLAConnectionStatus = useWebRTC ? getDLAConnectionStatus_WebRTC : getDLAConnectionStatus_WS;
+const onDLAConnectionChange = useWebRTC ? onDLAConnectionChange_WebRTC : onDLAConnectionChange_WS;
+const setButtonSelectCallback = useWebRTC ? setButtonSelectCallback_WebRTC : setButtonSelectCallback_WS;
+const setDiceResultCallback = useWebRTC ? setDiceResultCallback_WebRTC : setDiceResultCallback_WS;
+const setCancelCallback = useWebRTC ? setCancelCallback_WebRTC : setCancelCallback_WS;
+const setRollResultCallback = useWebRTC ? setRollResultCallback_WebRTC : setRollResultCallback_WS;
+const setDiceTrayRollCallback = useWebRTC ? setDiceTrayRollCallback_WebRTC : setDiceTrayRollCallback_WS;
+const setPlayerModeActionCallback = useWebRTC ? setPlayerModeActionCallback_WebRTC : setPlayerModeActionCallback_WS;
+
+// For WebRTC, wrap sendMessage to match WebSocket API
+function sendRollRequest(data) {
+  if (useWebRTC) {
+    sendMessage_WebRTC({ type: "rollRequest", ...data });
+  } else {
+    sendRollRequest_WS(data);
+  }
+}
+
+function sendDiceRequest(data) {
+  if (useWebRTC) {
+    sendMessage_WebRTC({ type: "diceRequest", ...data });
+  } else {
+    sendDiceRequest_WS(data);
+  }
+}
+
+function sendPlayerModesUpdate(data) {
+  if (useWebRTC) {
+    sendMessage_WebRTC({ type: "playerModesUpdate", ...data });
+  } else {
+    sendPlayerModesUpdate_WS(data);
+  }
+}
 
 // ============================================================================
 // CUSTOM APPLICATION CLASS (ApplicationV2 for Foundry V13+)
@@ -300,11 +358,18 @@ Hooks.once("ready", async () => {
       }
     });
     
-    // Setup Dice Link App WebSocket connection
-    debug("Attempting to connect to Dice Link App...");
-    connectToDLA();
+    // Setup Dice Link App connection
+    // WebRTC requires manual handshake (user initiates via UI button)
+    // WebSocket can auto-connect on startup
+    if (useWebRTC) {
+      debug("WebRTC mode: Connection requires manual handshake via UI");
+      debug("Click 'Connect to Dice Link App' button in the panel to initiate");
+    } else {
+      debug("WebSocket mode: Attempting auto-connect to Dice Link App...");
+      connectToDLA();
+    }
     
-    // Handle connection status changes
+    // Handle connection status changes (works for both WebRTC and WebSocket)
     onDLAConnectionChange((connected) => {
       debug("Dice Link App connection status:", connected ? "connected" : "disconnected");
       if (connected) {
