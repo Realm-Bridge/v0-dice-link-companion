@@ -263,6 +263,7 @@ async function displayOfferAndWaitForAnswer(localDescription) {
         console.log(rawAnswerSDP);
         console.log("[DLC] Raw answer SDP length:", rawAnswerSDP.length);
         console.log("[DLC] First 200 chars:", rawAnswerSDP.substring(0, 200));
+        console.log("[DLC] First 50 bytes:", Array.from(rawAnswerSDP.substring(0, 50)).map(c => c.charCodeAt(0)));
         
         // STEP 2: Normalize line endings to CRLF as required by RFC 8866
         // Textareas convert CRLF to LF, but WebRTC requires CRLF
