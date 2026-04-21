@@ -218,7 +218,7 @@ export function attachGMPanelListeners(html) {
         ui.notifications.error(`Failed to reconnect to Dice Link App. Is it running on port ${DICE_LINK_APP_PORT}?`);
       }
     } catch (err) {
-      console.error("Reconnect error:", err);
+      debugError("Reconnect error:", err);
       ui.notifications.error("Error during reconnect attempt.");
     }
     
