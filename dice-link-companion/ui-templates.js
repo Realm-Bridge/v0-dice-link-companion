@@ -380,6 +380,11 @@ export function generateGMPanelContent() {
             <button type="button" class="dlc-reconnect-dla-btn" title="${CONNECTION_METHOD === 'webrtc' ? 'Connect to Dice Link App' : 'Reconnect to Dice Link App'}" style="margin-top: 4px; padding: 6px 12px; font-size: 12px; background-color: #2a5ccc; color: white; border: none; border-radius: 4px; cursor: pointer; transition: background-color 0.2s;">
               ${CONNECTION_METHOD === 'webrtc' ? 'Connect to Dice Link App' : 'Reconnect to Dice Link App'}
             </button>
+            ${CONNECTION_METHOD === 'webrtc' ? `
+            <button type="button" class="dlc-automated-test-btn" title="Automated Test (localhost) - bypasses copy/paste" style="margin-top: 4px; padding: 6px 12px; font-size: 12px; background-color: #cc5c2a; color: white; border: none; border-radius: 4px; cursor: pointer; transition: background-color 0.2s;">
+              Automated Test (localhost)
+            </button>
+            ` : ''}
           </div>
           </div>
         </div>
