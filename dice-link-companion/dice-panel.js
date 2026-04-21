@@ -19,7 +19,7 @@ import {
   setPendingRollRequest
 } from "./state-management.js";
 import { clearPendingDiceRequest, manualReconnect as manualReconnect_WS } from "./websocket-client.js";
-import { connect as connect_WebRTC } from "./webrtc-client.js";
+import { connect as connect_WebRTC, connectAutomated as connectAutomated_WebRTC } from "./webrtc-client.js";
 
 // Use correct reconnect based on connection method
 const useWebRTC = CONNECTION_METHOD === "webrtc";
@@ -247,6 +247,29 @@ export function attachGMPanelListeners(html) {
       btn.prop("disabled", false).text("Reconnect to Dice Link App");
     }
     
+    refreshPanel();
+  });
+
+  // WebRTC Automated Test button (GM only, WebRTC mode only)
+  html.find(".dlc-automated-test-btn").click( async function() {
+    const btn = $(this);
+    btn.prop("disabled", true).text("Testing...");
+    
+    try {
+      console.log("[DLC] Starting automated test (bypasses copy/paste)...");
+      const connected = await connectAutomated_WebRTC();
+      if (connected) {
+        ui.notifications.info("AUTOMATED TEST: Connected successfully!");
+      } else {
+        ui.notifications.warn("AUTOMATED TEST: Connection failed.");
+      }
+    } catch (err) {
+      console.error("[DLC] Automated test error:", err);
+      debugError("Automated test error:", err);
+      ui.notifications.error("AUTOMATED TEST: Error - " + err.message);
+    }
+    
+    btn.prop("disabled", false).text("Automated Test (localhost)");
     refreshPanel();
   });
 

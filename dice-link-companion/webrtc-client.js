@@ -114,6 +114,134 @@ export async function connect() {
 }
 
 /**
+ * Automated test connection - bypasses copy/paste, sends offer directly via fetch
+ * This tests whether the issue is in copy/paste handling or WebRTC setup
+ * @returns {Promise<boolean>} True if connection successful
+ */
+export async function connectAutomated() {
+  if (isConnecting || (peerConnection && peerConnection.connectionState !== "failed" && peerConnection.connectionState !== "closed")) {
+    debugWebSocket("Connection already in progress or connected", { 
+      isConnecting, 
+      state: peerConnection?.connectionState 
+    });
+    return isConnected;
+  }
+
+  try {
+    isConnecting = true;
+    connectionAttempts++;
+    
+    console.log("[DLC] AUTOMATED TEST: Starting WebRTC connection (no copy/paste)");
+    debugWebSocket("Starting AUTOMATED WebRTC connection", { 
+      hostname: window.location.hostname,
+      attempt: connectionAttempts
+    });
+
+    // Initialize peer connection with STUN servers
+    peerConnection = new RTCPeerConnection({ iceServers: WEBRTC_CONFIG.iceServers });
+    console.log("[DLC] AUTOMATED TEST: PeerConnection created");
+
+    // Set up connection state monitoring
+    peerConnection.onconnectionstatechange = () => {
+      console.log("[DLC] AUTOMATED TEST: Connection state changed to:", peerConnection.connectionState);
+      handleConnectionStateChange(peerConnection.connectionState);
+    };
+
+    peerConnection.onicecandidateerror = (event) => {
+      console.log("[DLC] AUTOMATED TEST: ICE candidate error:", event.errorText);
+      debugError("ICE candidate error", { error: event.errorText });
+    };
+
+    // Create data channel BEFORE generating offer
+    dataChannel = peerConnection.createDataChannel("dlc-data", DATA_CHANNEL_CONFIG);
+    setupDataChannel(dataChannel);
+    console.log("[DLC] AUTOMATED TEST: Data channel created");
+
+    // Generate SDP offer
+    const offer = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offer);
+    console.log("[DLC] AUTOMATED TEST: Offer created, SDP length:", offer.sdp.length);
+
+    // Wait for ICE gathering to complete (important!)
+    await waitForIceGatheringComplete();
+    
+    // Get the complete offer with ICE candidates
+    const completeOffer = peerConnection.localDescription.sdp;
+    console.log("[DLC] AUTOMATED TEST: Complete offer with ICE, length:", completeOffer.length);
+
+    // Send offer directly to DLA via fetch (no copy/paste)
+    console.log("[DLC] AUTOMATED TEST: Sending offer to http://127.0.0.1:8765/api/receive-offer");
+    const response = await fetch(`http://127.0.0.1:${DICE_LINK_APP_PORT}/api/receive-offer`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ offer: completeOffer })
+    });
+
+    if (!response.ok) {
+      throw new Error(`DLA returned error: ${response.status} ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    console.log("[DLC] AUTOMATED TEST: Received answer from DLA");
+    console.log("[DLC] AUTOMATED TEST: Answer SDP length:", result.answer.length);
+    console.log("[DLC] AUTOMATED TEST: First 100 chars:", result.answer.substring(0, 100));
+    console.log("[DLC] AUTOMATED TEST: First 50 bytes:", Array.from(result.answer.substring(0, 50)).map(c => c.charCodeAt(0)));
+
+    // Set the answer directly (no textarea normalization needed)
+    const answerDescription = new RTCSessionDescription({
+      type: "answer",
+      sdp: result.answer
+    });
+
+    console.log("[DLC] AUTOMATED TEST: Calling setRemoteDescription...");
+    await peerConnection.setRemoteDescription(answerDescription);
+    console.log("[DLC] AUTOMATED TEST: setRemoteDescription succeeded!");
+    console.log("[DLC] AUTOMATED TEST: Connection state:", peerConnection.connectionState);
+    console.log("[DLC] AUTOMATED TEST: ICE connection state:", peerConnection.iceConnectionState);
+
+    isConnecting = false;
+    return true;
+
+  } catch (error) {
+    console.error("[DLC] AUTOMATED TEST: Connection failed:", error);
+    lastError = error;
+    debugError("Automated WebRTC connection failed", error);
+    isConnecting = false;
+    cleanupConnection();
+    return false;
+  }
+}
+
+/**
+ * Wait for ICE gathering to complete
+ * @returns {Promise<void>}
+ */
+function waitForIceGatheringComplete() {
+  return new Promise((resolve) => {
+    if (peerConnection.iceGatheringState === "complete") {
+      resolve();
+      return;
+    }
+    
+    const checkState = () => {
+      if (peerConnection.iceGatheringState === "complete") {
+        peerConnection.removeEventListener("icegatheringstatechange", checkState);
+        resolve();
+      }
+    };
+    
+    peerConnection.addEventListener("icegatheringstatechange", checkState);
+    
+    // Timeout after 5 seconds
+    setTimeout(() => {
+      peerConnection.removeEventListener("icegatheringstatechange", checkState);
+      console.log("[DLC] AUTOMATED TEST: ICE gathering timeout, proceeding anyway");
+      resolve();
+    }, 5000);
+  });
+}
+
+/**
  * Disconnect from WebRTC peer
  * Closes data channel and peer connection
  */
