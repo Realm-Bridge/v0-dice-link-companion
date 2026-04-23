@@ -40,21 +40,24 @@ let playerModeActionCallback = null;
  */
 export async function connect() {
   debugWebSocket("Initializing QWebChannel connection", {});
+  console.log("[DLC] INIT: connect() called");
+  console.log("[DLC] INIT: window.dlaInterface exists?", !!window.dlaInterface);
   
   // Check if dlaInterface is already available (DLA loaded first)
   if (window.dlaInterface) {
-    console.log("[DLC] QWebChannel: dlaInterface found - announcing DLC is ready");
+    console.log("[DLC] INIT: dlaInterface found immediately - announcing DLC is ready");
     return announceDLCReady(window.dlaInterface);
   }
 
   // If not available yet, wait briefly for it to appear
-  console.log("[DLC] QWebChannel: dlaInterface not yet available - waiting...");
+  console.log("[DLC] INIT: dlaInterface not yet available - waiting...");
   
   return new Promise((resolve) => {
     const checkInterval = setInterval(() => {
+      console.log("[DLC] INIT: Checking for dlaInterface...", !!window.dlaInterface);
       if (window.dlaInterface) {
         clearInterval(checkInterval);
-        console.log("[DLC] QWebChannel: dlaInterface became available");
+        console.log("[DLC] INIT: dlaInterface became available");
         const result = announceDLCReady(window.dlaInterface);
         resolve(result);
       }
@@ -80,29 +83,36 @@ export async function connect() {
  */
 async function announceDLCReady(dlaIface) {
   try {
-    console.log("[DLC] QWebChannel: Announcing DLC is ready to DLA");
+    console.log("[DLC] INIT: announceDLCReady() called");
+    console.log("[DLC] INIT: dlaIface type:", typeof dlaIface);
+    console.log("[DLC] INIT: dlaIface keys:", Object.keys(dlaIface));
     
     // Call the correct method on DLA interface to announce DLC is ready
     if (typeof dlaIface.dlcModuleInitialized === "function") {
+      console.log("[DLC] INIT: dlcModuleInitialized is a function - calling it...");
       dlaIface.dlcModuleInitialized();
-      console.log("[DLC] QWebChannel: dlcModuleInitialized() called");
+      console.log("[DLC] INIT: dlcModuleInitialized() called successfully");
     } else {
-      console.error("[DLC] QWebChannel: dlcModuleInitialized method not found on dlaInterface");
-      console.log("[DLC] QWebChannel: Available methods:", Object.keys(dlaIface));
+      console.error("[DLC] INIT: dlcModuleInitialized is NOT a function!");
+      console.error("[DLC] INIT: Type of dlcModuleInitialized:", typeof dlaIface.dlcModuleInitialized);
+      console.log("[DLC] INIT: Available keys on dlaInterface:", Object.keys(dlaIface));
       return false;
     }
     
     // Wait for DLA's acknowledgement via dlcModuleReady signal
+    console.log("[DLC] INIT: Waiting for dlcModuleReady signal...");
     return new Promise((resolve) => {
       const timeout = setTimeout(() => {
-        console.error("[DLC] QWebChannel: dlcModuleReady signal timeout - DLA did not acknowledge");
+        console.error("[DLC] INIT: dlcModuleReady signal TIMEOUT - DLA did not acknowledge");
         resolve(false);
       }, 5000);
 
       if (dlaIface.dlcModuleReady) {
+        console.log("[DLC] INIT: dlcModuleReady signal found, connecting...");
         dlaIface.dlcModuleReady.connect(function(ackJson) {
           clearTimeout(timeout);
-          console.log("[DLC] QWebChannel: DLA acknowledged connection via dlcModuleReady signal");
+          console.log("[DLC] INIT: DLA acknowledged via dlcModuleReady signal!");
+          console.log("[DLC] INIT: Acknowledgement data:", ackJson);
           
           // Setup the interface after DLA acknowledges
           const setupSuccess = setupDLAInterface(dlaIface);
@@ -110,12 +120,13 @@ async function announceDLCReady(dlaIface) {
         });
       } else {
         clearTimeout(timeout);
-        console.error("[DLC] QWebChannel: dlcModuleReady signal not found on dlaInterface");
+        console.error("[DLC] INIT: dlcModuleReady signal NOT FOUND on dlaInterface!");
         resolve(false);
       }
     });
   } catch (error) {
-    console.error("[DLC] QWebChannel: Error announcing DLC ready", error);
+    console.error("[DLC] INIT: Exception in announceDLCReady:", error);
+    console.error("[DLC] INIT: Stack trace:", error.stack);
     debugError("Failed to announce DLC ready", error);
     return false;
   }

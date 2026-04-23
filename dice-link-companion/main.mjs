@@ -125,6 +125,12 @@ import {
   setPlayerModeActionCallback
 } from "./qwebchannel-client.js";
 
+import {
+  extractRollDataForDLA,
+  getPendingDiceRequest,
+  clearPendingDiceRequest
+} from "./websocket-client.js";
+
 // Message sending wrappers for QWebChannel
 function sendRollRequest(data) {
   sendMessage_Common({ type: "rollRequest", ...data });
