@@ -155,11 +155,14 @@ function setupDLAInterface(dlaIface) {
       });
     }
 
-    // Roll cancelled
+    // Roll cancelled - callback expects: (rollId)
     if (dlaInterface.rollCancelledReady) {
       dlaInterface.rollCancelledReady.connect((data) => {
         console.log("[DLC] QWebChannel: Received rollCancelled signal");
-        if (cancelCallback) cancelCallback(JSON.parse(data));
+        const message = JSON.parse(data);
+        if (cancelCallback) {
+          cancelCallback(message.id || message.originalRollId);
+        }
       });
     }
 
@@ -171,35 +174,54 @@ function setupDLAInterface(dlaIface) {
       });
     }
 
-    // Dice result
+    // Dice result - callback expects: (rollId, results[])
     if (dlaInterface.diceResultReady) {
       dlaInterface.diceResultReady.connect((result) => {
         console.log("[DLC] QWebChannel: Received diceResult signal");
-        if (diceResultCallback) diceResultCallback(JSON.parse(result));
+        const message = JSON.parse(result);
+        if (diceResultCallback) {
+          diceResultCallback(
+            message.originalRollId || message.id,
+            message.results || []
+          );
+        }
       });
     }
 
-    // Button select
+    // Button select - callback expects: (rollId, buttonClicked, configChanges)
     if (dlaInterface.buttonSelectReady) {
       dlaInterface.buttonSelectReady.connect((data) => {
         console.log("[DLC] QWebChannel: Received buttonSelect signal");
-        if (buttonSelectCallback) buttonSelectCallback(JSON.parse(data));
+        const message = JSON.parse(data);
+        if (buttonSelectCallback) {
+          buttonSelectCallback(
+            message.id || message.originalRollId,
+            message.button || "normal",
+            message.configChanges || {}
+          );
+        }
       });
     }
 
-    // Dice tray roll
+    // Dice tray roll - callback expects: (result object)
     if (dlaInterface.diceTrayRollReady) {
       dlaInterface.diceTrayRollReady.connect((result) => {
         console.log("[DLC] QWebChannel: Received diceTrayRoll signal");
-        if (diceTrayRollCallback) diceTrayRollCallback(JSON.parse(result));
+        const message = JSON.parse(result);
+        if (diceTrayRollCallback) {
+          diceTrayRollCallback(message);
+        }
       });
     }
 
-    // Player modes update
+    // Player modes update - callback expects: (data object)
     if (dlaInterface.playerModesUpdateReady) {
       dlaInterface.playerModesUpdateReady.connect((data) => {
         console.log("[DLC] QWebChannel: Received playerModesUpdate signal");
-        if (playerModeActionCallback) playerModeActionCallback(JSON.parse(data));
+        const message = JSON.parse(data);
+        if (playerModeActionCallback) {
+          playerModeActionCallback(message);
+        }
       });
     }
 
