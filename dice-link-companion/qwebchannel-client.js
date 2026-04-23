@@ -219,13 +219,19 @@ function setupDLAInterface(dlaIface) {
 function handleConnectionStatusChange(status) {
   const wasConnected = isConnected;
   
+  console.log("[DLC] QWebChannel: handleConnectionStatusChange called with status:", status);
+  console.log("[DLC] QWebChannel: Was connected before:", wasConnected);
+  
   if (status === "connected") {
     isConnected = true;
   } else if (status === "disconnected" || status === "error") {
     isConnected = false;
   }
 
+  console.log("[DLC] QWebChannel: Connection state after handling:", isConnected);
+  
   if (wasConnected !== isConnected) {
+    console.log("[DLC] QWebChannel: Connection state changed, notifying listeners");
     notifyConnectionChange(isConnected);
   }
 }
@@ -253,8 +259,12 @@ function notifyConnectionChange(connected) {
  * @param {Object} data - Roll request data
  */
 export function sendMessage(data) {
+  console.log("[DLC] sendMessage called with data:", data);
+  console.log("[DLC] Connection state - isConnected:", isConnected, "dlaInterface:", !!dlaInterface);
+  
   if (!isConnected || !dlaInterface) {
     console.warn("[DLC] QWebChannel: Not connected, cannot send message", data);
+    console.warn("[DLC] isConnected:", isConnected, "dlaInterface:", !!dlaInterface);
     debugError("QWebChannel not connected", { messageType: data.type });
     return;
   }
@@ -262,15 +272,23 @@ export function sendMessage(data) {
   try {
     const jsonData = JSON.stringify(data);
     console.log("[DLC] QWebChannel: Sending message type:", data.type);
+    console.log("[DLC] QWebChannel: Full message data:", jsonData);
 
     if (data.type === "rollRequest" && dlaInterface.receiveRollRequest) {
+      console.log("[DLC] QWebChannel: Calling receiveRollRequest...");
       dlaInterface.receiveRollRequest(jsonData);
+      console.log("[DLC] QWebChannel: receiveRollRequest called successfully");
     } else if (data.type === "diceRequest" && dlaInterface.receiveDiceRequest) {
+      console.log("[DLC] QWebChannel: Calling receiveDiceRequest...");
       dlaInterface.receiveDiceRequest(jsonData);
     } else if (data.type === "playerModesUpdate" && dlaInterface.receivePlayerModesUpdate) {
+      console.log("[DLC] QWebChannel: Calling receivePlayerModesUpdate...");
       dlaInterface.receivePlayerModesUpdate(jsonData);
     } else {
       console.warn("[DLC] QWebChannel: Unknown message type or handler not available:", data.type);
+      console.warn("[DLC] Available handlers - receiveRollRequest:", !!dlaInterface.receiveRollRequest, 
+                   "receiveDiceRequest:", !!dlaInterface.receiveDiceRequest,
+                   "receivePlayerModesUpdate:", !!dlaInterface.receivePlayerModesUpdate);
     }
   } catch (error) {
     console.error("[DLC] QWebChannel: Error sending message:", error);
