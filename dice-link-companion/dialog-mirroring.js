@@ -5,7 +5,19 @@
 
 import { getPlayerMode, getGlobalOverride, getCollapsedSections, setCollapsedSections } from "./settings.js";
 import { debug, debugError, debugState, debugResolverCancel, debugResolverClosure, debugCloning, debugButtonDetection } from "./debug.js";
-import { getConnectionStatus, sendDiceRequest, getPendingDiceRequest } from "./websocket-client.js";
+import { getConnectionStatus, sendMessage } from "./qwebchannel-client.js";
+import { getPendingDiceRequest } from "./websocket-client.js";
+
+// Wrapper for sendDiceRequest to use QWebChannel
+function sendDiceRequest(rollId, dice, formula, rollType) {
+  sendMessage({
+    type: "diceRequest",
+    id: rollId,
+    dice: dice,
+    formula: formula,
+    rollType: rollType
+  });
+}
 import { getMirroredDialog, setMirroredDialog, getPendingRollRequest, setPendingRollRequest, getCurrentPanelDialog, setDLAPhase } from "./state-management.js";
 
 /**
