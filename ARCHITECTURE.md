@@ -1,15 +1,35 @@
 # Dice Link — Architecture Overview
 
-**Version 1.0 | April 2026**
+**Version 3.0 | April 23, 2026**  
 **Realm Bridge Ltd. | Confidential**
 
 ---
 
 ## What This Document Covers
 
-This document describes the technical architecture for the Dice Link desktop application. It covers the chosen tech stack, project structure, environment variables, and data models. It is intended as a reference for developers joining the project.
+This document describes the revised technical architecture for the Dice Link desktop application based on discoveries from initial prototype development. It covers the chosen tech stack, project structure, environment variables, data models, and critical integration patterns.
 
 For product scope and user flows, refer to the Full Vision Specification.
+
+**Note:** This is a major revision from Version 2.0. See `ARCHITECTURE-OLD.md` for the original plan and `scripts/dice-link/docs/architecture-decision-embedded-vs-bridge.md` for the detailed technical rationale behind the changes.
+
+---
+
+## Key Architectural Change: Embedded Browser Integration
+
+### Original Approach (v2.0)
+- Users access VTTs (Foundry, Roll20, etc.) in their normal browsers
+- DLA connects externally via WebSocket to communicate with VTT plugins/extensions
+- Separate windows: VTT in browser, DLA controls in PyWebView app
+
+### New Approach (v3.0)
+- **DLA embeds VTTs directly** inside PyQt6 QWebEngineView containers
+- Communication with VTTs is **internal JavaScript injection**, not external WebSocket
+- Dual independent windows: Foundry browser (fullscreen-capable), DLA controls (separate window)
+- VTTs are viewed and interacted with inside DLA, not in the user's normal browser
+
+**Why this change:**
+Chromium browsers block WebRTC/getUserMedia on HTTP origins for security reasons. Most GMs host Foundry over HTTP. The embedded browser approach uses Qt command-line flags to bypass these restrictions safely while running on the user's machine.
 
 ---
 
@@ -17,18 +37,73 @@ For product scope and user flows, refer to the Full Vision Specification.
 
 | Layer | Technology | Notes |
 |---|---|---|
-| Desktop app shell | Electron | Windows MVP; expands to Mac and Linux with minimal rework |
-| App language | TypeScript | Used throughout the app |
-| App UI | React | Renders inside the Electron shell |
-| ML training | Python + PyTorch + YOLO v11 | Separate workstream; never shipped to users |
-| ML inference | ONNX Runtime (onnxruntime-node) | Runs the exported YOLO v11 model locally inside Electron |
-| Camera access | Web APIs (getUserMedia) | Built into Electron; no extra library required for MVP |
-| Local storage | SQLite via better-sqlite3 | Single file database on the user's machine |
-| Cloud storage | AWS S3 | Stores ML model files, error packages, and personal dice set syncs |
-| Cloud API | AWS Lambda + API Gateway | Serverless; three functions (see Server section below) |
-| VTT / extension comms | Local WebSocket server | Runs inside the Electron app on localhost |
-| Foundry VTT module | JavaScript | Intercepts roll requests and routes them to the app |
-| Browser extensions | JavaScript / TypeScript | Connects other VTTs and software to the app |
+| **Desktop app shell** | **PyQt6 + QWebEngineView** (revised) | Cross-platform; provides full browser control: popup interception, JS injection, window management |
+| App backend | Python + Flask | Unchanged: handles camera, inference, database, uploads |
+| App frontend | Vanilla JavaScript | Unchanged: DLA controls UI |
+| Frontend UI framework | Custom CSS + Semantic HTML | Unchanged |
+| **VTT display (Foundry)** | **PyQt6 QWebEngineView** (new) | Embeds Foundry VTT directly; allows JS injection for dice interception |
+| **VTT module (Foundry)** | **JavaScript (minimal)** (revised) | Still required but role simplified: relays roll results to other players. No longer needs WebSocket client code. |
+| ML training | Python + PyTorch + YOLO v11 | Unchanged |
+| ML inference | ONNX Runtime (Python) | Unchanged |
+| Camera access | OpenCV (Python) | Unchanged |
+| Local storage | JSON files (MVP) → SQLite (v1.1+) | Unchanged |
+| Cloud storage | AWS S3 | Unchanged |
+| Cloud API | AWS Lambda + API Gateway | Unchanged: error packages, model updates, dice set sync |
+| **Browser extensions** | **JavaScript (future)** (revised) | For other VTTs (Roll20, etc.). Approach TBD but likely similar embedded browser pattern or traditional WebSocket if VTT supports it |
+
+---
+
+## System Architecture
+
+### Dual Window System
+
+**DLA Controls Window (QMainWindow)**
+- Dice controls, formula bar
+- Camera preview / selection
+- Settings panel
+- Connection status to VTT
+- Model version display
+
+**VTT Browser Window (QMainWindow)**
+- Embedded VTT (Foundry VTT for v1.0)
+- Displays to user in fullscreen (optional, on separate monitor)
+- Can be minimized/moved independently
+
+Both windows run in the same Qt application process but are separate top-level windows that communicate via:
+- Qt signals/slots
+- Shared Python state
+- JavaScript injection
+
+```
+┌──────────────────────────────────────────┐
+│        DLA Controls Window (Qt)           │
+│  ┌─────────────────────────────────────┐ │
+│  │  Dice Controls                      │ │
+│  │  Camera Selection                   │ │
+│  │  Settings                           │ │
+│  │  Status                             │ │
+│  └─────────────────────────────────────┘ │
+│              │                            │
+│              │ Qt signals / shared state  │
+│              ▼                            │
+│  Foundry Module (injected JS)            │
+│  Intercepts dice rolls                   │
+│  Sends to DLA backend                    │
+└──────────────────────────────────────────┘
+              │
+              │ (same process, different window)
+              ▼
+┌──────────────────────────────────────────┐
+│    VTT Browser Window (Qt)                │
+│  ┌─────────────────────────────────────┐ │
+│  │  Foundry VTT                        │ │
+│  │  (full Foundry interface)           │ │
+│  │                                     │ │
+│  │  Popouts work properly              │ │
+│  │  (with location.hash patch)         │ │
+│  └─────────────────────────────────────┘ │
+└──────────────────────────────────────────┘
+```
 
 ---
 
@@ -36,61 +111,168 @@ For product scope and user flows, refer to the Full Vision Specification.
 
 ```
 dice-link/
-├── app/                        # Desktop application (Electron + React)
+├── app/                          # Desktop application
+│   ├── app.py                    # Main entry point (creates Qt app + dual windows)
+│   ├── config.py                 # Configuration
+│   ├── requirements.txt           # Python dependencies
+│   ├── windows/
+│   │   ├── __init__.py
+│   │   ├── controls.py           # DLA Controls window (QMainWindow)
+│   │   ├── foundry_browser.py    # VTT Browser window (QMainWindow)
+│   │   └── popout.py             # PopOut window handler
+│   ├── static/
+│   │   ├── js/
+│   │   │   ├── client.js         # WebSocket client for Flask backend
+│   │   │   ├── state.js          # State management
+│   │   │   ├── utils.js          # Utilities
+│   │   │   └── ui/
+│   │   │       ├── controls.js   # Dice controls UI
+│   │   │       ├── settings.js   # Settings UI
+│   │   │       └── status.js     # Status UI
+│   │   ├── css/
+│   │   │   └── style.css
+│   │   └── DLC Dice/             # SVG assets
+│   ├── core/
+│   │   ├── camera.py             # Camera access (OpenCV)
+│   │   ├── inference.py          # ONNX inference
+│   │   ├── vtt_integration.py    # VTT-specific logic
+│   │   ├── js_injection.py       # JavaScript injection helpers
+│   │   └── storage.py            # Database operations
+│   ├── js_patches/               # JavaScript patches for VTTs
+│   │   ├── foundry_v13.js        # Foundry v13 patches
+│   │   ├── foundry_v14.js        # Foundry v14 patches (when available)
+│   │   └── popout_patch.js       # Universal popout handler
+│   └── scripts/
+│       └── build_exe.py          # PyInstaller config
+├── ml/                           # ML training (unchanged)
+├── server/                       # AWS Lambda (unchanged)
+├── foundry-module/               # Foundry VTT module (SIMPLIFIED)
 │   ├── src/
-│   │   ├── main/               # Main process: camera, inference, database, uploads
-│   │   │   ├── main.ts
-│   │   │   ├── camera.ts
-│   │   │   ├── inference.ts
-│   │   │   ├── database.ts
-│   │   │   ├── storage.ts
-│   │   │   ├── updater.ts
-│   │   │   ├── uploader.ts
-│   │   │   └── websocket-server.ts
-│   │   ├── renderer/           # Renderer process: all UI
-│   │   │   ├── index.tsx
-│   │   │   ├── App.tsx
-│   │   │   ├── components/
-│   │   │   │   ├── CameraPreview.tsx
-│   │   │   │   ├── RollResult.tsx
-│   │   │   │   ├── ErrorCorrection.tsx
-│   │   │   │   ├── SessionSetup.tsx
-│   │   │   │   └── DiceSetManager.tsx
-│   │   │   └── pages/
-│   │   │       ├── Setup.tsx
-│   │   │       └── Session.tsx
-│   │   └── preload/            # Bridge between main and renderer processes
-│   │       └── preload.ts
-│   ├── models/                 # Local ONNX model file lives here at runtime
-│   ├── package.json
-│   ├── tsconfig.json
-│   └── electron-builder.config.js
-├── ml/                         # ML training workstream (not shipped to users)
-│   ├── data/
-│   │   ├── raw/
-│   │   └── annotated/
-│   ├── training/
-│   │   ├── train.py
-│   │   ├── export.py
-│   │   └── evaluate.py
-│   ├── models/                 # Exported ONNX files output here
-│   ├── requirements.txt
-│   └── README.md
-├── server/                     # AWS Lambda functions
-│   ├── functions/
-│   │   ├── check-model-update/
-│   │   ├── receive-error-package/
-│   │   └── sync-dice-set/
-│   ├── package.json
-│   └── template.yaml
-├── foundry-module/             # Foundry VTT companion module
-│   ├── src/
-│   │   ├── module.js
-│   │   └── websocket-client.js
+│   │   ├── module.js             # Entry point - relays rolls to other players
+│   │   └── hooks.js              # Hook definitions (dice roll interception)
 │   ├── lang/
 │   └── module.json
-├── browser-extension/          # Browser extension (other VTTs and software)
+├── ARCHITECTURE-OLD.md           # Previous architecture (for reference)
 └── README.md
+```
+
+---
+
+## Communication Flow: Foundry Dice Rolls
+
+### Step 1: User rolls dice in Foundry
+Foundry creates a roll event in the chat.
+
+### Step 2: Injected Foundry Module intercepts
+```javascript
+// Injected into Foundry page by DLA at startup
+Hooks.on('renderChatMessage', (app, html, data) => {
+  // Find dice rolls in the chat
+  // Call back to DLA backend
+});
+```
+
+### Step 3: JavaScript calls Python backend
+```python
+# In DLA backend (Flask)
+@app.route('/api/foundry/roll', methods=['POST'])
+def handle_foundry_roll():
+    # Roll data arrives here
+    # Perform inference on camera frame
+    # Return updated roll values
+```
+
+### Step 4: DLA injects response back into Foundry
+If the user corrects the roll, DLA injects JavaScript to update Foundry's roll object in real-time.
+
+### Step 5: Foundry Module broadcasts to other players
+The Foundry module uses `game.socket.emit()` to send the final roll to all connected players:
+```javascript
+game.socket.emit('module.dice-link', {
+  type: 'rollResult',
+  data: correctedRoll
+});
+```
+
+---
+
+## Critical Integration Details
+
+### Qt WebEngine Chromium Flags (MANDATORY)
+
+To allow HTTP origins to use WebRTC, getUserMedia, and other "powerful features", pass these flags to `QApplication()` via `sys.argv`:
+
+```python
+import sys
+from urllib.parse import urlparse
+
+FOUNDRY_URL = "http://gm-machine.local:30000"  # Example
+parsed = urlparse(FOUNDRY_URL)
+origin = f"{parsed.scheme}://{parsed.netloc}"
+
+QT_ARGS = [sys.argv[0]]
+QT_ARGS.extend([
+    f'--unsafely-treat-insecure-origin-as-secure={origin}',
+    '--disable-web-security',
+    '--disable-features=CrossOriginOpenerPolicy',
+    '--disable-features=CrossOriginEmbedderPolicy',
+    '--allow-running-insecure-content',
+    '--disable-site-isolation-trials',
+    '--disable-features=IsolateOrigins',
+    '--disable-features=site-per-process',
+    '--test-type',
+    '--ignore-certificate-errors',
+])
+
+from PyQt6.QtWidgets import QApplication
+app = QApplication(QT_ARGS)
+```
+
+**Important:** Pass to `QApplication()`, NOT as environment variables. `QTWEBENGINE_CHROMIUM_FLAGS` does not work reliably.
+
+Reference: `scripts/dice-link/tests/pyqt6-test2-secure-origin.py`
+
+### Foundry PopOut Module Handling (CRITICAL)
+
+Foundry's PopOut module fails in Qt WebEngine because popup windows lack a `.location` property. Solution:
+
+**1. Patch `window.open()` at startup:**
+```javascript
+// Installed before Foundry module loads
+var originalWindowOpen = window.open;
+window.open = function(url, name, features) {
+    var popup = originalWindowOpen.call(window, url, name, features);
+    if (!popup) return null;
+    
+    // Add missing .location property
+    if (!popup.location) {
+        popup.location = { hash: "", href: url || "about:blank" };
+    }
+    return popup;
+};
+```
+
+**2. Intercept OS close button in PopupWindow:**
+When user clicks OS close button (red X), instead of closing immediately:
+- Use JavaScript to click the sheet's close button (Foundry's button)
+- This triggers PopOut's unload handler which returns sheet data to main window
+- After delay (~300-500ms), allow Qt window to close
+
+This prevents sheet data loss.
+
+Reference: `scripts/dice-link/docs/architecture-decision-embedded-vs-bridge.md` - PopOut Module section
+
+### Navigation Control
+
+The embedded VTT browser must prevent users from navigating away from the VTT:
+
+```python
+def acceptNavigationRequest(self, url, navigation_type, isMainFrame):
+    # Only allow navigation within the VTT domain
+    allowed_domain = urlparse(self.FOUNDRY_URL).netloc
+    requested_domain = urlparse(url.toString()).netloc
+    
+    return requested_domain == allowed_domain
 ```
 
 ---
@@ -101,189 +283,126 @@ dice-link/
 
 | Variable | Purpose |
 |---|---|
-| `DICE_LINK_ENV` | Whether the app is running in development or production |
-| `DICE_LINK_WEBSOCKET_PORT` | The local port the WebSocket server listens on (e.g. 43560) |
-| `DICE_LINK_API_BASE_URL` | The base URL of the AWS API Gateway |
-| `DICE_LINK_API_KEY` | The key that authenticates the app to the AWS API |
+| `DICE_LINK_ENV` | `development` or `production` |
+| `DICE_LINK_API_BASE_URL` | AWS API Gateway URL |
+| `DICE_LINK_API_KEY` | AWS authentication key |
+| `DICE_LINK_APPDATA_PATH` | User data storage (set at runtime) |
+| `FOUNDRY_URL` | URL of target Foundry instance (e.g., `http://localhost:30000`) |
+| `FOUNDRY_ADMIN_KEY` | Admin key for Foundry API calls (if needed) |
 
 ### AWS Lambda (`server/`)
 
 | Variable | Purpose |
 |---|---|
-| `AWS_REGION` | Which AWS region the infrastructure lives in |
-| `S3_BUCKET_MODELS` | S3 bucket for ML model files |
-| `S3_BUCKET_ERROR_PACKAGES` | S3 bucket for uploaded error image packages |
-| `S3_BUCKET_DICE_SETS` | S3 bucket for personal dice set syncs |
-| `MODEL_MANIFEST_KEY` | Path within the models bucket to the version manifest file |
+| `AWS_REGION` | AWS region |
+| `S3_BUCKET_MODELS` | ONNX model storage |
+| `S3_BUCKET_ERROR_PACKAGES` | Error packages (for training data collection) |
+| `S3_BUCKET_DICE_SETS` | Personal dice set sync |
+| `MODEL_MANIFEST_KEY` | Version manifest path in S3 |
 
 ### ML Training (`ml/`)
 
 | Variable | Purpose |
 |---|---|
-| `TRAINING_DATA_PATH` | Path to annotated training images on the ML expert's machine |
-| `MODEL_OUTPUT_PATH` | Where the finished exported ONNX model file is saved |
-| `YOLO_EPOCHS` | Number of training runs to perform |
-| `YOLO_CONFIDENCE_THRESHOLD` | Minimum confidence score for a result to be considered valid |
-
-`DICE_LINK_API_KEY` and `DICE_LINK_API_BASE_URL` must never be hardcoded in source. Store them in a `.env` file and ensure `.env` is listed in `.gitignore`.
+| `TRAINING_DATA_PATH` | Annotated training images location |
+| `MODEL_OUTPUT_PATH` | Exported ONNX model location |
+| `YOLO_EPOCHS` | Training runs |
+| `YOLO_CONFIDENCE_THRESHOLD` | Minimum confidence for valid results |
 
 ---
 
 ## Data Models
 
-### RollResult
-Represents a single die's outcome within a session.
+Same as ARCHITECTURE-OLD.md (unchanged):
+- `RollResult`
+- `ErrorPackage`
+- `Session`
+- `AppSettings`
+- `PersonalDiceSet`
+- `DieProfile`
+- `TrainingImage`
 
-```
-RollResult {
-  id                   : UUID      [required, primary key, auto-generated]
-  session_id           : UUID      [required, foreign key -> Session.id]
-  die_type_detected    : ENUM(d4, d6, d8, d10, d10_percentile, d12, d20, d100)
-                                   [required]
-  face_value_detected  : INTEGER   [required, min: 1]
-  confidence_score     : FLOAT     [required, range: 0.0 - 1.0]
-  is_overridden        : BOOLEAN   [required, default: false]
-  die_type_corrected   : ENUM(d4, d6, d8, d10, d10_percentile, d12, d20, d100)
-                                   [nullable, present only if is_overridden = true]
-  face_value_corrected : INTEGER   [nullable, present only if is_overridden = true, min: 1]
-  final_die_type       : ENUM(d4, d6, d8, d10, d10_percentile, d12, d20, d100)
-                                   [required, equals die_type_corrected if overridden,
-                                    else die_type_detected]
-  final_face_value     : INTEGER   [required, equals face_value_corrected if overridden,
-                                    else face_value_detected]
-  timestamp            : DATETIME  [required, UTC, auto-generated on creation]
-}
-```
-
-### ErrorPackage
-Created silently on any manual correction. Queued locally and uploaded to S3, then deleted on confirmed upload.
-
-```
-ErrorPackage {
-  id                         : UUID      [required, primary key, auto-generated]
-  roll_result_id             : UUID      [required, foreign key -> RollResult.id]
-  image_data                 : BLOB      [required, captured frame at time of roll]
-  die_type_original_guess    : ENUM(d4, d6, d8, d10, d10_percentile, d12, d20, d100)
-                                         [required]
-  die_type_corrected         : ENUM(d4, d6, d8, d10, d10_percentile, d12, d20, d100)
-                                         [required]
-  face_value_original_guess  : INTEGER   [required, min: 1]
-  face_value_corrected       : INTEGER   [required, min: 1]
-  timestamp                  : DATETIME  [required, UTC, auto-generated on creation]
-  upload_status              : ENUM(pending, uploaded)
-                                         [required, default: pending]
-  uploaded_at                : DATETIME  [nullable, set when upload_status = uploaded]
-}
-NOTE: Records where upload_status = uploaded must be purged automatically
-after confirmed successful upload to S3.
-```
-
-### Session
-Represents a single game session from open to close.
-
-```
-Session {
-  id                  : UUID      [required, primary key, auto-generated]
-  camera_device_id    : STRING    [required, system device identifier]
-  camera_device_label : STRING    [required, human-readable camera name]
-  target_software     : ENUM(foundry_vtt, roll20, dnd_beyond, fantasy_grounds,
-                              owlbear_rodeo, discord, other)
-                                  [required]
-  dice_set_id         : UUID      [nullable, foreign key -> PersonalDiceSet.id]
-  started_at          : DATETIME  [required, UTC, auto-generated on creation]
-  ended_at            : DATETIME  [nullable, set when session is closed]
-  roll_results        : RollResult[]
-                                  [one-to-many, foreign key on RollResult.session_id]
-}
-```
-
-### AppSettings
-Singleton. Created on first run and updated in place thereafter.
-
-```
-AppSettings {
-  id                             : INTEGER   [required, primary key, always 1]
-  last_used_camera_device_id     : STRING    [nullable]
-  last_used_camera_label         : STRING    [nullable]
-  last_used_target_software      : ENUM(foundry_vtt, roll20, dnd_beyond, fantasy_grounds,
-                                         owlbear_rodeo, discord, other)
-                                             [nullable]
-  installed_model_version        : STRING    [nullable, semantic version e.g. "1.4.2"]
-  privacy_policy_accepted        : BOOLEAN   [required, default: false]
-  privacy_policy_accepted_at     : DATETIME  [nullable, set when privacy_policy_accepted
-                                              = true]
-  updated_at                     : DATETIME  [required, UTC, updated on every write]
-}
-```
-
-### PersonalDiceSet
-Stored locally and synced to S3.
-
-```
-PersonalDiceSet {
-  id           : UUID      [required, primary key, auto-generated]
-  name         : STRING    [required, max: 100 chars, user-defined]
-  die_profiles : DieProfile[]
-                           [one-to-many, foreign key on DieProfile.dice_set_id]
-  sync_status  : ENUM(local_only, synced, pending_sync)
-                           [required, default: local_only]
-  synced_at    : DATETIME  [nullable, set when sync_status = synced]
-  created_at   : DATETIME  [required, UTC, auto-generated on creation]
-  updated_at   : DATETIME  [required, UTC, updated on every write]
-}
-```
-
-### DieProfile
-Child of PersonalDiceSet. Represents training data captured for one die.
-
-```
-DieProfile {
-  id               : UUID      [required, primary key, auto-generated]
-  dice_set_id      : UUID      [required, foreign key -> PersonalDiceSet.id]
-  die_type         : ENUM(d4, d6, d8, d10, d10_percentile, d12, d20, d100)
-                               [required]
-  training_images  : TrainingImage[]
-                               [one-to-many, foreign key on TrainingImage.die_profile_id]
-  created_at       : DATETIME  [required, UTC, auto-generated on creation]
-  updated_at       : DATETIME  [required, UTC, updated on every write]
-
-  NOTE: Minimum image count per die face to be confirmed with ML team before build.
-}
-```
-
-### TrainingImage
-Child of DieProfile. One record per captured image during dice set training.
-
-```
-TrainingImage {
-  id             : UUID      [required, primary key, auto-generated]
-  die_profile_id : UUID      [required, foreign key -> DieProfile.id]
-  face_value     : INTEGER   [required, min: 1, the face shown in this image]
-  image_data     : BLOB      [required, raw captured frame]
-  captured_at    : DATETIME  [required, UTC, auto-generated on creation]
-}
-```
-
-### Relationships
-
-```
-Session          1 ---> many  RollResult
-RollResult       1 ---> 0..1  ErrorPackage
-PersonalDiceSet  1 ---> many  DieProfile
-DieProfile       1 ---> many  TrainingImage
-Session          many -> 0..1 PersonalDiceSet
-AppSettings      (singleton, no relationships)
-```
-
-Image blobs in `TrainingImage` and `ErrorPackage` may be stored as file references on disk rather than directly in SQLite. Both approaches are valid; the decision is left to the developer.
+See ARCHITECTURE-OLD.md for full schema definitions.
 
 ---
 
-## Open Items
+## Foundry Module Role (SIMPLIFIED)
 
-The following are unresolved at the time of writing. See the Full Vision Specification for full detail.
+The Foundry VTT module is STILL REQUIRED but its role is simplified:
 
-- **Minimum training images per die face** — to be confirmed with the ML team before the personal dice set flow is built.
-- **Integration interfaces** — exact communication contracts between the desktop app, Foundry module, browser extensions, and any bots are to be defined in collaboration with parallel development teams.
-- **GDPR and international compliance** — ICO registration in progress. No server-connected features should go live until compliance requirements are confirmed.
-- **Account system** — planned for a future version. Developers should be aware it is coming but must not architect for it in MVP.
+**Old role (v2.0):**
+- WebSocket client connecting to DLA's local server
+- Receives roll results from WebSocket
+- Broadcasts to other players via `game.socket.emit()`
+
+**New role (v3.0):**
+- DLA injects JavaScript directly (no WebSocket needed for Foundry)
+- Module acts as "receiver" of injected messages
+- Still broadcasts to other players via `game.socket.emit()`
+- Minimal code needed: mostly just hook definitions and socket broadcasting
+
+```javascript
+// Simplified module.js
+Hooks.once('init', () => {
+  // Listen for injected messages from DLA
+  window.addEventListener('diceLinkRollResult', (event) => {
+    const rollData = event.detail;
+    game.socket.emit('module.dice-link', {
+      type: 'rollResult',
+      data: rollData
+    });
+  });
+});
+```
+
+---
+
+## Testing Strategy
+
+All critical integration points have been tested:
+
+- [x] PyQt6 WebEngine loading HTTP origins
+- [x] Chromium flags allowing WebRTC/getUserMedia
+- [x] Foundry loading and operating in embedded browser
+- [x] PopOut module functionality with location.hash patch
+- [x] Multiple simultaneous popouts
+- [x] OS close button interception and sheet return
+- [x] JavaScript injection and roll interception
+
+See `/scripts/dice-link/tests/` for test implementations.
+
+---
+
+## Packaging and Deployment
+
+**MVP (v1.0):**
+- PyInstaller bundles Python, PyQt6, OpenCV, ONNX Runtime into single .exe (~150-200MB)
+- Chromium flags baked into app launch
+- Foundry module included in installer (users install into their Foundry instance once)
+- ONNX model v1.0.0 embedded
+- Auto-update for models
+
+**Future versions:**
+- Mac and Linux support
+- Additional VTT support (Roll20, D&D Beyond, etc.)
+- Account system and cloud sync (v1.1+)
+
+---
+
+## Open Items & Future Considerations
+
+- **Foundry v14 compatibility** — Built-in popout module not yet tested; may require revisiting when Foundry v14 is released
+- **Roll20 / D&D Beyond integration** — Approach not yet defined; may require WebSocket extensions or similar embedded browser pattern
+- **Multi-monitor setup optimization** — UI layout for controlling dual windows
+- **Security model for injected JavaScript** — Formal review needed before production release
+- **GDPR compliance** — Still in progress; affects cloud features
+- **Account system** — Planned for v1.1+; do not architect for MVP
+
+---
+
+## References
+
+- `ARCHITECTURE-OLD.md` — Original v2.0 architecture (superseded)
+- `scripts/dice-link/docs/architecture-decision-embedded-vs-bridge.md` — Detailed technical decision rationale
+- `scripts/dice-link/tests/pyqt6-test2-secure-origin.py` — Chromium flags implementation
+- `scripts/dice-link/tests/pyqt6-test7-popouts-and-validation.py` — PopOut handling implementation
