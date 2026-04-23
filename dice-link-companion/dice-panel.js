@@ -18,12 +18,6 @@ import {
   getPendingRollRequest,
   setPendingRollRequest
 } from "./state-management.js";
-import { clearPendingDiceRequest, manualReconnect as manualReconnect_WS } from "./websocket-client.js";
-import { connect as connect_WebRTC, connectAutomated as connectAutomated_WebRTC } from "./webrtc-client.js";
-
-// Use correct reconnect based on connection method
-const useWebRTC = CONNECTION_METHOD === "webrtc";
-const manualReconnect = useWebRTC ? connect_WebRTC : manualReconnect_WS;
 import {
   setGlobalOverride,
   getGlobalOverride,
@@ -205,72 +199,6 @@ export function attachGMPanelListeners(html) {
   html.find(".dlc-refresh-btn").click( function() {
     refreshPanel();
     ui.notifications.info("Panel refreshed.");
-  });
-
-  // Dice Link App connect/reconnect button (GM only)
-  html.find(".dlc-reconnect-dla-btn").click( async function() {
-    const btn = $(this);
-    
-    if (useWebRTC) {
-      // WebRTC mode: Connect initiates handshake dialog flow automatically
-      btn.prop("disabled", true).text("Connecting...");
-      
-      try {
-        const connected = await connect_WebRTC();
-        if (connected) {
-          ui.notifications.info("Connected to Dice Link App via WebRTC.");
-        } else {
-          ui.notifications.warn("Connection cancelled or failed.");
-        }
-      } catch (err) {
-        debugError("WebRTC handshake error:", err);
-        ui.notifications.error("Error during WebRTC handshake.");
-      }
-      
-      btn.prop("disabled", false).text("Connect to Dice Link App");
-    } else {
-      // WebSocket mode: Auto-reconnect
-      btn.prop("disabled", true).text("Reconnecting...");
-      
-      try {
-        const connected = await manualReconnect();
-        if (connected) {
-          ui.notifications.info("Reconnected to Dice Link App.");
-        } else {
-          ui.notifications.error(`Failed to reconnect to Dice Link App. Is it running on port ${DICE_LINK_APP_PORT}?`);
-        }
-      } catch (err) {
-        debugError("Reconnect error:", err);
-        ui.notifications.error("Error during reconnect attempt.");
-      }
-      
-      btn.prop("disabled", false).text("Reconnect to Dice Link App");
-    }
-    
-    refreshPanel();
-  });
-
-  // WebRTC Automated Test button (GM only, WebRTC mode only)
-  html.find(".dlc-automated-test-btn").click( async function() {
-    const btn = $(this);
-    btn.prop("disabled", true).text("Testing...");
-    
-    try {
-      console.log("[DLC] Starting automated test (bypasses copy/paste)...");
-      const connected = await connectAutomated_WebRTC();
-      if (connected) {
-        ui.notifications.info("AUTOMATED TEST: Connected successfully!");
-      } else {
-        ui.notifications.warn("AUTOMATED TEST: Connection failed.");
-      }
-    } catch (err) {
-      console.error("[DLC] Automated test error:", err);
-      debugError("Automated test error:", err);
-      ui.notifications.error("AUTOMATED TEST: Error - " + err.message);
-    }
-    
-    btn.prop("disabled", false).text("Automated Test (localhost)");
-    refreshPanel();
   });
 
   // Global override - All Manual toggle
