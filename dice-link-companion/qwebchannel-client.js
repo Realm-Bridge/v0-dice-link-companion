@@ -82,22 +82,38 @@ async function announceDLCReady(dlaIface) {
   try {
     console.log("[DLC] QWebChannel: Announcing DLC is ready to DLA");
     
-    // Call the method on DLA interface to announce DLC is ready
-    if (typeof dlaIface.dlcReady === "function") {
-      dlaIface.dlcReady();
-      console.log("[DLC] QWebChannel: dlcReady() called");
-    } else if (typeof dlaIface.announceDLCReady === "function") {
-      dlaIface.announceDLCReady();
-      console.log("[DLC] QWebChannel: announceDLCReady() called");
+    // Call the correct method on DLA interface to announce DLC is ready
+    if (typeof dlaIface.dlcModuleInitialized === "function") {
+      dlaIface.dlcModuleInitialized();
+      console.log("[DLC] QWebChannel: dlcModuleInitialized() called");
     } else {
-      console.log("[DLC] QWebChannel: No ready announcement method found, proceeding anyway");
+      console.error("[DLC] QWebChannel: dlcModuleInitialized method not found on dlaInterface");
+      console.log("[DLC] QWebChannel: Available methods:", Object.keys(dlaIface));
+      return false;
     }
     
-    // Wait a bit for DLA to respond
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Setup the interface
-    return setupDLAInterface(dlaIface);
+    // Wait for DLA's acknowledgement via dlcModuleReady signal
+    return new Promise((resolve) => {
+      const timeout = setTimeout(() => {
+        console.error("[DLC] QWebChannel: dlcModuleReady signal timeout - DLA did not acknowledge");
+        resolve(false);
+      }, 5000);
+
+      if (dlaIface.dlcModuleReady) {
+        dlaIface.dlcModuleReady.connect(function(ackJson) {
+          clearTimeout(timeout);
+          console.log("[DLC] QWebChannel: DLA acknowledged connection via dlcModuleReady signal");
+          
+          // Setup the interface after DLA acknowledges
+          const setupSuccess = setupDLAInterface(dlaIface);
+          resolve(setupSuccess);
+        });
+      } else {
+        clearTimeout(timeout);
+        console.error("[DLC] QWebChannel: dlcModuleReady signal not found on dlaInterface");
+        resolve(false);
+      }
+    });
   } catch (error) {
     console.error("[DLC] QWebChannel: Error announcing DLC ready", error);
     debugError("Failed to announce DLC ready", error);
