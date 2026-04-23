@@ -29,35 +29,80 @@ let playerModeActionCallback = null;
 /**
  * Initialize QWebChannel connection with DLA
  * Called during Foundry ready hook
+ * 
+ * DLC initiates contact first (reversed messaging pattern):
+ * 1. DLC checks if dlaInterface exists
+ * 2. If it does, DLC sends "dlcReady" message to announce it's loaded
+ * 3. DLA responds by establishing connection
+ * 4. This avoids timing issues with events firing before listeners are ready
+ * 
  * @returns {Promise<boolean>} True if connected to DLA
  */
 export async function connect() {
   debugWebSocket("Initializing QWebChannel connection", {});
   
-  // Check if dlaInterface is already available
+  // Check if dlaInterface is already available (DLA loaded first)
   if (window.dlaInterface) {
-    console.log("[DLC] QWebChannel: dlaInterface found immediately");
-    return setupDLAInterface(window.dlaInterface);
+    console.log("[DLC] QWebChannel: dlaInterface found - announcing DLC is ready");
+    return announceDLCReady(window.dlaInterface);
   }
 
-  // If not available, wait for dlaInterfaceReady event
-  console.log("[DLC] QWebChannel: Waiting for dlaInterfaceReady event...");
+  // If not available yet, wait briefly for it to appear
+  console.log("[DLC] QWebChannel: dlaInterface not yet available - waiting...");
   
   return new Promise((resolve) => {
-    const timeout = setTimeout(() => {
-      console.log("[DLC] QWebChannel: dlaInterfaceReady event timeout - DLA not running");
-      debugWebSocket("DLA interface not available", { timeout: 10000 });
-      resolve(false);
-    }, 10000);
+    const checkInterval = setInterval(() => {
+      if (window.dlaInterface) {
+        clearInterval(checkInterval);
+        console.log("[DLC] QWebChannel: dlaInterface became available");
+        const result = announceDLCReady(window.dlaInterface);
+        resolve(result);
+      }
+    }, 100);
 
-    // Listen for the dlaInterfaceReady event from DLA
-    window.addEventListener("dlaInterfaceReady", (event) => {
-      clearTimeout(timeout);
-      console.log("[DLC] QWebChannel: dlaInterfaceReady event received");
-      const result = setupDLAInterface(window.dlaInterface);
-      resolve(result);
-    }, { once: true });
+    // Timeout after 10 seconds - DLA probably not running
+    setTimeout(() => {
+      clearInterval(checkInterval);
+      if (!window.dlaInterface) {
+        console.log("[DLC] QWebChannel: dlaInterface never appeared - DLA not running in embedded mode");
+        debugWebSocket("DLA interface not available", { timeout: 10000 });
+        resolve(false);
+      }
+    }, 10000);
   });
+}
+
+/**
+ * Announce to DLA that DLC is ready and initialized
+ * This triggers DLA to establish the connection
+ * @param {Object} dlaIface - The dlaInterface object from DLA
+ * @returns {Promise<boolean>} True if DLA acknowledged
+ */
+async function announceDLCReady(dlaIface) {
+  try {
+    console.log("[DLC] QWebChannel: Announcing DLC is ready to DLA");
+    
+    // Call the method on DLA interface to announce DLC is ready
+    if (typeof dlaIface.dlcReady === "function") {
+      dlaIface.dlcReady();
+      console.log("[DLC] QWebChannel: dlcReady() called");
+    } else if (typeof dlaIface.announceDLCReady === "function") {
+      dlaIface.announceDLCReady();
+      console.log("[DLC] QWebChannel: announceDLCReady() called");
+    } else {
+      console.log("[DLC] QWebChannel: No ready announcement method found, proceeding anyway");
+    }
+    
+    // Wait a bit for DLA to respond
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Setup the interface
+    return setupDLAInterface(dlaIface);
+  } catch (error) {
+    console.error("[DLC] QWebChannel: Error announcing DLC ready", error);
+    debugError("Failed to announce DLC ready", error);
+    return false;
+  }
 }
 
 /**
