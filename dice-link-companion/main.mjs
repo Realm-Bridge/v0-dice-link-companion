@@ -580,11 +580,13 @@ Hooks.once("ready", async () => {
       const players = [];
       for (const user of game.users) {
         // Include everyone (including GM) so all users can see each other's modes
+        // Add isSelf flag so DLA knows which player is the logged-in user
         players.push({
           id: user.id,
           name: user.name,
           mode: getPlayerMode(user.id),
-          isGM: user.isGM
+          isGM: user.isGM,
+          isSelf: user.id === game.user?.id
         });
       }
       const globalOverride = getGlobalOverride();
