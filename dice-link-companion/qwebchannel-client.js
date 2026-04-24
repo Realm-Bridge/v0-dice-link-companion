@@ -233,6 +233,19 @@ function setupDLAInterface(dlaIface) {
       });
     }
 
+    // Connection health check - ping/pong mechanism
+    if (dlaInterface.connectionPingReady) {
+      dlaInterface.connectionPingReady.connect(() => {
+        console.log("[DLC] QWebChannel: Received ping, sending pong...");
+        if (dlaInterface.receiveConnectionPong) {
+          dlaInterface.receiveConnectionPong();
+          console.log("[DLC] QWebChannel: Pong sent");
+        } else {
+          console.warn("[DLC] QWebChannel: receiveConnectionPong method not available");
+        }
+      });
+    }
+
     // Notify all listeners that connection established
     notifyConnectionChange(true);
     return true;
