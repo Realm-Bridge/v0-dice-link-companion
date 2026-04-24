@@ -203,13 +203,13 @@ function setupDLAInterface(dlaIface) {
       });
     }
 
-    // Dice tray roll - callback expects: (result object)
+    // Dice tray roll - callback expects: (formula, flavor)
     if (dlaInterface.diceTrayRollReady) {
       dlaInterface.diceTrayRollReady.connect((result) => {
         console.log("[DLC] QWebChannel: Received diceTrayRoll signal");
         const message = JSON.parse(result);
         if (diceTrayRollCallback) {
-          diceTrayRollCallback(message);
+          diceTrayRollCallback(message.formula, message.flavor);
         }
       });
     }
